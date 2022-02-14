@@ -59,7 +59,6 @@ public class AbstractQuorumTracker<T extends AbstractQuorumTracker.QuorumShardTr
         super(shards, arrayFactory, trackerFactory);
     }
 
-    // TODO: refactor to return true if this call caused the state change to failed
     public boolean recordFailure(Node.Id node)
     {
         return matchingTrackersForNode(node, QuorumShardTracker::onFailure) > 0;

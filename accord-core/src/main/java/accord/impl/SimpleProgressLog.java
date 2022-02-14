@@ -75,6 +75,7 @@ public class SimpleProgressLog implements Runnable, Function<CommandStore, Progr
         Ballot maxPromised;
         boolean maxPromiseHasBeenAccepted;
 
+        // highest execution time of the commands waiting on this command to execute
         Timestamp maxWaitingAt;
 
         Object inProgress;
@@ -281,6 +282,7 @@ public class SimpleProgressLog implements Runnable, Function<CommandStore, Progr
                             return;
 
                         if (fail != null) state.internalStatus = NoProgress;
+                        // TODO (review): why is no progress expected??
                         else if (state.internalStatus == Investigating) state.internalStatus = NoProgressExpected;
                     });
                     break;

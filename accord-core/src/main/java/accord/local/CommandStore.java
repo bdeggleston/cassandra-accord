@@ -154,43 +154,6 @@ public abstract class CommandStore
         return rangeMap.ranges;
     }
 
-    // TODO: efficiency
-    List<Shard> shardsFor(Command command)
-    {
-        RangeMapping mapping = rangeMap;
-        Keys keys = command.txn().keys;
-
-        List<Shard> result = new ArrayList<>();
-        int lowerBound = 0;
-        for (int i=0; i<mapping.ranges.size(); i++)
-        {
-            KeyRange range = mapping.ranges.get(i);
-            int lowKeyIdx = range.lowKeyIndex(keys, lowerBound, keys.size());
-
-            if (lowKeyIdx < -keys.size())
-                break;
-
-            if (lowKeyIdx < 0)
-            {
-                // all remaining keys are greater than this range, so go to the next one
-                lowerBound = -1 - lowKeyIdx;
-                continue;
-            }
-
-            // otherwise this range intersects with the txn, so add it's shard's endpoings
-            // TODO: filter pending nodes for reads
-            result.add(mapping.shards[i]);
-            lowerBound = lowKeyIdx;
-        }
-
-        return result;
-    }
-
-    public Set<Node.Id> nodesFor(Command command)
-    {
-        return nodesFor(command.txn().keys);
-    }
-
     public Set<Node.Id> nodesFor(Keys keys)
     {
         RangeMapping mapping = rangeMap;

@@ -1,17 +1,8 @@
 package accord.coordinate;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.BiConsumer;
-
-import com.google.common.base.Preconditions;
-
 import accord.api.Key;
 import accord.local.Node;
 import accord.local.Status;
-import accord.messages.CheckStatus;
-import accord.messages.CheckStatus.CheckStatusOk;
-import accord.messages.CheckStatus.CheckStatusOkFull;
-import accord.messages.CheckStatus.IncludeInfo;
 import accord.topology.Shard;
 import accord.txn.Ballot;
 import accord.txn.Txn;

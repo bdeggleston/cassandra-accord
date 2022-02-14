@@ -127,8 +127,7 @@ public abstract class CheckShardStatus extends CompletableFuture<CheckStatusOk> 
     private void sendMore()
     {
         // TODO: send to local nodes first, and send in batches (local then remote)
-        Id next = candidates.get(candidates.size() - 1);
-        candidates.remove(candidates.size() - 1);
+        Id next = candidates.remove(candidates.size() - 1);
         tracker.recordInflightRead(next);
         node.send(next, new CheckStatus(txnId, key, includeInfo), this);
     }
