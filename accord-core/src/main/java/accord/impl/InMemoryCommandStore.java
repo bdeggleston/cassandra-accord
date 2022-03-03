@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public abstract class InMemoryCommandStore extends CommandStore
 {
@@ -63,7 +64,7 @@ public abstract class InMemoryCommandStore extends CommandStore
     @Override
     public CommandsForKey commandsForKey(Key key)
     {
-        return commandsForKey.computeIfAbsent(key, ignore -> new CommandsForKey());
+        return commandsForKey.computeIfAbsent(key, ignore -> new InMemoryCommandsForKey());
     }
 
     public boolean hasCommandsForKey(Key key)
@@ -127,10 +128,8 @@ public abstract class InMemoryCommandStore extends CommandStore
             for (CommandsForKey commands : rangeCommands)
             {
 
-                Collection<Command> committed = commands.committedByExecuteAt.subMap(minTimestamp,
-                                                                                     true,
-                                                                                     maxTimestamp,
-                                                                                     true).values();
+                Collection<Command> committed = commands.committedByExecuteAt()
+                        .between(minTimestamp, maxTimestamp).collect(Collectors.toList());
                 committed.forEach(consumer);
             }
         }

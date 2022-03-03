@@ -109,9 +109,9 @@ public class Txn
         return keys().stream().flatMap(key -> {
             CommandsForKey forKey = commandStore.commandsForKey(key);
             return Stream.concat(
-            forKey.uncommitted.headMap(mayExecuteBefore, false).values().stream(),
+            forKey.uncommitted().before(mayExecuteBefore),
             // TODO: only return latest of Committed?
-            forKey.committedByExecuteAt.headMap(mayExecuteBefore, false).values().stream()
+            forKey.committedByExecuteAt().before(mayExecuteBefore)
             );
         });
     }
@@ -120,7 +120,7 @@ public class Txn
     {
         return keys().stream().flatMap(key -> {
             CommandsForKey forKey = commandStore.commandsForKey(key);
-            return forKey.uncommitted.headMap(startedBefore, false).values().stream();
+            return forKey.uncommitted().before(startedBefore);
         });
     }
 
@@ -128,7 +128,7 @@ public class Txn
     {
         return keys().stream().flatMap(key -> {
             CommandsForKey forKey = commandStore.commandsForKey(key);
-            return forKey.committedById.headMap(startedBefore, false).values().stream();
+            return forKey.committedById().before(startedBefore);
         });
     }
 
@@ -136,7 +136,7 @@ public class Txn
     {
         return keys().stream().flatMap(key -> {
             CommandsForKey forKey = commandStore.commandsForKey(key);
-            return forKey.uncommitted.tailMap(startedAfter, false).values().stream();
+            return forKey.uncommitted().after(startedAfter);
         });
     }
 
@@ -144,7 +144,7 @@ public class Txn
     {
         return keys().stream().flatMap(key -> {
             CommandsForKey forKey = commandStore.commandsForKey(key);
-            return forKey.committedByExecuteAt.tailMap(startedAfter, false).values().stream();
+            return forKey.committedByExecuteAt().after(startedAfter);
         });
     }
 
