@@ -3,6 +3,8 @@ package accord.txn;
 import accord.api.Write;
 import accord.local.CommandStore;
 
+import java.util.Objects;
+
 public class Writes
 {
     public final Timestamp executeAt;
@@ -14,6 +16,21 @@ public class Writes
         this.executeAt = executeAt;
         this.keys = keys;
         this.write = write;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Writes writes = (Writes) o;
+        return executeAt.equals(writes.executeAt) && keys.equals(writes.keys) && write.equals(writes.write);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(executeAt, keys, write);
     }
 
     public void apply(CommandStore commandStore)

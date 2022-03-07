@@ -5,6 +5,7 @@ import accord.local.*;
 import accord.txn.*;
 
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
 
 import static accord.local.Status.NotWitnessed;
@@ -31,6 +32,33 @@ public class InMemoryCommand extends Command
     {
         this.commandStore = commandStore;
         this.txnId = txnId;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        InMemoryCommand command = (InMemoryCommand) o;
+        return commandStore == command.commandStore
+                && txnId.equals(command.txnId)
+                && Objects.equals(txn, command.txn)
+                && promised.equals(command.promised)
+                && accepted.equals(command.accepted)
+                && Objects.equals(executeAt, command.executeAt)
+                && deps.equals(command.deps)
+                && Objects.equals(writes, command.writes)
+                && Objects.equals(result, command.result)
+                && status == command.status
+                && Objects.equals(waitingOnCommit, command.waitingOnCommit)
+                && Objects.equals(waitingOnApply, command.waitingOnApply)
+                && Objects.equals(listeners, command.listeners);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(commandStore, txnId, txn, promised, accepted, executeAt, deps, writes, result, status, waitingOnCommit, waitingOnApply, listeners);
     }
 
     @Override

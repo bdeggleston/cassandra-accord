@@ -41,7 +41,11 @@ public class Txn
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Txn txn = (Txn) o;
-        return kind == txn.kind && keys.equals(txn.keys) && read.equals(txn.read) && query.equals(txn.query) && Objects.equals(update, txn.update);
+        return kind == txn.kind
+                && keys.equals(txn.keys)
+                && read.equals(txn.read)
+                && query.equals(txn.query)
+                && Objects.equals(update, txn.update);
     }
 
     @Override
