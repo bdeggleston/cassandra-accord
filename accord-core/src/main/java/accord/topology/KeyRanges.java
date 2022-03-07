@@ -25,6 +25,11 @@ public class KeyRanges implements Iterable<KeyRange>
         this(ranges.toArray(KeyRange[]::new));
     }
 
+    public static KeyRanges of(KeyRange... ranges)
+    {
+        return new KeyRanges(ranges);
+    }
+
     @Override
     public String toString()
     {
