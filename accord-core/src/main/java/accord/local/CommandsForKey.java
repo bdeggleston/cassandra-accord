@@ -15,6 +15,8 @@ public abstract class CommandsForKey implements Listener, Iterable<Command>
         void add(Timestamp timestamp, Command command);
         void remove(Timestamp timestamp);
 
+        boolean isEmpty();
+
         /**
          * All commands before (exclusive of) the given timestamp
          */

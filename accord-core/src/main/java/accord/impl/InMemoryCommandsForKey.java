@@ -33,6 +33,12 @@ public class InMemoryCommandsForKey extends CommandsForKey
         }
 
         @Override
+        public boolean isEmpty()
+        {
+            return commands.isEmpty();
+        }
+
+        @Override
         public Stream<Command> before(Timestamp timestamp)
         {
             return commands.headMap(timestamp, false).values().stream();
