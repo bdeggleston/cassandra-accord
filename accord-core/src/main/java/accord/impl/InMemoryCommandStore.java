@@ -135,6 +135,19 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
     }
 
+    protected void processInternal(Consumer<? super CommandStore> consumer, Promise<Void> promise)
+    {
+        try
+        {
+            consumer.accept(this);
+            promise.setSuccess(null);
+        }
+        catch (Throwable e)
+        {
+            promise.tryFailure(e);
+        }
+    }
+
     public static class Synchronized extends InMemoryCommandStore
     {
         public static final Factory FACTORY = Synchronized::new;
@@ -278,13 +291,6 @@ public abstract class InMemoryCommandStore extends CommandStore
         {
             assertThread();
             return super.hasCommandsForKey(key);
-        }
-
-        @Override
-        protected <R> void processInternal(Function<? super CommandStore, R> function, Promise<R> promise)
-        {
-            assertThread();
-            super.processInternal(function, promise);
         }
 
         @Override
