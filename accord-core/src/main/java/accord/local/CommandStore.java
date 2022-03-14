@@ -10,7 +10,6 @@ import accord.txn.Keys;
 import accord.txn.Timestamp;
 import accord.txn.TxnId;
 import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.Promise;
 
 import com.google.common.base.Preconditions;
 
@@ -158,31 +157,6 @@ public abstract class CommandStore
     {
         for (CommandStore store : stores)
             store.process(consumer);
-    }
-
-    protected <R> void processInternal(Function<? super CommandStore, R> function, Promise<R> promise)
-    {
-        try
-        {
-            promise.setSuccess(function.apply(this));
-        }
-        catch (Throwable e)
-        {
-            promise.tryFailure(e);
-        }
-    }
-
-    protected void processInternal(Consumer<? super CommandStore> consumer, Promise<Void> promise)
-    {
-        try
-        {
-            consumer.accept(this);
-            promise.setSuccess(null);
-        }
-        catch (Throwable e)
-        {
-            promise.tryFailure(e);
-        }
     }
 
     public abstract Future<Void> process(Consumer<? super CommandStore> consumer);
