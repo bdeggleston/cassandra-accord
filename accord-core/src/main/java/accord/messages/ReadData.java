@@ -54,6 +54,12 @@ public class ReadData extends TxnRequest
             }
 
             @Override
+            public boolean isTransient()
+            {
+                return true;
+            }
+
+            @Override
             public void run()
             {
                 Iterator<CommandStore> i = waitingOn.iterator();
@@ -86,6 +92,12 @@ public class ReadData extends TxnRequest
             command.removeListener(this);
             if (!isObsolete)
                 read(command);
+        }
+
+        @Override
+        public boolean isTransient()
+        {
+            return true;
         }
 
         private void read(Command command)
