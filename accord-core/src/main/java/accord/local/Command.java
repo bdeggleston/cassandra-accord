@@ -23,28 +23,27 @@ public abstract class Command implements Listener, Consumer<Listener>
     public abstract CommandStore commandStore();
 
     public abstract Txn txn();
-
     public abstract void txn(Txn txn);
+
     public abstract Ballot promised();
-
     public abstract void promised(Ballot ballot);
+
     public abstract Ballot accepted();
-
     public abstract void accepted(Ballot ballot);
+
     public abstract Timestamp executeAt();
-
     public abstract void executeAt(Timestamp timestamp);
+
     public abstract Dependencies savedDeps();
-
     public abstract void savedDeps(Dependencies deps);
+
     public abstract Writes writes();
-
     public abstract void writes(Writes writes);
+
     public abstract Result result();
-
     public abstract void result(Result result);
-    public abstract Status status();
 
+    public abstract Status status();
     public abstract void status(Status status);
 
     public abstract Command addListener(Listener listener);
@@ -54,13 +53,13 @@ public abstract class Command implements Listener, Consumer<Listener>
     public abstract void clearWaitingOnCommit();
     public abstract void addWaitingOnCommit(TxnId txnId, Command command);
     public abstract boolean isWaitingOnCommit();
-    public abstract boolean removeWaitingOnCommit(TxnId txnId);
+    public abstract void removeWaitingOnCommit(TxnId txnId);
     public abstract Command firstWaitingOnCommit();
 
     public abstract void clearWaitingOnApply();
     public abstract void addWaitingOnApplyIfAbsent(Timestamp txnId, Command command);
     public abstract boolean isWaitingOnApply();
-    public abstract boolean removeWaitingOnApply(Timestamp txnId);
+    public abstract void removeWaitingOnApply(Timestamp txnId);
     public abstract Command firstWaitingOnApply();
 
     public boolean hasBeen(Status status)
@@ -216,7 +215,8 @@ public abstract class Command implements Listener, Consumer<Listener>
                     updatePredecessor(command);
                     if (isWaitingOnCommit())
                     {
-                        if (removeWaitingOnCommit(command.txnId()) && !isWaitingOnCommit())
+                        removeWaitingOnCommit(command.txnId());
+                        if (!isWaitingOnCommit())
                             clearWaitingOnCommit();
                     }
                     if (!isWaitingOnCommit() && !isWaitingOnApply())
