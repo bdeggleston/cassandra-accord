@@ -104,6 +104,11 @@ public abstract class CommandStore
         return ranges;
     }
 
+    public int generation()
+    {
+        return generation;
+    }
+
     public int index()
     {
         return index;
