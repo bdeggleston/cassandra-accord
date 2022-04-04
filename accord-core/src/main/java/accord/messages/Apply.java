@@ -38,8 +38,7 @@ public class Apply extends TxnRequest
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
-        node.forEachLocal(scope(), instance -> instance.command(txnId).apply(txn, deps, executeAt, writes, result));
+        node.forEachLocal(this, instance -> instance.command(txnId).apply(txn, deps, executeAt, writes, result));
     }
 
     @Override

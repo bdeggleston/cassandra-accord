@@ -48,6 +48,11 @@ public abstract class CommandStores
             return keys.foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, -1L);
         }
 
+        long matches(TxnRequest request)
+        {
+            return request.scope().foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, all());
+        }
+
         long matches(TxnRequest.Scope scope)
         {
             return matches(scope.keys());
@@ -212,19 +217,24 @@ public abstract class CommandStores
         forEach(StoreGroup::matches, keys, forEach);
     }
 
-    public void forEach(TxnRequest.Scope scope, Consumer<CommandStore> forEach)
+    public void forEach(TxnRequest request, Consumer<CommandStore> forEach)
     {
-        forEach(StoreGroup::matches, scope, forEach);
+        forEach(StoreGroup::matches, request, forEach);
     }
 
-    public <T> T mapReduce(TxnRequest.Scope scope, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    public <T> T mapReduce(TxnRequest request, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
-        return mapReduce(StoreGroup::matches, scope, map, reduce);
+        return mapReduce(StoreGroup::matches, request, map, reduce);
     }
 
     public <T extends Collection<CommandStore>> T collect(Keys keys, IntFunction<T> factory)
     {
         return groups.foldl(StoreGroup::matches, keys, CommandStores::append, null, null, factory);
+    }
+
+    public <T extends Collection<CommandStore>> T collect(TxnRequest request, IntFunction<T> factory)
+    {
+        return groups.foldl(StoreGroup::matches, request, CommandStores::append, null, null, factory);
     }
 
     public <T extends Collection<CommandStore>> T collect(TxnRequest.Scope scope, IntFunction<T> factory)

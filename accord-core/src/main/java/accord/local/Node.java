@@ -202,19 +202,24 @@ public class Node implements ConfigurationService.Listener
         forEachLocal(txn.keys, forEach);
     }
 
-    public void forEachLocal(TxnRequest.Scope scope, Consumer<CommandStore> forEach)
+    public void forEachLocal(TxnRequest request, Consumer<CommandStore> forEach)
     {
-        commandStores.forEach(scope, forEach);
+        commandStores.forEach(request, forEach);
     }
 
-    public <T> T mapReduceLocal(TxnRequest.Scope scope, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    public <T> T mapReduceLocal(TxnRequest request, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
-        return commandStores.mapReduce(scope, map, reduce);
+        return commandStores.mapReduce(request, map, reduce);
     }
 
     public <T extends Collection<CommandStore>> T collectLocal(Keys keys, IntFunction<T> factory)
     {
         return commandStores.collect(keys, factory);
+    }
+
+    public <T extends Collection<CommandStore>> T collectLocal(TxnRequest request, IntFunction<T> factory)
+    {
+        return commandStores.collect(request, factory);
     }
 
     public <T extends Collection<CommandStore>> T collectLocal(TxnRequest.Scope scope, IntFunction<T> factory)
