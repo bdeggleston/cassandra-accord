@@ -1,11 +1,12 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
+import accord.api.Key;
 import accord.local.*;
 import accord.local.Node.Id;
 import accord.api.Data;
@@ -26,6 +27,7 @@ public class ReadData extends TxnRequest
         final Node node;
         final Node.Id replyToNode;
         final Keys keyScope;
+        final Keys txnKeys;
         final ReplyContext replyContext;
 
         Data data;
@@ -33,19 +35,33 @@ public class ReadData extends TxnRequest
         Set<CommandStore> waitingOn;
         Scheduled waitingOnReporter;
 
-        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys keyScope, ReplyContext replyContext)
+        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys keyScope, Keys txnKeys, ReplyContext replyContext)
         {
             this.txnId = txnId;
             this.node = node;
             this.replyToNode = replyToNode;
             this.keyScope = keyScope;
+            this.txnKeys = txnKeys;
             this.replyContext = replyContext;
             // TODO: this is messy, we want a complete separate liveness mechanism that ensures progress for all transactions
             this.waitingOnReporter = node.scheduler().once(new ReportWaiting(), 1L, TimeUnit.SECONDS);
         }
 
-        class ReportWaiting implements Listener, Runnable, TxnOperation
+        @Override
+        public Iterable<TxnId> expectedTxnIds()
         {
+            return Collections.singletonList(txnId);
+        }
+
+        @Override
+        public Iterable<Key> expectedKeys()
+        {
+            return txnKeys;
+        }
+
+        class ReportWaiting implements Listener, Runnable
+        {
+
             @Override
             public void onChange(Command command)
             {
@@ -183,9 +199,21 @@ public class ReadData extends TxnRequest
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt);
     }
 
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
+    }
+
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, node, from, scope().keys(), replyContext).setup(txnId, txn, scope());
+        new LocalRead(txnId, node, from, scope().keys(), txn.keys(), replyContext).setup(txnId, txn, scope());
     }
 
     @Override

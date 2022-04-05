@@ -1,9 +1,11 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
 
+import accord.api.Key;
 import accord.local.CommandStore;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -29,6 +31,18 @@ public class PreAccept extends TxnRequest
     public PreAccept(Id to, Topologies topologies, TxnId txnId, Txn txn)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     public void process(Node node, Id from, ReplyContext replyContext)

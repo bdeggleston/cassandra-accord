@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.api.Result;
@@ -9,6 +10,8 @@ import accord.txn.Timestamp;
 import accord.txn.Writes;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+
+import java.util.Collections;
 
 public class Apply extends TxnRequest
 {
@@ -34,6 +37,18 @@ public class Apply extends TxnRequest
     public Apply(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt, Dependencies deps, Writes writes, Result result)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt, deps, writes, result);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)

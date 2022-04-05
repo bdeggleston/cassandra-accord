@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.api.Key;
 import accord.topology.Topologies;
 import accord.txn.Ballot;
 import accord.local.Node;
@@ -8,6 +9,8 @@ import accord.local.Command;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+
+import java.util.Collections;
 
 import static accord.messages.PreAccept.calculateDeps;
 
@@ -32,6 +35,18 @@ public class Accept extends TxnRequest
     public Accept(Node.Id dst, Topologies topologies, Ballot ballot, TxnId txnId, Txn txn, Timestamp executeAt, Dependencies deps)
     {
         this(Scope.forTopologies(dst, topologies, txn), ballot, txnId, txn, executeAt, deps);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     public void process(Node on, Node.Id replyToNode, ReplyContext replyContext)

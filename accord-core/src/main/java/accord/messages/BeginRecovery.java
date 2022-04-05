@@ -1,6 +1,7 @@
 package accord.messages;
 
 import accord.api.ConfigurationService;
+import accord.api.Key;
 import accord.api.Result;
 import accord.topology.Topologies;
 import accord.txn.Writes;
@@ -14,6 +15,8 @@ import accord.local.Status;
 import accord.txn.Txn;
 import accord.txn.TxnId;
 import com.google.common.base.Preconditions;
+
+import java.util.Collections;
 
 import static accord.local.Status.Accepted;
 import static accord.local.Status.Applied;
@@ -39,6 +42,18 @@ public class BeginRecovery extends TxnRequest
     public BeginRecovery(Id to, Topologies topologies, TxnId txnId, Txn txn, Ballot ballot)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, ballot);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)

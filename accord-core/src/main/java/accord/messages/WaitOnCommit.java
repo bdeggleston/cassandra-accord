@@ -1,9 +1,11 @@
 package accord.messages;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import accord.api.Key;
 import accord.local.*;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
@@ -87,7 +89,7 @@ public class WaitOnCommit extends TxnRequest
             List<CommandStore> instances = node.collectLocal(keys, ArrayList::new);
             waitingOn.set(instances.size());
             // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
-            instances.forEach(instance -> instance.processBlocking(this::setup));
+            CommandStore.onEach(instances, this::setup);
         }
     }
 
@@ -104,6 +106,18 @@ public class WaitOnCommit extends TxnRequest
     public WaitOnCommit(Id to, Topologies topologies, TxnId txnId, Keys keys)
     {
         this(Scope.forTopologies(to, topologies, keys), txnId, keys);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return keys;
     }
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
