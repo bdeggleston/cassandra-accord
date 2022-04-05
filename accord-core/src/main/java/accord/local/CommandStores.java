@@ -50,7 +50,7 @@ public abstract class CommandStores
 
         long matches(TxnRequest request)
         {
-            return request.scope().foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, all());
+            return matches(request.scope());
         }
 
         long matches(TxnRequest.Scope scope)
