@@ -7,6 +7,9 @@ import accord.txn.Timestamp;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.collect.Iterables;
+
+import java.util.Collections;
 
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends ReadData
@@ -24,6 +27,12 @@ public class Commit extends ReadData
     public Commit(Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt, Dependencies deps, boolean read)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt, deps, read);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
     }
 
     public void process(Node node, Id from, ReplyContext replyContext)
