@@ -66,7 +66,7 @@ public class ReadData extends TxnRequest
             public void onChange(Command command)
             {
                 command.removeListener(this);
-                run();
+                node.scheduler().now(this);
             }
 
             @Override
@@ -78,13 +78,22 @@ public class ReadData extends TxnRequest
             @Override
             public void run()
             {
-                Iterator<CommandStore> i = waitingOn.iterator();
-                Command blockedBy = null;
-                while (i.hasNext() && null == (blockedBy = i.next().command(txnId).blockedBy()));
-                if (blockedBy == null) return;
-                blockedBy.addListener(this);
-                assert blockedBy.status().compareTo(Status.NotWitnessed) > 0;
-                node.reply(replyToNode, replyContext, new ReadWaiting(txnId, blockedBy.txnId(), blockedBy.txn(), blockedBy.executeAt(), blockedBy.status()));
+                Set<CommandStore> pending;
+                synchronized (LocalRead.this)
+                {
+                    pending = new HashSet<>(waitingOn);
+                }
+
+                ReadWaiting response = CommandStores.mapReduce(pending, LocalRead.this, instance -> {
+                    Command blockedBy = instance.command(txnId).blockedBy();
+                    if (blockedBy == null)
+                        return null;
+                    blockedBy.addListener(this);
+                    return new ReadWaiting(txnId, blockedBy.txnId(), blockedBy.txn(), blockedBy.executeAt(), blockedBy.status());
+                }, (result, next) -> result != null ? result : next);
+
+                if (response != null)
+                    node.reply(replyToNode, replyContext, response);
             }
         }
 
@@ -116,18 +125,23 @@ public class ReadData extends TxnRequest
             return true;
         }
 
-        private void read(Command command)
+        private synchronized void readComplete(CommandStore commandStore, Data result)
         {
-            // TODO: threading/futures (don't want to perform expensive reads within this mutually exclusive context)
-            Data next = command.txn().read(command, keyScope);
-            data = data == null ? next : data.merge(next);
+            data = data == null ? result : data.merge(result);
 
-            waitingOn.remove(command.commandStore());
+            waitingOn.remove(commandStore);
             if (waitingOn.isEmpty())
             {
                 waitingOnReporter.cancel();
                 node.reply(replyToNode, replyContext, new ReadOk(data));
             }
+        }
+
+        private void read(Command command)
+        {
+            // TODO: threading/futures (don't want to perform expensive reads within this mutually exclusive context)
+            Data next = command.txn().read(command, keyScope);
+            readComplete(command.commandStore(), next);
         }
 
         void obsolete(Command command)
@@ -156,7 +170,7 @@ public class ReadData extends TxnRequest
             waitingOn = node.collectLocal(scope, DeterministicIdentitySet::new);
             // FIXME: fix/check thread safety
             // FIXME (rebase): rework forEach and mapReduce to not require these to be public
-            CommandStore.onEach(waitingOn, this, instance -> {
+            CommandStores.forEachNonBlocking(waitingOn, this, instance -> {
                 Command command = instance.command(txnId);
                 command.witness(txn);
                 switch (command.status())
