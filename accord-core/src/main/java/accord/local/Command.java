@@ -1,7 +1,5 @@
 package accord.local;
 
-import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.function.Consumer;
 
 import accord.api.Result;
@@ -16,128 +14,105 @@ import static accord.local.Status.Accepted;
 import static accord.local.Status.Applied;
 import static accord.local.Status.Committed;
 import static accord.local.Status.Executed;
-import static accord.local.Status.NotWitnessed;
 import static accord.local.Status.PreAccepted;
 import static accord.local.Status.ReadyToExecute;
 
-public class Command implements Listener, Consumer<Listener>
+public abstract class Command implements Listener, Consumer<Listener>
 {
-    public final CommandStore commandStore;
-    private final TxnId txnId;
-    private Txn txn;
-    private Ballot promised = Ballot.ZERO, accepted = Ballot.ZERO;
-    private Timestamp executeAt;
-    private Dependencies deps = new Dependencies();
-    private Writes writes;
-    private Result result;
+    public abstract TxnId txnId();
+    public abstract CommandStore commandStore();
 
-    private Status status = NotWitnessed;
+    public abstract Txn txn();
 
-    private NavigableMap<TxnId, Command> waitingOnCommit;
-    private NavigableMap<Timestamp, Command> waitingOnApply;
+    public abstract void txn(Txn txn);
+    public abstract Ballot promised();
 
-    private final Listeners listeners = new Listeners();
+    public abstract void promised(Ballot ballot);
+    public abstract Ballot accepted();
 
-    public Command(CommandStore commandStore, TxnId id)
-    {
-        this.commandStore = commandStore;
-        this.txnId = id;
-    }
+    public abstract void accepted(Ballot ballot);
+    public abstract Timestamp executeAt();
 
-    public TxnId txnId()
-    {
-        return txnId;
-    }
+    public abstract void executeAt(Timestamp timestamp);
+    public abstract Dependencies savedDeps();
 
-    public Txn txn()
-    {
-        return txn;
-    }
+    public abstract void savedDeps(Dependencies deps);
+    public abstract Writes writes();
 
-    public Ballot promised()
-    {
-        return promised;
-    }
+    public abstract void writes(Writes writes);
+    public abstract Result result();
 
-    public Ballot accepted()
-    {
-        return accepted;
-    }
+    public abstract void result(Result result);
+    public abstract Status status();
 
-    public Timestamp executeAt()
-    {
-        return executeAt;
-    }
+    public abstract void status(Status status);
 
-    public Dependencies savedDeps()
-    {
-        return deps;
-    }
+    public abstract Command addListener(Listener listener);
+    public abstract void removeListener(Listener listener);
+    public abstract void notifyListeners();
 
-    public Writes writes()
-    {
-        return writes;
-    }
+    public abstract void clearWaitingOnCommit();
+    public abstract void addWaitingOnCommit(TxnId txnId, Command command);
+    public abstract boolean isWaitingOnCommit();
+    public abstract boolean removeWaitingOnCommit(TxnId txnId);
+    public abstract Command firstWaitingOnCommit();
 
-    public Result result()
-    {
-        return result;
-    }
-
-    public Status status()
-    {
-        return status;
-    }
+    public abstract void clearWaitingOnApply();
+    public abstract void addWaitingOnApplyIfAbsent(Timestamp txnId, Command command);
+    public abstract boolean isWaitingOnApply();
+    public abstract boolean removeWaitingOnApply(Timestamp txnId);
+    public abstract Command firstWaitingOnApply();
 
     public boolean hasBeen(Status status)
     {
-        return this.status.compareTo(status) >= 0;
+        return status().compareTo(status) >= 0;
     }
 
     public boolean is(Status status)
     {
-        return this.status == status;
+        return status() == status;
     }
 
     // requires that command != null
     // relies on mutual exclusion for each key
     public boolean witness(Txn txn)
     {
-        if (promised.compareTo(Ballot.ZERO) > 0)
+        if (promised().compareTo(Ballot.ZERO) > 0)
             return false;
 
         if (hasBeen(PreAccepted))
             return true;
 
-        Timestamp max = txn.maxConflict(commandStore);
+        Timestamp max = txn.maxConflict(commandStore());
         // unlike in the Accord paper, we partition shards within a node, so that to ensure a total order we must either:
         //  - use a global logical clock to issue new timestamps; or
         //  - assign each shard _and_ process a unique id, and use both as components of the timestamp
-        Timestamp witnessed = txnId.compareTo(max) > 0 && txnId.epoch >= commandStore.epoch() ? txnId : commandStore.uniqueNow(max);
+        Timestamp witnessed = txnId().compareTo(max) > 0 && txnId().epoch >= commandStore().epoch() ? txnId() : commandStore().uniqueNow(max);
 
-        this.txn = txn;
-        this.executeAt = witnessed;
-        this.status = PreAccepted;
+        txn(txn);
+        executeAt(witnessed);
+        status(PreAccepted);
 
-        txn.register(commandStore, this);
-        listeners.forEach(this);
+        txn.register(commandStore(), this);
+        notifyListeners();
         return true;
     }
 
     public boolean accept(Ballot ballot, Txn txn, Timestamp executeAt, Dependencies deps)
     {
-        if (this.promised.compareTo(ballot) > 0)
+        if (promised().compareTo(ballot) > 0)
             return false;
 
         if (hasBeen(Committed))
             return false;
 
         witness(txn);
-        this.deps = deps;
-        this.executeAt = executeAt;
-        promised = accepted = ballot;
-        status = Accepted;
-        listeners.forEach(this);
+        savedDeps(deps);
+        executeAt(executeAt);
+        promised(ballot);
+        accepted(ballot);
+        status(Accepted);
+        notifyListeners();
         return true;
     }
 
@@ -146,32 +121,32 @@ public class Command implements Listener, Consumer<Listener>
     {
         if (hasBeen(Committed))
         {
-            if (executeAt.equals(this.executeAt))
+            if (executeAt.equals(executeAt()))
                 return false;
 
-            commandStore.agent().onInconsistentTimestamp(this, this.executeAt, executeAt);
+            commandStore().agent().onInconsistentTimestamp(this, executeAt(), executeAt);
         }
 
         witness(txn);
-        this.status = Committed;
-        this.deps = deps;
-        this.executeAt = executeAt;
-        this.waitingOnCommit = new TreeMap<>();
-        this.waitingOnApply = new TreeMap<>();
+        status(Committed);
+        savedDeps(deps);
+        executeAt(executeAt);
+        clearWaitingOnCommit();
+        clearWaitingOnApply();
 
-        for (TxnId id : savedDeps().on(commandStore))
+        for (TxnId id : savedDeps().on(commandStore()))
         {
-            Command command = commandStore.command(id);
-            switch (command.status)
+            Command command = commandStore().command(id);
+            switch (command.status())
             {
                 default:
                     throw new IllegalStateException();
                 case NotWitnessed:
-                    command.witness(deps.get(command.txnId));
+                    command.witness(deps.get(command.txnId()));
                 case PreAccepted:
                 case Accepted:
                     // we don't know when these dependencies will execute, and cannot execute until we do
-                    waitingOnCommit.put(id, command);
+                    addWaitingOnCommit(id, command);
                     command.addListener(this);
                     break;
                 case Committed:
@@ -186,75 +161,66 @@ public class Command implements Listener, Consumer<Listener>
                     break;
             }
         }
-        if (waitingOnCommit.isEmpty())
+        // TODO: except for above, explicit waiting on clearing can probably be removed
+        //   was probably to prevent having to write != null && !isEmpty everywhere
+        if (!isWaitingOnCommit())
         {
-            waitingOnCommit = null;
-            if (waitingOnApply.isEmpty())
-                waitingOnApply = null;
+            clearWaitingOnCommit();
+            if (!isWaitingOnApply())
+                clearWaitingOnApply();
         }
-        listeners.forEach(this);
+        notifyListeners();
         maybeExecute();
         return true;
     }
 
     public boolean apply(Txn txn, Dependencies deps, Timestamp executeAt, Writes writes, Result result)
     {
-        if (hasBeen(Executed) && executeAt.equals(this.executeAt))
+        if (hasBeen(Executed) && executeAt.equals(executeAt()))
             return false;
         else if (!hasBeen(Committed))
             commit(txn, deps, executeAt);
-        else if (!executeAt.equals(this.executeAt))
-            commandStore.agent().onInconsistentTimestamp(this, this.executeAt, executeAt);
+        else if (!executeAt.equals(executeAt()))
+            commandStore().agent().onInconsistentTimestamp(this, executeAt(), executeAt);
 
-        this.executeAt = executeAt;
-        this.writes = writes;
-        this.result = result;
-        this.status = Executed;
-        this.listeners.forEach(this);
+        executeAt(executeAt);
+        writes(writes);
+        result(result);
+        status(Executed);
+        notifyListeners();
         maybeExecute();
         return true;
     }
 
     public boolean recover(Txn txn, Ballot ballot)
     {
-        if (this.promised.compareTo(ballot) > 0)
+        if (promised().compareTo(ballot) > 0)
             return false;
 
         witness(txn);
-        this.promised = ballot;
+        promised(ballot);
         return true;
-    }
-
-    public Command addListener(Listener listener)
-    {
-        listeners.add(listener);
-        return this;
-    }
-
-    public void removeListener(Listener listener)
-    {
-        listeners.remove(listener);
     }
 
     @Override
     public void onChange(Command command)
     {
-        switch (command.status)
+        switch (command.status())
         {
             case Committed:
             case ReadyToExecute:
             case Executed:
             case Applied:
-                if (waitingOnApply != null)
+                if (isWaitingOnApply())
                 {
                     updatePredecessor(command);
-                    if (waitingOnCommit != null)
+                    if (isWaitingOnCommit())
                     {
-                        if (waitingOnCommit.remove(command.txnId) != null && waitingOnCommit.isEmpty())
-                            waitingOnCommit = null;
+                        if (removeWaitingOnCommit(command.txnId()) && !isWaitingOnCommit())
+                            clearWaitingOnCommit();
                     }
-                    if (waitingOnCommit == null && waitingOnApply.isEmpty())
-                        waitingOnApply = null;
+                    if (!isWaitingOnCommit() && !isWaitingOnApply())
+                        clearWaitingOnApply();
                 }
                 else
                 {
@@ -267,41 +233,41 @@ public class Command implements Listener, Consumer<Listener>
 
     private void maybeExecute()
     {
-        if (status != Committed && status != Executed)
+        if (status() != Committed && status() != Executed)
             return;
 
-        if (waitingOnApply != null)
+        if (isWaitingOnApply())
             return;
 
-        switch (status)
+        switch (status())
         {
             case Committed:
                 // TODO: maintain distinct ReadyToRead and ReadyToWrite states
-                status = ReadyToExecute;
-                listeners.forEach(this);
+                status(ReadyToExecute);
+                notifyListeners();
                 break;
             case Executed:
-                writes.apply(commandStore);
-                status = Applied;
-                listeners.forEach(this);
+                writes().apply(commandStore());
+                status(Applied);
+                notifyListeners();
         }
     }
 
     private void updatePredecessor(Command committed)
     {
-        if (committed.executeAt.compareTo(executeAt) > 0)
+        if (committed.executeAt().compareTo(executeAt()) > 0)
         {
             // cannot be a predecessor if we execute later
             committed.removeListener(this);
         }
         else if (committed.hasBeen(Applied))
         {
-            waitingOnApply.remove(committed.executeAt);
+            removeWaitingOnApply(committed.executeAt());
             committed.removeListener(this);
         }
         else
         {
-            waitingOnApply.putIfAbsent(committed.executeAt, committed);
+            addWaitingOnApplyIfAbsent(committed.executeAt(), committed);
         }
     }
 
@@ -320,22 +286,22 @@ public class Command implements Listener, Consumer<Listener>
     private Command directlyBlockedBy()
     {
         // firstly we're waiting on every dep to commit
-        while (waitingOnCommit != null)
+        while (isWaitingOnCommit())
         {
             // TODO: when we change our liveness mechanism this may not be a problem
             // cannot guarantee that listener updating this set is invoked before this method by another listener
             // so we must check the entry is still valid, and potentially remove it if not
-            Command waitingOn = waitingOnCommit.firstEntry().getValue();
+            Command waitingOn = firstWaitingOnCommit();
             if (!waitingOn.hasBeen(Committed)) return waitingOn;
             onChange(waitingOn);
         }
 
-        while (waitingOnApply != null)
+        while (isWaitingOnApply())
         {
             // TODO: when we change our liveness mechanism this may not be a problem
             // cannot guarantee that listener updating this set is invoked before this method by another listener
             // so we must check the entry is still valid, and potentially remove it if not
-            Command waitingOn = waitingOnApply.firstEntry().getValue();
+            Command waitingOn = firstWaitingOnApply();
             if (!waitingOn.hasBeen(Applied)) return waitingOn;
             onChange(waitingOn);
         }
@@ -353,11 +319,11 @@ public class Command implements Listener, Consumer<Listener>
     public String toString()
     {
         return "Command{" +
-               "txnId=" + txnId +
-               ", status=" + status +
-               ", txn=" + txn +
-               ", executeAt=" + executeAt +
-               ", deps=" + deps +
+               "txnId=" + txnId() +
+               ", status=" + status() +
+               ", txn=" + txn() +
+               ", executeAt=" + executeAt() +
+               ", deps=" + savedDeps() +
                '}';
     }
 }

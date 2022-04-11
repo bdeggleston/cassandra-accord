@@ -52,7 +52,7 @@ public abstract class InMemoryCommandStore extends CommandStore
     @Override
     public Command command(TxnId txnId)
     {
-        return commands.computeIfAbsent(txnId, id -> new Command(this, id));
+        return commands.computeIfAbsent(txnId, id -> new InMemoryCommand(this, id));
     }
 
     public boolean hasCommand(TxnId txnId)

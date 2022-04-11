@@ -89,8 +89,8 @@ public class Txn
 
     public Data read(Command command, Keys keyScope)
     {
-        return keyScope.foldl(command.commandStore.ranges(), (key, accumulate) -> {
-            CommandStore commandStore = command.commandStore;
+        return keyScope.foldl(command.commandStore().ranges(), (key, accumulate) -> {
+            CommandStore commandStore = command.commandStore();
             if (!commandStore.hashIntersects(key))
                 return accumulate;
 
@@ -150,7 +150,7 @@ public class Txn
 
     public void register(CommandStore commandStore, Command command)
     {
-        assert commandStore == command.commandStore;
+        assert commandStore == command.commandStore();
         keys().forEach(key -> commandStore.commandsForKey(key).register(command));
     }
 

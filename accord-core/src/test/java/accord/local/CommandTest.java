@@ -1,9 +1,6 @@
 package accord.local;
 
-import accord.impl.InMemoryCommandStore;
-import accord.impl.IntKey;
-import accord.impl.TestAgent;
-import accord.impl.TopologyFactory;
+import accord.impl.*;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockStore;
 import accord.topology.Topology;
@@ -70,7 +67,7 @@ public class CommandTest
         TxnId txnId = clock.idForNode(1, 1);
         Txn txn = writeTxn(Keys.of(KEY));
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 
@@ -89,7 +86,7 @@ public class CommandTest
         Txn txn = writeTxn(Keys.of(KEY));
 
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 

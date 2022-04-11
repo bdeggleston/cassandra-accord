@@ -94,7 +94,7 @@ public class ReadData extends TxnRequest
             Data next = command.txn().read(command, keyScope);
             data = data == null ? next : data.merge(next);
 
-            waitingOn.remove(command.commandStore);
+            waitingOn.remove(command.commandStore());
             if (waitingOn.isEmpty())
             {
                 waitingOnReporter.cancel();
@@ -110,7 +110,7 @@ public class ReadData extends TxnRequest
                 waitingOnReporter.cancel();
                 Set<Node.Id> nodes = new HashSet<>();
                 Topologies topologies = node.topology().forKeys(command.txn().keys());
-                KeyRanges ranges = command.commandStore.ranges();
+                KeyRanges ranges = command.commandStore().ranges();
                 topologies.forEachShard(shard -> {
                     if (ranges.intersects(shard.range))
                         nodes.addAll(shard.nodes);
