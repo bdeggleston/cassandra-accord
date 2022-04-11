@@ -66,6 +66,42 @@ public class Keys implements Iterable<Key>
         return new Keys(selection);
     }
 
+    /**
+     * return true if this keys collection contains all keys found in the given keys
+     */
+    public boolean containsAll(Keys that)
+    {
+        if (isEmpty())
+            return that.isEmpty();
+
+        for (int thisIdx=0, thatIdx=0, thisSize=size(), thatSize=that.size();
+             thatIdx<thatSize;
+             thisIdx++, thatIdx++)
+        {
+            if (thisIdx >= thisSize)
+                return false;
+
+            Key thatKey = that.keys[thatIdx];
+            Key thisKey = this.keys[thisIdx];
+            int cmp = thisKey.compareTo(thatKey);
+
+            if (cmp == 0)
+                continue;
+
+            // if this key is greater that that key, we can't contain that key
+            if (cmp > 0)
+                return false;
+
+            // if search returns a positive index, a match was found and
+            // no further comparison is needed
+            thisIdx = Arrays.binarySearch(keys, thisIdx, thisSize, thatKey);
+            if (thisIdx < 0)
+                return false;
+        }
+
+        return true;
+    }
+
     public Keys merge(Keys that)
     {
         int thisIdx = 0;

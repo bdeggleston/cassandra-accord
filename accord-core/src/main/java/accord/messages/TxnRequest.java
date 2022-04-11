@@ -51,7 +51,7 @@ public abstract class TxnRequest implements Request
                     continue;
                 topologyRanges = topologyRanges.intersection(txnKeys);
                 Keys epochKeys = txnKeys.intersection(topologyRanges);
-                if (lastKeys == null || !lastKeys.equals(epochKeys))
+                if (lastKeys == null || !lastKeys.containsAll(epochKeys))
                 {
                     minEpoch = topology.epoch();
                     scopeKeys = scopeKeys.merge(epochKeys);

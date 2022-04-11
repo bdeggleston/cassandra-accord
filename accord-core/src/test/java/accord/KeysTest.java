@@ -9,6 +9,7 @@ import accord.impl.IntKey;
 import accord.topology.KeyRanges;
 import accord.txn.Keys;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static accord.impl.IntKey.keys;
@@ -51,6 +52,7 @@ public class KeysTest
                      keys(0, 2, 4).merge(keys(1, 3)));
     }
 
+    @Test
     void foldlTest()
     {
         List<Key> keys = new ArrayList<>();
@@ -72,5 +74,25 @@ public class KeysTest
         result = keys(150, 250, 350, 450, 550).foldl(ranges(r(0, 20), r(100, 140), r(149, 151), r(560, 2000)), (key, p, v) -> { keys.add(key); return v * p + 1; }, 15, 0, -1);
         assertEquals(1, result);
         assertEquals(keys(150), new Keys(keys));
+    }
+
+    @Test
+    void containsAll()
+    {
+        Keys keys = keys(150, 200, 250, 300, 350);
+        Assertions.assertTrue(keys.containsAll(keys(150, 200)));
+        Assertions.assertTrue(keys.containsAll(keys(150, 250)));
+        Assertions.assertTrue(keys.containsAll(keys(200, 250)));
+        Assertions.assertTrue(keys.containsAll(keys(200, 300)));
+        Assertions.assertTrue(keys.containsAll(keys(250, 300)));
+        Assertions.assertTrue(keys.containsAll(keys(250, 350)));
+
+        Assertions.assertFalse(keys.containsAll(keys(100, 150)));
+        Assertions.assertFalse(keys.containsAll(keys(100, 250)));
+        Assertions.assertFalse(keys.containsAll(keys(200, 225)));
+        Assertions.assertFalse(keys.containsAll(keys(225, 300)));
+        Assertions.assertFalse(keys.containsAll(keys(250, 235)));
+        Assertions.assertFalse(keys.containsAll(keys(250, 400)));
+
     }
 }
