@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.impl.*;
 import accord.impl.mock.*;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -14,9 +15,6 @@ import accord.utils.EpochFunction;
 import accord.utils.ThreadPoolScheduler;
 import accord.local.*;
 import accord.txn.Keys;
-import accord.impl.IntKey;
-import accord.impl.TestAgent;
-import accord.impl.TopologyFactory;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -25,6 +23,7 @@ import java.util.List;
 
 import static accord.Utils.id;
 import static accord.Utils.writeTxn;
+import static accord.impl.InMemoryCommandStore.inMemory;
 import static accord.impl.mock.MockCluster.configService;
 
 public class PreAcceptTest
@@ -48,7 +47,7 @@ public class PreAcceptTest
                         () -> store,
                         new TestAgent(),
                         scheduler,
-                        CommandStores.SingleThread::new);
+                        InMemoryCommandStores.SingleThread::new);
     }
 
     private static TxnRequest.Scope scope(TxnId txnId, Txn txn)
@@ -73,7 +72,7 @@ public class PreAcceptTest
         {
             IntKey key = IntKey.key(10);
             CommandStore commandStore = node.unsafeForKey(key);
-            Assertions.assertFalse(commandStore.hasCommandsForKey(key));
+            Assertions.assertFalse(inMemory(commandStore).hasCommandsForKey(key));
 
             TxnId txnId = clock.idForNode(1, ID2);
             Txn txn = writeTxn(Keys.of(key));
@@ -105,7 +104,7 @@ public class PreAcceptTest
         {
             IntKey key = IntKey.key(10);
             CommandStore commandStore = node.unsafeForKey(key);
-            Assertions.assertFalse(commandStore.hasCommandsForKey(key));
+            Assertions.assertFalse(inMemory(commandStore).hasCommandsForKey(key));
 
             TxnId txnId = clock.idForNode(1, ID2);
             Txn txn = writeTxn(Keys.of(key));

@@ -3,25 +3,17 @@ package accord.local;
 import accord.api.Agent;
 import accord.api.Key;
 import accord.api.Store;
-import accord.local.CommandStore.SingleThread;
-import accord.local.CommandStores.StoreGroups.Fold;
-import accord.local.Node.Id;
 import accord.messages.TxnRequest;
 import accord.topology.KeyRanges;
 import accord.topology.Topology;
 import accord.txn.Keys;
 import accord.txn.Timestamp;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.function.*;
-
-import static java.lang.Boolean.FALSE;
 
 /**
  * Manages the single threaded metadata shards
@@ -33,7 +25,8 @@ public abstract class CommandStores
         CommandStores create(int num, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store);
     }
 
-    static class StoreGroup
+    // FIXME (rebase): rework forEach and mapReduce to not require these to be public
+    public static class StoreGroup
     {
         final CommandStore[] stores;
         final KeyRanges ranges;
@@ -71,8 +64,10 @@ public abstract class CommandStores
         }
     }
 
-    static class StoreGroups
+    // FIXME (rebase): rework forEach and mapReduce to not require these to be public
+    public static class StoreGroups
     {
+        private static final StoreGroups EMPTY = new StoreGroups(new StoreGroup[0], Topology.EMPTY, Topology.EMPTY);
         final StoreGroup[] groups;
         final Topology global;
         final Topology local;
@@ -128,12 +123,14 @@ public abstract class CommandStores
             return accumulator;
         }
 
-        interface Fold<I1, I2, O>
+        // FIXME (rebase): rework forEach and mapReduce to not require these to be public
+        public interface Fold<I1, I2, O>
         {
             O fold(CommandStore store, I1 i1, I2 i2, O accumulator);
         }
 
-        <S, I1, I2, O> O foldl(ToLongBiFunction<StoreGroup, S> select, S scope, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
+        // FIXME (rebase): rework forEach and mapReduce to not require these to be public
+        public <S, I1, I2, O> O foldl(ToLongBiFunction<StoreGroup, S> select, S scope, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
         {
             O accumulator = null;
             int startGroup = 0;
@@ -170,30 +167,26 @@ public abstract class CommandStores
         }
     }
 
-    private final Node.Id node;
-    private final Function<Timestamp, Timestamp> uniqueNow;
-    private final Agent agent;
-    private final Store store;
-    private final CommandStore.Factory shardFactory;
-    private final int numShards;
-    protected volatile StoreGroups groups = new StoreGroups(new StoreGroup[0], Topology.EMPTY, Topology.EMPTY);
+    protected final Node.Id node;
+    protected final Function<Timestamp, Timestamp> uniqueNow;
+    protected final Agent agent;
+    protected final Store store;
+    protected final int numShards;
 
-    public CommandStores(int num, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store, CommandStore.Factory shardFactory)
+    protected volatile StoreGroups groups = StoreGroups.EMPTY;
+
+    public CommandStores(int numShards, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
     {
         this.node = node;
-        this.numShards = num;
+        this.numShards = numShards;
         this.uniqueNow = uniqueNow;
         this.agent = agent;
         this.store = store;
-        this.shardFactory = shardFactory;
     }
 
-    private CommandStore createCommandStore(int generation, int index, KeyRanges ranges)
-    {
-        return shardFactory.create(generation, index, numShards, node, uniqueNow, agent, store, ranges, this::getLocalTopology);
-    }
+    protected abstract CommandStore createCommandStore(int generation, int index, KeyRanges ranges);
 
-    private Topology getLocalTopology()
+    protected Topology getLocalTopology()
     {
         return groups.local;
     }
@@ -298,81 +291,4 @@ public abstract class CommandStores
         }
         throw new IllegalArgumentException();
     }
-
-    public static class Synchronized extends CommandStores
-    {
-        public Synchronized(int num, Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
-        {
-            super(num, node, uniqueNow, agent, store, CommandStore.Synchronized::new);
-        }
-
-        @Override
-        protected <S, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
-        {
-            return groups.foldl(select, scope, (store, f, r, t) -> t == null ? f.apply(store) : r.apply(t, f.apply(store)), map, reduce, ignore -> null);
-        }
-
-        @Override
-        protected <S> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach)
-        {
-            groups.foldl(select, scope, (store, f, r, t) -> { f.accept(store); return null; }, forEach, null, ignore -> FALSE);
-        }
-    }
-
-    public static class SingleThread extends CommandStores
-    {
-        public SingleThread(int num, Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
-        {
-            this(num, node, uniqueNow, agent, store, CommandStore.SingleThread::new);
-        }
-
-        public SingleThread(int num, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store, CommandStore.Factory shardFactory)
-        {
-            super(num, node, uniqueNow, agent, store, shardFactory);
-        }
-
-        private <S, F, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, F f, Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
-        {
-            List<Future<T>> futures = groups.foldl(select, scope, fold, f, null, ArrayList::new);
-            T result = null;
-            for (Future<T> future : futures)
-            {
-                try
-                {
-                    T next = future.get();
-                    if (result == null) result = next;
-                    else result = reduce.apply(result, next);
-                }
-                catch (InterruptedException e)
-                {
-                    throw new UncheckedInterruptedException(e);
-                }
-                catch (ExecutionException e)
-                {
-                    throw new RuntimeException(e.getCause());
-                }
-            }
-            return result;
-        }
-
-        @Override
-        protected <S, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
-        {
-            return mapReduce(select, scope, map, (store, f, i, t) -> { t.add(store.process(f)); return t; }, reduce);
-        }
-
-        protected <S> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach)
-        {
-            mapReduce(select, scope, forEach, (store, f, i, t) -> { t.add(store.process(f)); return t; }, (Void i1, Void i2) -> null);
-        }
-    }
-
-    public static class Debug extends SingleThread
-    {
-        public Debug(int num, Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
-        {
-            super(num, node, uniqueNow, agent, store, CommandStore.Debug::new);
-        }
-    }
-
 }

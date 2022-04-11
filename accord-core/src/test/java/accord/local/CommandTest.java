@@ -1,5 +1,6 @@
 package accord.local;
 
+import accord.impl.InMemoryCommandStore;
 import accord.impl.IntKey;
 import accord.impl.TestAgent;
 import accord.impl.TopologyFactory;
@@ -49,15 +50,15 @@ public class CommandTest
 
     private static CommandStore createStore(CommandStoreSupport storeSupport)
     {
-        return new CommandStore.Synchronized(0,
-                                             0,
-                                             1,
-                                             ID1,
-                                             storeSupport.uniqueNow,
-                                             new TestAgent(),
-                                             storeSupport.data,
-                                             storeSupport.local.get().ranges(),
-                                             storeSupport.local::get);
+        return new InMemoryCommandStore.Synchronized(0,
+                                                     0,
+                                                     1,
+                                                     ID1,
+                                                     storeSupport.uniqueNow,
+                                                     new TestAgent(),
+                                                     storeSupport.data,
+                                                     storeSupport.local.get().ranges(),
+                                                     storeSupport.local::get);
     }
 
     @Test

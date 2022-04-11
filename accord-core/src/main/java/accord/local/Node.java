@@ -106,7 +106,6 @@ public class Node implements ConfigurationService.Listener
         this.nowSupplier = nowSupplier;
         this.scheduler = scheduler;
         this.commandStores = factory.create(numCommandShards(), id, this::uniqueNow, agent, dataSupplier.get());
-
         configService.registerListener(this);
         onTopologyUpdate(topology, false);
     }
