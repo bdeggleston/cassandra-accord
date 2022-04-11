@@ -14,6 +14,7 @@ import accord.topology.Topologies;
 import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
+import org.apache.cassandra.utils.concurrent.Future;
 
 public class ReadData extends TxnRequest
 {
@@ -144,9 +145,12 @@ public class ReadData extends TxnRequest
 
         private void read(Command command)
         {
-            // TODO: threading/futures (don't want to perform expensive reads within this mutually exclusive context)
-            Data next = command.txn().read(command, keyScope);
-            readComplete(command.commandStore(), next);
+            command.txn().read(command, keyScope).addCallback((next, throwable) -> {
+                if (throwable != null)
+                    node.reply(replyToNode, replyContext, new ReadNack());
+                else
+                    readComplete(command.commandStore(), next);
+            });
         }
 
         void obsolete(Command command)

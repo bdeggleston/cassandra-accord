@@ -1,11 +1,14 @@
 package accord.txn;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 import accord.api.*;
 import accord.local.*;
+import org.apache.cassandra.utils.concurrent.Future;
 
 public class Txn
 {
@@ -91,16 +94,18 @@ public class Txn
         return "read:" + read.toString() + (update != null ? ", update:" + update : "");
     }
 
-    public Data read(Command command, Keys keyScope)
+    public Future<Data> read(Command command, Keys keyScope)
     {
-        return keyScope.foldl(command.commandStore().ranges(), (key, accumulate) -> {
+        List<Future<Data>> futures = keyScope.foldl(command.commandStore().ranges(), (key, accumulate) -> {
             CommandStore commandStore = command.commandStore();
             if (!commandStore.hashIntersects(key))
                 return accumulate;
 
-            Data result = read.read(key, command.executeAt(), commandStore.store());
-            return accumulate != null ? accumulate.merge(result) : result;
-        }, null);
+            Future<Data> result = read.read(key, command.executeAt(), commandStore.store());
+            accumulate.add(result);
+            return accumulate;
+        }, new ArrayList<>());
+        return new Read.Reducer(futures);
     }
 
     public Timestamp maxConflict(CommandStore commandStore)
