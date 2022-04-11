@@ -10,6 +10,7 @@ import accord.txn.Timestamp;
 import accord.txn.Writes;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.collect.Iterables;
 
 import java.util.Collections;
 
@@ -42,7 +43,7 @@ public class Apply extends TxnRequest
     @Override
     public Iterable<TxnId> expectedTxnIds()
     {
-        return Collections.singletonList(txnId);
+        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
     }
 
     @Override

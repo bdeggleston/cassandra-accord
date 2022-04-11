@@ -2,7 +2,6 @@ package accord.messages;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -12,12 +11,10 @@ import accord.local.Node.Id;
 import accord.api.Data;
 import accord.topology.KeyRanges;
 import accord.topology.Topologies;
-import accord.txn.Keys;
-import accord.txn.Txn;
-import accord.txn.TxnId;
-import accord.txn.Timestamp;
+import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
+import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
@@ -198,25 +195,27 @@ public class ReadData extends TxnRequest
 
     public final TxnId txnId;
     public final Txn txn;
+    public final Dependencies deps;
     public final Timestamp executeAt;
 
-    public ReadData(Scope scope, TxnId txnId, Txn txn, Timestamp executeAt)
+    public ReadData(Scope scope, TxnId txnId, Txn txn, Dependencies deps, Timestamp executeAt)
     {
         super(scope);
         this.txnId = txnId;
         this.txn = txn;
+        this.deps = deps;
         this.executeAt = executeAt;
     }
 
-    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt)
+    public ReadData(Id to, Topologies topologies, TxnId txnId, Txn txn, Dependencies deps, Timestamp executeAt)
     {
-        this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt);
+        this(Scope.forTopologies(to, topologies, txn), txnId, txn, deps, executeAt);
     }
 
     @Override
     public Iterable<TxnId> expectedTxnIds()
     {
-        return Collections.singletonList(txnId);
+        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
     }
 
     @Override

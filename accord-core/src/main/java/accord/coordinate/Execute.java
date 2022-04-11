@@ -116,7 +116,7 @@ class Execute extends AsyncPromise<Result> implements Callback<ReadReply>
         Set<Id> readFrom = readTracker.computeMinimalReadSetAndMarkInflight();
         if (readFrom != null)
         {
-            node.send(readFrom, to -> new ReadData(to, topologies, txnId, txn, executeAt), this);
+            node.send(readFrom, to -> new ReadData(to, topologies, txnId, txn, deps, executeAt), this);
         }
         else if (readTracker.hasFailed())
         {
