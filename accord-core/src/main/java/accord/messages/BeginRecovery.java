@@ -1,6 +1,7 @@
 package accord.messages;
 
 import accord.api.ConfigurationService;
+import accord.api.Key;
 import accord.api.Result;
 import accord.topology.Topologies;
 import accord.txn.Writes;
@@ -14,6 +15,8 @@ import accord.local.Status;
 import accord.txn.Txn;
 import accord.txn.TxnId;
 import com.google.common.base.Preconditions;
+
+import java.util.Collections;
 
 import static accord.local.Status.Accepted;
 import static accord.local.Status.Applied;
@@ -41,9 +44,21 @@ public class BeginRecovery extends TxnRequest
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, ballot);
     }
 
+    @Override
+    public Iterable<TxnId> txnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return txn.keys();
+    }
+
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        RecoverReply reply = node.mapReduceLocal(scope(), instance -> {
+        RecoverReply reply = node.mapReduceLocal(this, instance -> {
             Command command = instance.command(txnId);
 
             if (!command.recover(txn, ballot))
@@ -167,7 +182,7 @@ public class BeginRecovery extends TxnRequest
             node.topology().awaitEpoch(ok.executeAt.epoch).addListener(() -> disseminateApply(node, ok));
             return;
         }
-        Topologies topologies = node.topology().forKeys(txn.keys, ok.executeAt.epoch);
+        Topologies topologies = node.topology().forKeys(txn.keys(), ok.executeAt.epoch);
         node.send(topologies.nodes(), to -> new Apply(to, topologies, txnId, txn, ok.executeAt, ok.deps, ok.writes, ok.result));
     }
     

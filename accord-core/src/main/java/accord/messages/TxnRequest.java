@@ -1,6 +1,7 @@
 package accord.messages;
 
 import accord.local.Node;
+import accord.local.TxnOperation;
 import accord.topology.KeyRanges;
 import accord.topology.Topologies;
 import accord.topology.Topology;
@@ -9,7 +10,7 @@ import accord.txn.Txn;
 
 import java.util.Objects;
 
-public abstract class TxnRequest implements Request
+public abstract class TxnRequest implements Request, TxnOperation
 {
     private final Scope scope;
 

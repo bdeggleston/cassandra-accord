@@ -1,9 +1,11 @@
 package accord.messages;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import accord.api.Key;
 import accord.local.*;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
@@ -12,7 +14,7 @@ import accord.txn.Keys;
 
 public class WaitOnCommit extends TxnRequest
 {
-    static class LocalWait implements Listener
+    static class LocalWait implements Listener, TxnOperation
     {
         final Node node;
         final Id replyToNode;
@@ -27,6 +29,18 @@ public class WaitOnCommit extends TxnRequest
             this.replyToNode = replyToNode;
             this.txnId = txnId;
             this.replyContext = replyContext;
+        }
+
+        @Override
+        public Iterable<TxnId> txnIds()
+        {
+            return Collections.singleton(txnId);
+        }
+
+        @Override
+        public Iterable<Key> keys()
+        {
+            return Collections.emptyList();
         }
 
         @Override
@@ -49,6 +63,12 @@ public class WaitOnCommit extends TxnRequest
 
             command.removeListener(this);
             ack();
+        }
+
+        @Override
+        public boolean isTransient()
+        {
+            return true;
         }
 
         private void ack()
@@ -80,7 +100,7 @@ public class WaitOnCommit extends TxnRequest
         {
             List<CommandStore> instances = node.collectLocal(keys, ArrayList::new);
             waitingOn.set(instances.size());
-            instances.forEach(instance -> instance.processBlocking(this::setup));
+            CommandStore.onEach(instances, this, this::setup);
         }
     }
 
@@ -97,6 +117,18 @@ public class WaitOnCommit extends TxnRequest
     public WaitOnCommit(Id to, Topologies topologies, TxnId txnId, Keys keys)
     {
         this(Scope.forTopologies(to, topologies, keys), txnId, keys);
+    }
+
+    @Override
+    public Iterable<TxnId> txnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return keys;
     }
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)

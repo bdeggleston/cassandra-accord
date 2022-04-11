@@ -1,5 +1,7 @@
 package accord.messages;
 
+import accord.api.Key;
+import accord.api.Write;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.api.Result;
@@ -9,6 +11,12 @@ import accord.txn.Timestamp;
 import accord.txn.Writes;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.collect.Iterables;
+import org.apache.cassandra.utils.concurrent.Future;
+import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
+
+import java.util.Collections;
+import java.util.concurrent.ExecutionException;
 
 public class Apply extends TxnRequest
 {
@@ -31,14 +39,45 @@ public class Apply extends TxnRequest
         this.result = result;
     }
 
+    static Future<?> waitAndReduce(Future<?> left, Future<?> right)
+    {
+        try
+        {
+            if (left != null) left.get();
+            if (right != null) right.get();
+        }
+        catch (InterruptedException e)
+        {
+            throw new UncheckedInterruptedException(e);
+        }
+        catch (ExecutionException e)
+        {
+            throw new RuntimeException(e.getCause());
+        }
+
+        return Write.SUCCESS;
+    }
+
     public Apply(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt, Dependencies deps, Writes writes, Result result)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt, deps, writes, result);
     }
 
+    @Override
+    public Iterable<TxnId> txnIds()
+    {
+        return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return txn.keys();
+    }
+
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        node.forEachLocal(scope(), instance -> instance.command(txnId).apply(txn, deps, executeAt, writes, result));
+        node.mapReduceLocal(this, instance -> instance.command(txnId).apply(txn, deps, executeAt, writes, result), Apply::waitAndReduce);
     }
 
     @Override

@@ -3,6 +3,7 @@ package accord.impl.mock;
 import accord.NetworkFilter;
 import accord.api.MessageSink;
 import accord.coordinate.Timeout;
+import accord.impl.InMemoryCommandStores;
 import accord.impl.TopologyUtils;
 import accord.local.CommandStores;
 import accord.local.Node;
@@ -89,7 +90,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
                         () -> store,
                         new TestAgent(),
                         new ThreadPoolScheduler(),
-                        CommandStores.SingleThread::new);
+                        InMemoryCommandStores.SingleThread::new);
     }
 
     private void init(Topology topology)

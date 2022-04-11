@@ -3,6 +3,7 @@ package accord.burn;
 import accord.api.KeyRange;
 import accord.api.Result;
 import accord.api.TestableConfigurationService;
+import accord.impl.InMemoryCommandStore;
 import accord.local.Command;
 import accord.local.Node;
 import accord.local.Status;
@@ -13,7 +14,6 @@ import accord.txn.*;
 import accord.utils.MessageTask;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 import org.slf4j.Logger;
@@ -21,11 +21,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static accord.impl.InMemoryCommandStores.inMemory;
 
 public class TopologyUpdate
 {
@@ -57,7 +58,7 @@ public class TopologyUpdate
         }
         public void process(Node node)
         {
-            node.forEachLocal(txn, commandStore -> {
+            inMemory(node).forEachLocal(txn, commandStore -> {
                 switch (status)
                 {
                     case PreAccepted:
@@ -122,9 +123,9 @@ public class TopologyUpdate
         Map<TxnId, CommandSync> syncMessages = new ConcurrentHashMap<>();
         Consumer<Command> commandConsumer = command -> syncMessages.put(command.txnId(), new CommandSync(command));
         if (committedOnly)
-            node.forEachLocal(commandStore -> commandStore.forCommittedInEpoch(ranges, epoch, commandConsumer));
+            inMemory(node).forEachLocal(commandStore -> InMemoryCommandStore.inMemory(commandStore).forCommittedInEpoch(ranges, epoch, commandConsumer));
         else
-            node.forEachLocal(commandStore -> commandStore.forEpochCommands(ranges, epoch, commandConsumer));
+            inMemory(node).forEachLocal(commandStore -> InMemoryCommandStore.inMemory(commandStore).forEpochCommands(ranges, epoch, commandConsumer));
         return syncMessages.values().stream().map(cmd -> MessageTask.of(node, recipients.apply(cmd), "Sync:" + cmd.txnId + ':' + epoch + ':' + forEpoch, cmd::process));
     }
 

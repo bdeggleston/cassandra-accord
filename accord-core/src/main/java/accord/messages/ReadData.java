@@ -1,31 +1,31 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
+import accord.api.Key;
 import accord.local.*;
 import accord.local.Node.Id;
 import accord.api.Data;
 import accord.topology.KeyRanges;
 import accord.topology.Topologies;
-import accord.txn.Keys;
-import accord.txn.Txn;
-import accord.txn.TxnId;
-import accord.txn.Timestamp;
+import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
+import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
-    static class LocalRead implements Listener
+    static class LocalRead implements Listener, TxnOperation
     {
         final TxnId txnId;
+        final Dependencies deps;
         final Node node;
         final Node.Id replyToNode;
         final Keys keyScope;
+        final Keys txnKeys;
         final ReplyContext replyContext;
 
         Data data;
@@ -33,36 +33,66 @@ public class ReadData extends TxnRequest
         Set<CommandStore> waitingOn;
         Scheduled waitingOnReporter;
 
-        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys keyScope, ReplyContext replyContext)
+        LocalRead(TxnId txnId, Dependencies deps, Node node, Id replyToNode, Keys keyScope, Keys txnKeys, ReplyContext replyContext)
         {
             this.txnId = txnId;
+            this.deps = deps;
             this.node = node;
             this.replyToNode = replyToNode;
             this.keyScope = keyScope;
+            this.txnKeys = txnKeys;
             this.replyContext = replyContext;
             // TODO: this is messy, we want a complete separate liveness mechanism that ensures progress for all transactions
             this.waitingOnReporter = node.scheduler().once(new ReportWaiting(), 1L, TimeUnit.SECONDS);
         }
 
+        @Override
+        public Iterable<TxnId> txnIds()
+        {
+            return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
+        }
+
+        @Override
+        public Iterable<Key> keys()
+        {
+            return txnKeys;
+        }
+
         class ReportWaiting implements Listener, Runnable
         {
+
             @Override
             public void onChange(Command command)
             {
                 command.removeListener(this);
-                run();
+                node.scheduler().now(this);
+            }
+
+            @Override
+            public boolean isTransient()
+            {
+                return true;
             }
 
             @Override
             public void run()
             {
-                Iterator<CommandStore> i = waitingOn.iterator();
-                Command blockedBy = null;
-                while (i.hasNext() && null == (blockedBy = i.next().command(txnId).blockedBy()));
-                if (blockedBy == null) return;
-                blockedBy.addListener(this);
-                assert blockedBy.status().compareTo(Status.NotWitnessed) > 0;
-                node.reply(replyToNode, replyContext, new ReadWaiting(txnId, blockedBy.txnId(), blockedBy.txn(), blockedBy.executeAt(), blockedBy.status()));
+                Set<CommandStore> pending;
+                synchronized (LocalRead.this)
+                {
+                    pending = new HashSet<>(waitingOn);
+                }
+
+                ReadWaiting response = CommandStores.mapReduce(pending, LocalRead.this, instance -> {
+                    Command blockedBy = instance.command(txnId).blockedBy();
+                    if (blockedBy == null)
+                        return null;
+                    blockedBy.addListener(this);
+                    return new ReadWaiting(txnId, blockedBy.txnId(), blockedBy.txn(), blockedBy.executeAt(), blockedBy.status());
+                }, (result, next) -> result != null ? result : next);
+
+                if (response != null)
+                    node.reply(replyToNode, replyContext, response);
             }
         }
 
@@ -88,18 +118,32 @@ public class ReadData extends TxnRequest
                 read(command);
         }
 
-        private void read(Command command)
+        @Override
+        public boolean isTransient()
         {
-            // TODO: threading/futures (don't want to perform expensive reads within this mutually exclusive context)
-            Data next = command.txn().read(command, keyScope);
-            data = data == null ? next : data.merge(next);
+            return true;
+        }
 
-            waitingOn.remove(command.commandStore);
+        private synchronized void readComplete(CommandStore commandStore, Data result)
+        {
+            data = data == null ? result : data.merge(result);
+
+            waitingOn.remove(commandStore);
             if (waitingOn.isEmpty())
             {
                 waitingOnReporter.cancel();
                 node.reply(replyToNode, replyContext, new ReadOk(data));
             }
+        }
+
+        private void read(Command command)
+        {
+            command.read(keyScope).addCallback((next, throwable) -> {
+                if (throwable != null)
+                    node.reply(replyToNode, replyContext, new ReadNack());
+                else
+                    readComplete(command.commandStore(), next);
+            });
         }
 
         void obsolete(Command command)
@@ -110,7 +154,7 @@ public class ReadData extends TxnRequest
                 waitingOnReporter.cancel();
                 Set<Node.Id> nodes = new HashSet<>();
                 Topologies topologies = node.topology().forKeys(command.txn().keys());
-                KeyRanges ranges = command.commandStore.ranges();
+                KeyRanges ranges = command.commandStore().ranges();
                 topologies.forEachShard(shard -> {
                     if (ranges.intersects(shard.range))
                         nodes.addAll(shard.nodes);
@@ -125,8 +169,7 @@ public class ReadData extends TxnRequest
         {
             // TODO: simple hash set supporting concurrent modification, or else avoid concurrent modification
             waitingOn = node.collectLocal(scope, DeterministicIdentitySet::new);
-            // FIXME: fix/check thread safety
-            CommandStore.onEach(waitingOn, instance -> {
+            CommandStores.forEachNonBlocking(waitingOn, this, instance -> {
                 Command command = instance.command(txnId);
                 command.witness(txn);
                 switch (command.status())
@@ -154,24 +197,38 @@ public class ReadData extends TxnRequest
 
     public final TxnId txnId;
     public final Txn txn;
+    public final Dependencies deps;
     public final Timestamp executeAt;
 
-    public ReadData(Scope scope, TxnId txnId, Txn txn, Timestamp executeAt)
+    public ReadData(Scope scope, TxnId txnId, Txn txn, Dependencies deps, Timestamp executeAt)
     {
         super(scope);
         this.txnId = txnId;
         this.txn = txn;
+        this.deps = deps;
         this.executeAt = executeAt;
     }
 
-    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt)
+    public ReadData(Id to, Topologies topologies, TxnId txnId, Txn txn, Dependencies deps, Timestamp executeAt)
     {
-        this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt);
+        this(Scope.forTopologies(to, topologies, txn), txnId, txn, deps, executeAt);
+    }
+
+    @Override
+    public Iterable<TxnId> txnIds()
+    {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return Collections.emptyList();
     }
 
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, node, from, scope().keys(), replyContext).setup(txnId, txn, scope());
+        new LocalRead(txnId, deps, node, from, scope().keys(), txn.keys(), replyContext).setup(txnId, txn, scope());
     }
 
     @Override

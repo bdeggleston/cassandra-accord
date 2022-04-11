@@ -72,6 +72,11 @@ public class Dependencies implements Iterable<Entry<TxnId, Txn>>
                 .map(Entry::getKey)::iterator;
     }
 
+    public Iterable<TxnId> txnIds()
+    {
+        return deps.keySet();
+    }
+
     @Override
     public Iterator<Entry<TxnId, Txn>> iterator()
     {

@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -106,9 +107,13 @@ public class Node implements ConfigurationService.Listener
         this.nowSupplier = nowSupplier;
         this.scheduler = scheduler;
         this.commandStores = factory.create(numCommandShards(), id, this::uniqueNow, agent, dataSupplier.get());
-
         configService.registerListener(this);
         onTopologyUpdate(topology, false);
+    }
+
+    public CommandStores commandStores()
+    {
+        return commandStores;
     }
 
     public ConfigurationService configService()
@@ -187,34 +192,24 @@ public class Node implements ConfigurationService.Listener
         return nowSupplier.getAsLong();
     }
 
-    public void forEachLocal(Consumer<CommandStore> forEach)
+    public void forEachLocal(TxnRequest request, Consumer<CommandStore> forEach)
     {
-        commandStores.forEach(forEach);
+        commandStores.forEach(request, forEach);
     }
 
-    public void forEachLocal(Keys keys, Consumer<CommandStore> forEach)
+    public <T> T mapReduceLocal(TxnRequest request, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
-        commandStores.forEach(keys, forEach);
-    }
-
-    public void forEachLocal(Txn txn, Consumer<CommandStore> forEach)
-    {
-        forEachLocal(txn.keys, forEach);
-    }
-
-    public void forEachLocal(TxnRequest.Scope scope, Consumer<CommandStore> forEach)
-    {
-        commandStores.forEach(scope, forEach);
-    }
-
-    public <T> T mapReduceLocal(TxnRequest.Scope scope, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return commandStores.mapReduce(scope, map, reduce);
+        return commandStores.mapReduce(request, map, reduce);
     }
 
     public <T extends Collection<CommandStore>> T collectLocal(Keys keys, IntFunction<T> factory)
     {
         return commandStores.collect(keys, factory);
+    }
+
+    public <T extends Collection<CommandStore>> T collectLocal(TxnRequest request, IntFunction<T> factory)
+    {
+        return commandStores.collect(request, factory);
     }
 
     public <T extends Collection<CommandStore>> T collectLocal(TxnRequest.Scope scope, IntFunction<T> factory)

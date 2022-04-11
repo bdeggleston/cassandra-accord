@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,8 +13,7 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 import accord.coordinate.Timeout;
-import accord.local.CommandStore;
-import accord.local.CommandStores;
+import accord.impl.InMemoryCommandStores;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.api.Scheduler;
@@ -140,8 +138,8 @@ public class Main
             MaelstromInit init = (MaelstromInit) packet.body;
             topology = topologyFactory.toTopology(init.cluster);
             sink = new StdoutSink(System::currentTimeMillis, scheduler, start, init.self, out, err);
-            on = new Node(init.self, sink, new SimpleConfigService(topology), System::currentTimeMillis,
-                          MaelstromStore::new, MaelstromAgent.INSTANCE, scheduler, CommandStores.SingleThread::new);
+            on = new Node(init.self, sink, new SimpleConfigService(topology), System::currentTimeMillis, MaelstromStore::new,
+                          MaelstromAgent.INSTANCE, scheduler, InMemoryCommandStores.SingleThread::new);
             err.println("Initialized node " + init.self);
             err.flush();
             sink.send(packet.src, new Body(Type.init_ok, Body.SENTINEL_MSG_ID, init.msg_id));

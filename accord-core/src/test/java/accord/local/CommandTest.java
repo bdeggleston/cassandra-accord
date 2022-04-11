@@ -1,8 +1,6 @@
 package accord.local;
 
-import accord.impl.IntKey;
-import accord.impl.TestAgent;
-import accord.impl.TopologyFactory;
+import accord.impl.*;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockStore;
 import accord.topology.Topology;
@@ -49,15 +47,15 @@ public class CommandTest
 
     private static CommandStore createStore(CommandStoreSupport storeSupport)
     {
-        return new CommandStore.Synchronized(0,
-                                             0,
-                                             1,
-                                             ID1,
-                                             storeSupport.uniqueNow,
-                                             new TestAgent(),
-                                             storeSupport.data,
-                                             storeSupport.local.get().ranges(),
-                                             storeSupport.local::get);
+        return new InMemoryCommandStore.Synchronized(0,
+                                                     0,
+                                                     1,
+                                                     ID1,
+                                                     storeSupport.uniqueNow,
+                                                     new TestAgent(),
+                                                     storeSupport.data,
+                                                     storeSupport.local.get().ranges(),
+                                                     storeSupport.local::get);
     }
 
     @Test
@@ -69,7 +67,7 @@ public class CommandTest
         TxnId txnId = clock.idForNode(1, 1);
         Txn txn = writeTxn(Keys.of(KEY));
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 
@@ -88,14 +86,14 @@ public class CommandTest
         Txn txn = writeTxn(Keys.of(KEY));
 
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 
         setTopologyEpoch(support.local, 2);
         Timestamp expectedTimestamp = new Timestamp(2, 110, 0, ID1);
         support.nextTimestamp.set(expectedTimestamp);
-        commands.process((Consumer<? super CommandStore>) cstore -> command.witness(txn));
+        commands.process(null, (Consumer<? super CommandStore>) cstore -> command.witness(txn));
         Assertions.assertEquals(Status.PreAccepted, command.status());
         Assertions.assertEquals(expectedTimestamp, command.executeAt());
     }
