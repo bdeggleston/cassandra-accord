@@ -36,6 +36,7 @@ public class Accept extends TxnRequest
 
     public void process(Node on, Node.Id replyToNode, ReplyContext replyContext)
     {
+        // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
         on.reply(replyToNode, replyContext, on.mapReduceLocal(scope(), instance -> {
             Command command = instance.command(txnId);
             if (!command.accept(ballot, txn, executeAt, deps))

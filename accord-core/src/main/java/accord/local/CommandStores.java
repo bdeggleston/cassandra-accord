@@ -198,6 +198,7 @@ public abstract class CommandStores
                 commandStore.shutdown();
     }
 
+    // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
     protected abstract <S> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach);
     protected abstract <S, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce);
 

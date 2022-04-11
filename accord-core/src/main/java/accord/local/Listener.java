@@ -1,6 +1,6 @@
 package accord.local;
 
-public interface Listener
+public interface Listener extends TxnOperation
 {
     void onChange(Command command);
 

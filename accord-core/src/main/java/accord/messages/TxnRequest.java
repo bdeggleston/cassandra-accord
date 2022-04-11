@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.local.CommandStore;
 import accord.local.Node;
 import accord.topology.KeyRanges;
 import accord.topology.Topologies;

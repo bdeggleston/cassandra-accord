@@ -43,6 +43,7 @@ public class BeginRecovery extends TxnRequest
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
+        // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
         RecoverReply reply = node.mapReduceLocal(scope(), instance -> {
             Command command = instance.command(txnId);
 

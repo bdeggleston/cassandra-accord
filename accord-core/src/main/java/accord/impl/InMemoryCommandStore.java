@@ -45,12 +45,6 @@ public abstract class InMemoryCommandStore extends CommandStore
     }
 
     @Override
-    protected void onRangeUpdate(KeyRanges previous, KeyRanges current)
-    {
-        purgeRanges(previous.difference(current));
-    }
-
-    @Override
     public Command command(TxnId txnId)
     {
         return commands.computeIfAbsent(txnId, id -> new InMemoryCommand(this, id));
@@ -135,7 +129,19 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
     }
 
-    protected void processInternal(Consumer<? super CommandStore> consumer, Promise<Void> promise)
+    <R> void processInternal(Function<? super CommandStore, R> function, Promise<R> promise)
+    {
+        try
+        {
+            promise.setSuccess(function.apply(this));
+        }
+        catch (Throwable e)
+        {
+            promise.tryFailure(e);
+        }
+    }
+
+    void processInternal(Consumer<? super CommandStore> consumer, Promise<Void> promise)
     {
         try
         {
@@ -174,6 +180,14 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
+        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        {
+            AsyncPromise<T> promise = new AsyncPromise<>();
+            processInternal(function, promise);
+            return promise;
+        }
+
+        @Override
         public void shutdown() {}
     }
 
@@ -199,6 +213,22 @@ public abstract class InMemoryCommandStore extends CommandStore
             }
         }
 
+        private class FunctionWrapper<T> extends AsyncPromise<T> implements Runnable
+        {
+            private final Function<? super CommandStore, T> function;
+
+            public FunctionWrapper(Function<? super CommandStore, T> function)
+            {
+                this.function = function;
+            }
+
+            @Override
+            public void run()
+            {
+                processInternal(function, this);
+            }
+        }
+
         public SingleThread(int generation,
                             int index,
                             int numShards,
@@ -221,6 +251,14 @@ public abstract class InMemoryCommandStore extends CommandStore
         public Future<Void> process(Consumer<? super CommandStore> consumer)
         {
             ConsumerWrapper future = new ConsumerWrapper(consumer);
+            executor.execute(future);
+            return future;
+        }
+
+        @Override
+        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        {
+            FunctionWrapper<T> future = new FunctionWrapper<>(function);
             executor.execute(future);
             return future;
         }

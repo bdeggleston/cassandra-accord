@@ -5,6 +5,8 @@ import accord.api.Store;
 import accord.local.CommandStore;
 import accord.local.CommandStores;
 import accord.local.Node;
+import accord.local.TxnOperation;
+import accord.messages.TxnRequest;
 import accord.topology.KeyRanges;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
@@ -20,9 +22,14 @@ import java.util.function.ToLongBiFunction;
 
 import static java.lang.Boolean.FALSE;
 
-public class InMemoryCommandStores
+public abstract class InMemoryCommandStores extends CommandStores
 {
-    public static class Synchronized extends CommandStores
+    public InMemoryCommandStores(int numShards, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
+    {
+        super(numShards, node, uniqueNow, agent, store);
+    }
+
+    public static class Synchronized extends InMemoryCommandStores
     {
         public Synchronized(int numShards, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
         {
@@ -56,7 +63,7 @@ public class InMemoryCommandStores
         }
     }
 
-    public static class SingleThread extends CommandStores
+    public static class SingleThread extends InMemoryCommandStores
     {
         public SingleThread(int numShards, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store)
         {

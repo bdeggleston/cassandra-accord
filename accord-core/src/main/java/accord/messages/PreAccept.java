@@ -33,6 +33,7 @@ public class PreAccept extends TxnRequest
 
     public void process(Node node, Id from, ReplyContext replyContext)
     {
+        // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
         node.reply(from, replyContext, node.mapReduceLocal(scope(), instance -> {
             // note: this diverges from the paper, in that instead of waiting for JoinShard,
             //       we PreAccept to both old and new topologies and require quorums in both.

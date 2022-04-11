@@ -28,6 +28,7 @@ public class Commit extends ReadData
 
     public void process(Node node, Id from, ReplyContext replyContext)
     {
+        // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
         node.forEachLocal(scope(), instance -> instance.command(txnId).commit(txn, deps, executeAt));
         if (read) super.process(node, from, replyContext);
     }

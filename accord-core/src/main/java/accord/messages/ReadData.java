@@ -20,7 +20,7 @@ import accord.utils.DeterministicIdentitySet;
 
 public class ReadData extends TxnRequest
 {
-    static class LocalRead implements Listener
+    static class LocalRead implements Listener, TxnOperation
     {
         final TxnId txnId;
         final Node node;
@@ -44,7 +44,7 @@ public class ReadData extends TxnRequest
             this.waitingOnReporter = node.scheduler().once(new ReportWaiting(), 1L, TimeUnit.SECONDS);
         }
 
-        class ReportWaiting implements Listener, Runnable
+        class ReportWaiting implements Listener, Runnable, TxnOperation
         {
             @Override
             public void onChange(Command command)
@@ -135,9 +135,11 @@ public class ReadData extends TxnRequest
 
         synchronized void setup(TxnId txnId, Txn txn, Scope scope)
         {
+            // TODO: return futures... maybe add a read listener??
             // TODO: simple hash set supporting concurrent modification, or else avoid concurrent modification
             waitingOn = node.collectLocal(scope, DeterministicIdentitySet::new);
             // FIXME: fix/check thread safety
+            // FIXME (rebase): rework forEach and mapReduce to not require these to be public
             CommandStore.onEach(waitingOn, instance -> {
                 Command command = instance.command(txnId);
                 command.witness(txn);
