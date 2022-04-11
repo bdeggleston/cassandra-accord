@@ -111,6 +111,11 @@ public class Node implements ConfigurationService.Listener
         onTopologyUpdate(topology, false);
     }
 
+    public CommandStores commandStores()
+    {
+        return commandStores;
+    }
+
     public ConfigurationService configService()
     {
         return configService;
@@ -185,21 +190,6 @@ public class Node implements ConfigurationService.Listener
     public long now()
     {
         return nowSupplier.getAsLong();
-    }
-
-    public void forEachLocal(Consumer<CommandStore> forEach)
-    {
-        commandStores.forEach(forEach);
-    }
-
-    public void forEachLocal(Keys keys, Consumer<CommandStore> forEach)
-    {
-        commandStores.forEach(keys, forEach);
-    }
-
-    public void forEachLocal(Txn txn, Consumer<CommandStore> forEach)
-    {
-        forEachLocal(txn.keys, forEach);
     }
 
     public void forEachLocal(TxnRequest request, Consumer<CommandStore> forEach)

@@ -4,10 +4,7 @@ import accord.api.Agent;
 import accord.api.Key;
 import accord.api.KeyRange;
 import accord.api.Store;
-import accord.local.Command;
-import accord.local.CommandStore;
-import accord.local.CommandsForKey;
-import accord.local.Node;
+import accord.local.*;
 import accord.topology.KeyRanges;
 import accord.topology.Topology;
 import accord.txn.Timestamp;
@@ -172,7 +169,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public synchronized Future<Void> process(Consumer<? super CommandStore> consumer)
+        public synchronized Future<Void> process(TxnOperation unused, Consumer<? super CommandStore> consumer)
         {
             Promise<Void> promise = new AsyncPromise<>();
             processInternal(consumer, promise);
@@ -180,7 +177,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        public <T> Future<T> process(TxnOperation unused, Function<? super CommandStore, T> function)
         {
             AsyncPromise<T> promise = new AsyncPromise<>();
             processInternal(function, promise);
@@ -248,7 +245,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public Future<Void> process(Consumer<? super CommandStore> consumer)
+        public Future<Void> process(TxnOperation unused, Consumer<? super CommandStore> consumer)
         {
             ConsumerWrapper future = new ConsumerWrapper(consumer);
             executor.execute(future);
@@ -256,7 +253,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        public <T> Future<T> process(TxnOperation unused, Function<? super CommandStore, T> function)
         {
             FunctionWrapper<T> future = new FunctionWrapper<>(function);
             executor.execute(future);

@@ -1,6 +1,7 @@
 package accord.impl.mock;
 
 import accord.coordinate.tracking.QuorumTracker;
+import accord.impl.InMemoryCommandStore;
 import accord.local.*;
 import accord.messages.*;
 import accord.topology.Topologies;
@@ -16,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
-import static accord.impl.InMemoryCommandStore.inMemory;
+import static accord.impl.InMemoryCommandStores.inMemory;
 import static accord.impl.mock.MockCluster.configService;
 
 public class EpochSync implements Runnable
@@ -53,7 +54,7 @@ public class EpochSync implements Runnable
         @Override
         public void process(Node node, Node.Id from, ReplyContext replyContext)
         {
-            node.forEachLocal(commandStore -> {
+            inMemory(node).forEachLocal(commandStore -> {
                 Command command = commandStore.command(txnId);
                 command.commit(txn, deps, executeAt);
             });
@@ -159,7 +160,7 @@ public class EpochSync implements Runnable
         {
             Map<TxnId, SyncMessage> syncMessages = new ConcurrentHashMap<>();
             Consumer<Command> commandConsumer = command -> syncMessages.put(command.txnId(), new SyncMessage(command));
-            node.forEachLocal(commandStore -> inMemory(commandStore).forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
+            inMemory(node).forEachLocal(commandStore -> InMemoryCommandStore.inMemory(commandStore).forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
 
             for (SyncMessage message : syncMessages.values())
                 CommandSync.sync(node, message, nextTopology);

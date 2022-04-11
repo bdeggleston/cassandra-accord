@@ -93,7 +93,7 @@ public class CommandTest
         setTopologyEpoch(support.local, 2);
         Timestamp expectedTimestamp = new Timestamp(2, 110, 0, ID1);
         support.nextTimestamp.set(expectedTimestamp);
-        commands.process((Consumer<? super CommandStore>) cstore -> command.witness(txn));
+        commands.process(null, (Consumer<? super CommandStore>) cstore -> command.witness(txn));
         Assertions.assertEquals(Status.PreAccepted, command.status());
         Assertions.assertEquals(expectedTimestamp, command.executeAt());
     }

@@ -12,7 +12,6 @@ import accord.txn.TxnId;
 import org.apache.cassandra.utils.concurrent.Future;
 
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -128,31 +127,15 @@ public abstract class CommandStore
         return ranges.contains(key);
     }
 
-    public static void onEach(Collection<CommandStore> stores, Consumer<? super CommandStore> consumer)
+    public static void onEach(Collection<CommandStore> stores, TxnOperation scope, Consumer<? super CommandStore> consumer)
     {
         for (CommandStore store : stores)
-            store.process(consumer);
+            store.process(scope, consumer);
     }
 
-    public abstract Future<Void> process(Consumer<? super CommandStore> consumer);
+    public abstract Future<Void> process(TxnOperation scope, Consumer<? super CommandStore> consumer);
 
-    public abstract <T> Future<T> process(Function<? super CommandStore, T> function);
-
-    public void processBlocking(Consumer<? super CommandStore> consumer)
-    {
-        try
-        {
-            process(consumer).get();
-        }
-        catch (InterruptedException e)
-        {
-            throw new UncheckedInterruptedException(e);
-        }
-        catch (ExecutionException e)
-        {
-            throw new RuntimeException(e.getCause());
-        }
-    }
+    public abstract <T> Future<T> process(TxnOperation scope, Function<? super CommandStore, T> function);
 
     public abstract void shutdown();
 }

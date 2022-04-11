@@ -11,8 +11,11 @@ import accord.txn.Timestamp;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.cassandra.utils.concurrent.Future;
+import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.function.*;
 
 /**
@@ -38,12 +41,12 @@ public abstract class CommandStores
             this.ranges = ranges;
         }
 
-        long all()
+        public long all()
         {
             return -1L >>> (64 - stores.length);
         }
 
-        long matches(Keys keys)
+        public long matches(Keys keys)
         {
             return keys.foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, -1L);
         }
@@ -203,18 +206,39 @@ public abstract class CommandStores
                 commandStore.shutdown();
     }
 
-    // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
-    protected abstract <S> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach);
-    protected abstract <S, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce);
 
-    public void forEach(Consumer<CommandStore> forEach)
+    private <S extends TxnOperation, F, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, F f, StoreGroups.Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
     {
-        forEach((s, i) -> s.all(), null, forEach);
+        List<Future<T>> futures = groups.foldl(select, scope, fold, f, null, ArrayList::new);
+        T result = null;
+        for (Future<T> future : futures)
+        {
+            try
+            {
+                T next = future.get();
+                if (result == null) result = next;
+                else result = reduce.apply(result, next);
+            }
+            catch (InterruptedException e)
+            {
+                throw new UncheckedInterruptedException(e);
+            }
+            catch (ExecutionException e)
+            {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+        return result;
     }
 
-    public void forEach(Keys keys, Consumer<CommandStore> forEach)
+    private  <S extends TxnOperation, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
-        forEach(StoreGroup::matches, keys, forEach);
+        return mapReduce(select, scope, map, (store, f, i, t) -> { t.add(store.process(scope, f)); return t; }, reduce);
+    }
+
+    private  <S extends TxnOperation> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach)
+    {
+        mapReduce(select, scope, forEach, (store, f, i, t) -> { t.add(store.process(scope, f)); return t; }, (Void i1, Void i2) -> null);
     }
 
     public void forEach(TxnRequest request, Consumer<CommandStore> forEach)
