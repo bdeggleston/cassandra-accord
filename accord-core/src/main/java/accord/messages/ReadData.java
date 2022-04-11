@@ -14,13 +14,13 @@ import accord.topology.Topologies;
 import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
-import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
     static class LocalRead implements Listener, TxnOperation
     {
         final TxnId txnId;
+        final Dependencies deps;
         final Node node;
         final Node.Id replyToNode;
         final Keys keyScope;
@@ -32,9 +32,10 @@ public class ReadData extends TxnRequest
         Set<CommandStore> waitingOn;
         Scheduled waitingOnReporter;
 
-        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys keyScope, Keys txnKeys, ReplyContext replyContext)
+        LocalRead(TxnId txnId, Dependencies deps, Node node, Id replyToNode, Keys keyScope, Keys txnKeys, ReplyContext replyContext)
         {
             this.txnId = txnId;
+            this.deps = deps;
             this.node = node;
             this.replyToNode = replyToNode;
             this.keyScope = keyScope;
@@ -45,13 +46,20 @@ public class ReadData extends TxnRequest
         }
 
         @Override
-        public Iterable<TxnId> expectedTxnIds()
+        public TxnId txnId()
         {
-            return Collections.singletonList(txnId);
+            return txnId;
         }
 
         @Override
-        public Iterable<Key> expectedKeys()
+        public Iterable<TxnId> depsIds()
+        {
+            // FIXME: maybe duplicate command data into waiting on maps
+            return deps.txnIds();
+        }
+
+        @Override
+        public Iterable<Key> keys()
         {
             return txnKeys;
         }
@@ -213,20 +221,20 @@ public class ReadData extends TxnRequest
     }
 
     @Override
-    public Iterable<TxnId> expectedTxnIds()
+    public TxnId txnId()
     {
-        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
+        return null;
     }
 
     @Override
-    public Iterable<Key> expectedKeys()
+    public Iterable<Key> keys()
     {
-        return txn.keys();
+        return Collections.emptyList();
     }
 
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, node, from, scope().keys(), txn.keys(), replyContext).setup(txnId, txn, scope());
+        new LocalRead(txnId, deps, node, from, scope().keys(), txn.keys(), replyContext).setup(txnId, txn, scope());
     }
 
     @Override

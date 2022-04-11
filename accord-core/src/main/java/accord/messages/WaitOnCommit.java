@@ -32,13 +32,13 @@ public class WaitOnCommit extends TxnRequest
         }
 
         @Override
-        public Iterable<TxnId> expectedTxnIds()
+        public TxnId txnId()
         {
-            return Collections.singletonList(txnId);
+            return txnId;
         }
 
         @Override
-        public Iterable<Key> expectedKeys()
+        public Iterable<Key> keys()
         {
             return Collections.emptyList();
         }
@@ -121,13 +121,13 @@ public class WaitOnCommit extends TxnRequest
     }
 
     @Override
-    public Iterable<TxnId> expectedTxnIds()
+    public TxnId txnId()
     {
-        return Collections.singletonList(txnId);
+        return txnId;
     }
 
     @Override
-    public Iterable<Key> expectedKeys()
+    public Iterable<Key> keys()
     {
         return keys;
     }
