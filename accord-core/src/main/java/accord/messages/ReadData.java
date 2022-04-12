@@ -14,7 +14,6 @@ import accord.topology.Topologies;
 import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
-import org.apache.cassandra.utils.concurrent.Future;
 
 public class ReadData extends TxnRequest
 {

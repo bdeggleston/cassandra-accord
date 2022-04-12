@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
@@ -22,6 +23,24 @@ public class Commit extends ReadData
     public Commit(Id to, Topologies topologies, TxnId txnId, Txn txn, Timestamp executeAt, Dependencies deps, boolean read)
     {
         this(Scope.forTopologies(to, topologies, txn), txnId, txn, executeAt, deps, read);
+    }
+
+    @Override
+    public TxnId txnId()
+    {
+        return txnId;
+    }
+
+    @Override
+    public Iterable<TxnId> depsIds()
+    {
+        return deps.txnIds();
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return txn.keys();
     }
 
     public void process(Node node, Id from, ReplyContext replyContext)
