@@ -94,7 +94,7 @@ public class Txn
         return "read:" + read.toString() + (update != null ? ", update:" + update : "");
     }
 
-    public Future<Data> read(Command command, Keys keyScope)
+    public Read.ReadFuture read(Command command, Keys keyScope)
     {
         List<Future<Data>> futures = keyScope.foldl(command.commandStore().ranges(), (key, accumulate) -> {
             CommandStore commandStore = command.commandStore();
@@ -105,7 +105,7 @@ public class Txn
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());
-        return new Read.Reducer(futures);
+        return new Read.ReadFuture(keyScope, futures);
     }
 
     public Timestamp maxConflict(CommandStore commandStore)

@@ -144,7 +144,7 @@ public class ReadData extends TxnRequest
 
         private void read(Command command)
         {
-            command.txn().read(command, keyScope).addCallback((next, throwable) -> {
+            command.read(keyScope).addCallback((next, throwable) -> {
                 if (throwable != null)
                     node.reply(replyToNode, replyContext, new ReadNack());
                 else

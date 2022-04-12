@@ -2,15 +2,8 @@ package accord.local;
 
 import java.util.function.Consumer;
 
-import accord.api.Key;
-import accord.api.Result;
-import accord.api.Write;
-import accord.txn.Ballot;
-import accord.txn.Dependencies;
-import accord.txn.Timestamp;
-import accord.txn.Txn;
-import accord.txn.TxnId;
-import accord.txn.Writes;
+import accord.api.*;
+import accord.txn.*;
 import org.apache.cassandra.utils.concurrent.Future;
 
 import static accord.local.Status.Accepted;
@@ -245,15 +238,25 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         }
     }
 
+    protected void postApply()
+    {
+        status(Applied);
+        notifyListeners();
+    }
+
     protected Future<?> apply()
     {
         return writes().apply(commandStore()).flatMap(unused ->
             commandStore().process(this, commandStore -> {
                 // implementation needs to forbid access to command until callback completes
-                status(Applied);
-                notifyListeners();
+                postApply();
             })
         );
+    }
+
+    public Read.ReadFuture read(Keys keyscope)
+    {
+        return txn().read(this, keyscope);
     }
 
     private Future<?> maybeExecute()
