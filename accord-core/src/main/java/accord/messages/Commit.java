@@ -45,7 +45,7 @@ public class Commit extends ReadData
 
     public void process(Node node, Id from, ReplyContext replyContext)
     {
-        node.forEachLocal(this, instance -> instance.command(txnId).commit(txn, deps, executeAt));
+        node.mapReduceLocal(this, instance -> instance.command(txnId).commit(txn, deps, executeAt), Apply::waitAndReduce);
         if (read) super.process(node, from, replyContext);
     }
 

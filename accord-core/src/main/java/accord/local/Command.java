@@ -2,13 +2,16 @@ package accord.local;
 
 import java.util.function.Consumer;
 
+import accord.api.Key;
 import accord.api.Result;
+import accord.api.Write;
 import accord.txn.Ballot;
 import accord.txn.Dependencies;
 import accord.txn.Timestamp;
 import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.Writes;
+import org.apache.cassandra.utils.concurrent.Future;
 
 import static accord.local.Status.Accepted;
 import static accord.local.Status.Applied;
@@ -17,8 +20,9 @@ import static accord.local.Status.Executed;
 import static accord.local.Status.PreAccepted;
 import static accord.local.Status.ReadyToExecute;
 
-public abstract class Command implements Listener, Consumer<Listener>
+public abstract class Command implements Listener, Consumer<Listener>, TxnOperation
 {
+    @Override
     public abstract TxnId txnId();
     public abstract CommandStore commandStore();
 
@@ -72,6 +76,18 @@ public abstract class Command implements Listener, Consumer<Listener>
         return status() == status;
     }
 
+    @Override
+    public Iterable<Key> keys()
+    {
+        return txn().keys();
+    }
+
+    @Override
+    public Iterable<TxnId> depsIds()
+    {
+        return savedDeps().txnIds();
+    }
+
     // requires that command != null
     // relies on mutual exclusion for each key
     public boolean witness(Txn txn)
@@ -116,12 +132,12 @@ public abstract class Command implements Listener, Consumer<Listener>
     }
 
     // relies on mutual exclusion for each key
-    public boolean commit(Txn txn, Dependencies deps, Timestamp executeAt)
+    public Future<?> commit(Txn txn, Dependencies deps, Timestamp executeAt)
     {
         if (hasBeen(Committed))
         {
             if (executeAt.equals(executeAt()))
-                return false;
+                return Write.SUCCESS;
 
             commandStore().agent().onInconsistentTimestamp(this, executeAt(), executeAt);
         }
@@ -169,14 +185,13 @@ public abstract class Command implements Listener, Consumer<Listener>
                 clearWaitingOnApply();
         }
         notifyListeners();
-        maybeExecute();
-        return true;
+        return maybeExecute();
     }
 
-    public boolean apply(Txn txn, Dependencies deps, Timestamp executeAt, Writes writes, Result result)
+    public Future<?> apply(Txn txn, Dependencies deps, Timestamp executeAt, Writes writes, Result result)
     {
         if (hasBeen(Executed) && executeAt.equals(executeAt()))
-            return false;
+            return Write.SUCCESS;
         else if (!hasBeen(Committed))
             commit(txn, deps, executeAt);
         else if (!executeAt.equals(executeAt()))
@@ -187,8 +202,7 @@ public abstract class Command implements Listener, Consumer<Listener>
         result(result);
         status(Executed);
         notifyListeners();
-        maybeExecute();
-        return true;
+        return maybeExecute();
     }
 
     public boolean recover(Txn txn, Ballot ballot)
@@ -231,13 +245,24 @@ public abstract class Command implements Listener, Consumer<Listener>
         }
     }
 
-    private void maybeExecute()
+    protected Future<?> apply()
+    {
+        return writes().apply(commandStore()).flatMap(unused ->
+            commandStore().process(this, commandStore -> {
+                // implementation needs to forbid access to command until callback completes
+                status(Applied);
+                notifyListeners();
+            })
+        );
+    }
+
+    private Future<?> maybeExecute()
     {
         if (status() != Committed && status() != Executed)
-            return;
+            return Write.SUCCESS;
 
         if (isWaitingOnApply())
-            return;
+            return Write.SUCCESS;
 
         switch (status())
         {
@@ -247,10 +272,9 @@ public abstract class Command implements Listener, Consumer<Listener>
                 notifyListeners();
                 break;
             case Executed:
-                writes().apply(commandStore());
-                status(Applied);
-                notifyListeners();
+                return apply();
         }
+        return Write.SUCCESS;
     }
 
     private void updatePredecessor(Command committed)
