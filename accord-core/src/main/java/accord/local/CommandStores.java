@@ -230,6 +230,12 @@ public abstract class CommandStores
         return result;
     }
 
+    private <F, T> T setup(F f, StoreGroups.Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
+    {
+        List<Future<T>> futures = groups.foldl((s, i) -> s.all(), null, fold, f, null, ArrayList::new);
+        return reduce(futures, reduce);
+    }
+
     private <S extends TxnOperation, F, T> T mapReduce(ToLongBiFunction<StoreGroup, S> select, S scope, F f, StoreGroups.Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
     {
         List<Future<T>> futures = groups.foldl(select, scope, fold, f, null, ArrayList::new);
@@ -244,6 +250,16 @@ public abstract class CommandStores
     private  <S extends TxnOperation> void forEach(ToLongBiFunction<StoreGroup, S> select, S scope, Consumer<? super CommandStore> forEach)
     {
         mapReduce(select, scope, forEach, (store, f, i, t) -> { t.add(store.process(scope, f)); return t; }, (Void i1, Void i2) -> null);
+    }
+
+    public void setup(Consumer<CommandStore> forEach)
+    {
+        setup(forEach, (store, f, i, t) -> { t.add(store.processSetup(f)); return t; }, (Void i1, Void i2) -> null);
+    }
+
+    public <T> T setup(Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return setup(map, (store, f, i, t) -> { t.add(store.processSetup(f)); return t; }, reduce);
     }
 
     public void forEach(TxnRequest request, Consumer<CommandStore> forEach)

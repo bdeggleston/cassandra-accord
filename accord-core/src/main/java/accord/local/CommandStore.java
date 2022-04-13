@@ -131,6 +131,13 @@ public abstract class CommandStore
             store.process(scope, consumer);
     }
 
+    /**
+     * for configuration, working on command store without a txn
+     */
+    public abstract Future<Void> processSetup(Consumer<? super CommandStore> function);
+
+    public abstract <T> Future<T> processSetup(Function<? super CommandStore, T> function);
+
     public abstract Future<Void> process(TxnOperation scope, Consumer<? super CommandStore> consumer);
 
     public abstract <T> Future<T> process(TxnOperation scope, Function<? super CommandStore, T> function);
