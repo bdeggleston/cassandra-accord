@@ -1,9 +1,11 @@
 package accord.local;
 
+import java.util.Collections;
 import java.util.function.Consumer;
 
 import accord.api.*;
 import accord.txn.*;
+import com.google.common.collect.Iterables;
 import org.apache.cassandra.utils.concurrent.Future;
 
 import static accord.local.Status.Accepted;
@@ -15,7 +17,6 @@ import static accord.local.Status.ReadyToExecute;
 
 public abstract class Command implements Listener, Consumer<Listener>, TxnOperation
 {
-    @Override
     public abstract TxnId txnId();
     public abstract CommandStore commandStore();
 
@@ -70,15 +71,15 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     }
 
     @Override
-    public Iterable<Key> keys()
+    public Iterable<TxnId> txnIds()
     {
-        return txn().keys();
+        return Iterables.concat(Collections.singleton(txnId()), savedDeps().txnIds());
     }
 
     @Override
-    public Iterable<TxnId> depsIds()
+    public Iterable<Key> keys()
     {
-        return savedDeps().txnIds();
+        return txn().keys();
     }
 
     // requires that command != null

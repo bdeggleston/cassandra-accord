@@ -14,6 +14,7 @@ import accord.topology.Topologies;
 import accord.txn.*;
 import accord.api.Scheduler.Scheduled;
 import accord.utils.DeterministicIdentitySet;
+import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
@@ -46,15 +47,9 @@ public class ReadData extends TxnRequest
         }
 
         @Override
-        public TxnId txnId()
+        public Iterable<TxnId> txnIds()
         {
-            return txnId;
-        }
-
-        @Override
-        public Iterable<TxnId> depsIds()
-        {
-            return deps.txnIds();
+            return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
         }
 
         @Override
@@ -220,9 +215,9 @@ public class ReadData extends TxnRequest
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return null;
+        return Collections.emptyList();
     }
 
     @Override

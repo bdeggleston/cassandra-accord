@@ -35,9 +35,9 @@ public class PreAccept extends TxnRequest
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
+        return Collections.singleton(txnId);
     }
 
     @Override

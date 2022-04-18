@@ -1,6 +1,7 @@
 package accord.local;
 
 import accord.api.Key;
+import accord.txn.Txn;
 import accord.txn.TxnId;
 
 import java.util.Collections;
@@ -11,10 +12,6 @@ import java.util.Collections;
  */
 public interface TxnOperation
 {
-    TxnId txnId();
+    Iterable<TxnId> txnIds();
     Iterable<Key> keys();
-    default Iterable<TxnId> depsIds()
-    {
-        return Collections.emptyList();
-    }
 }
