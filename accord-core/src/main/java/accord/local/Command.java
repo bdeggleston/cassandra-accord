@@ -248,7 +248,6 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     {
         return writes().apply(commandStore()).flatMap(unused ->
             commandStore().process(this, commandStore -> {
-                // implementation needs to forbid access to command until callback completes
                 postApply();
             })
         );

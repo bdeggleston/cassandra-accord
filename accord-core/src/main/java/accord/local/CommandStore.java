@@ -132,7 +132,7 @@ public abstract class CommandStore
     }
 
     /**
-     * for configuration, working on command store without a txn
+     * for interacting with the command store in a threadsafe way, without needing any txns loaded. For configuration
      */
     public abstract Future<Void> processSetup(Consumer<? super CommandStore> function);
 

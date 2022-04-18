@@ -54,7 +54,6 @@ public class ReadData extends TxnRequest
         @Override
         public Iterable<TxnId> depsIds()
         {
-            // FIXME: maybe duplicate command data into waiting on maps
             return deps.txnIds();
         }
 
@@ -173,11 +172,8 @@ public class ReadData extends TxnRequest
 
         synchronized void setup(TxnId txnId, Txn txn, Scope scope)
         {
-            // TODO: return futures... maybe add a read listener??
             // TODO: simple hash set supporting concurrent modification, or else avoid concurrent modification
             waitingOn = node.collectLocal(scope, DeterministicIdentitySet::new);
-            // FIXME: fix/check thread safety
-            // FIXME (rebase): rework forEach and mapReduce to not require these to be public
             CommandStores.forEachNonBlocking(waitingOn, this, instance -> {
                 Command command = instance.command(txnId);
                 command.witness(txn);
