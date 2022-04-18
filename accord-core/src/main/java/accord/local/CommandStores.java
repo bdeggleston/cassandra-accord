@@ -29,13 +29,12 @@ public abstract class CommandStores
         CommandStores create(int num, Node.Id node, Function<Timestamp, Timestamp> uniqueNow, Agent agent, Store store);
     }
 
-    // FIXME (rebase): rework forEach and mapReduce to not require these to be public
-    public static class StoreGroup
+    protected static class StoreGroup
     {
         final CommandStore[] stores;
         final KeyRanges ranges;
 
-        public StoreGroup(CommandStore[] stores, KeyRanges ranges)
+        StoreGroup(CommandStore[] stores, KeyRanges ranges)
         {
             Preconditions.checkArgument(stores.length <= 64);
             this.stores = stores;
@@ -73,8 +72,7 @@ public abstract class CommandStores
         }
     }
 
-    // FIXME (rebase): rework forEach and mapReduce to not require these to be public
-    public static class StoreGroups
+    protected static class StoreGroups
     {
         private static final StoreGroups EMPTY = new StoreGroups(new StoreGroup[0], Topology.EMPTY, Topology.EMPTY);
         final StoreGroup[] groups;
@@ -82,7 +80,7 @@ public abstract class CommandStores
         final Topology local;
         final int size;
 
-        public StoreGroups(StoreGroup[] groups, Topology global, Topology local)
+        protected StoreGroups(StoreGroup[] groups, Topology global, Topology local)
         {
             this.groups = groups;
             this.global = global;
@@ -98,12 +96,12 @@ public abstract class CommandStores
             return new StoreGroups(groups, global, local);
         }
 
-        public int size()
+        int size()
         {
             return size;
         }
 
-        private <I1, I2, O> O foldl(int startGroup, long bitset, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, O accumulator)
+        public  <I1, I2, O> O foldl(int startGroup, long bitset, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, O accumulator)
         {
             int groupIndex = startGroup;
             StoreGroup group = groups[groupIndex];
@@ -132,14 +130,12 @@ public abstract class CommandStores
             return accumulator;
         }
 
-        // FIXME (rebase): rework forEach and mapReduce to not require these to be public
         public interface Fold<I1, I2, O>
         {
             O fold(CommandStore store, I1 i1, I2 i2, O accumulator);
         }
 
-        // FIXME (rebase): rework forEach and mapReduce to not require these to be public
-        public <S, I1, I2, O> O foldl(ToLongBiFunction<StoreGroup, S> select, S scope, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
+        public  <S, I1, I2, O> O foldl(ToLongBiFunction<StoreGroup, S> select, S scope, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
         {
             O accumulator = null;
             int startGroup = 0;
