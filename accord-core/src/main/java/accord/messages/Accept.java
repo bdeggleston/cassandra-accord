@@ -1,6 +1,7 @@
 package accord.messages;
 
 import accord.api.Key;
+import accord.local.CommandStore;
 import accord.topology.Topologies;
 import accord.txn.Ballot;
 import accord.local.Node;
@@ -9,6 +10,7 @@ import accord.local.Command;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Collections;
 
@@ -49,14 +51,19 @@ public class Accept extends TxnRequest
         return txn.keys();
     }
 
+    @VisibleForTesting
+    public AcceptReply process(CommandStore instance)
+    {
+        Command command = instance.command(txnId);
+        if (!command.accept(ballot, txn, executeAt, deps))
+            return new AcceptNack(txnId, command.promised());
+        return new AcceptOk(txnId, calculateDeps(instance, txnId, txn, executeAt));
+    }
+
     public void process(Node on, Node.Id replyToNode, ReplyContext replyContext)
     {
-        on.reply(replyToNode, replyContext, on.mapReduceLocal(this, instance -> {
-            Command command = instance.command(txnId);
-            if (!command.accept(ballot, txn, executeAt, deps))
-                return new AcceptNack(txnId, command.promised());
-            return new AcceptOk(txnId, calculateDeps(instance, txnId, txn, executeAt));
-        }, (r1, r2) -> {
+        on.reply(replyToNode, replyContext, on.mapReduceLocal(this, this::process,
+        (r1, r2) -> {
             if (!r1.isOK()) return r1;
             if (!r2.isOK()) return r2;
             AcceptOk ok1 = (AcceptOk) r1;

@@ -15,6 +15,7 @@ import accord.local.Command;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.annotations.VisibleForTesting;
 
 public class PreAccept extends TxnRequest
 {
@@ -45,17 +46,22 @@ public class PreAccept extends TxnRequest
         return txn.keys();
     }
 
+    @VisibleForTesting
+    public PreAcceptReply process(CommandStore instance)
+    {
+        // note: this diverges from the paper, in that instead of waiting for JoinShard,
+        //       we PreAccept to both old and new topologies and require quorums in both.
+        //       This necessitates sending to ALL replicas of old topology, not only electorate (as fast path may be unreachable).
+        Command command = instance.command(txnId);
+        if (!command.witness(txn))
+            return PreAcceptNack.INSTANCE;
+        return new PreAcceptOk(txnId, command.executeAt(), calculateDeps(instance, txnId, txn, txnId));
+    }
+
     public void process(Node node, Id from, ReplyContext replyContext)
     {
-        node.reply(from, replyContext, node.mapReduceLocal(this, instance -> {
-            // note: this diverges from the paper, in that instead of waiting for JoinShard,
-            //       we PreAccept to both old and new topologies and require quorums in both.
-            //       This necessitates sending to ALL replicas of old topology, not only electorate (as fast path may be unreachable).
-            Command command = instance.command(txnId);
-            if (!command.witness(txn))
-                return PreAcceptNack.INSTANCE;
-            return new PreAcceptOk(txnId, command.executeAt(), calculateDeps(instance, txnId, txn, txnId));
-        }, (r1, r2) -> {
+        node.reply(from, replyContext, node.mapReduceLocal(this, this::process,
+        (r1, r2) -> {
             if (!r1.isOK()) return r1;
             if (!r2.isOK()) return r2;
             PreAcceptOk ok1 = (PreAcceptOk) r1;
@@ -148,7 +154,8 @@ public class PreAccept extends TxnRequest
         }
     }
 
-    static Dependencies calculateDeps(CommandStore commandStore, TxnId txnId, Txn txn, Timestamp executeAt)
+    @VisibleForTesting
+    public static Dependencies calculateDeps(CommandStore commandStore, TxnId txnId, Txn txn, Timestamp executeAt)
     {
         NavigableMap<TxnId, Txn> deps = new TreeMap<>();
         txn.conflictsMayExecuteBefore(commandStore, executeAt).forEach(conflict -> {
