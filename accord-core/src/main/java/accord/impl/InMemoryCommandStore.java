@@ -78,7 +78,7 @@ public abstract class InMemoryCommandStore extends CommandStore
                 if (forKey != null)
                 {
                     for (Command command : forKey)
-                        if (command.txn() != null && !postPurge.intersects(command.txn().keys))
+                        if (command.txn() != null && !postPurge.intersects(command.txn().keys()))
                             commands.remove(command.txnId());
                 }
                 if (forKey.isEmpty())
