@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import accord.api.*;
 import accord.txn.*;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import org.apache.cassandra.utils.concurrent.Future;
 
@@ -48,17 +49,20 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public abstract void removeListener(Listener listener);
     public abstract void notifyListeners();
 
-    public abstract void clearWaitingOnCommit();
-    public abstract void addWaitingOnCommit(TxnId txnId, Command command);
+    public abstract void addWaitingOnCommit(Command command);
     public abstract boolean isWaitingOnCommit();
-    public abstract void removeWaitingOnCommit(TxnId txnId);
+    public abstract void removeWaitingOnCommit(Command command);
     public abstract Command firstWaitingOnCommit();
 
-    public abstract void clearWaitingOnApply();
-    public abstract void addWaitingOnApplyIfAbsent(Timestamp txnId, Command command);
+    public abstract void addWaitingOnApplyIfAbsent(Command command);
     public abstract boolean isWaitingOnApply();
-    public abstract void removeWaitingOnApply(Timestamp txnId);
+    public abstract void removeWaitingOnApply(Command command);
     public abstract Command firstWaitingOnApply();
+
+    public boolean isUnableToApply()
+    {
+        return isWaitingOnCommit() || isWaitingOnApply();
+    }
 
     public boolean hasBeen(Status status)
     {
@@ -140,8 +144,8 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         savedDeps(deps);
         executeAt(executeAt);
         status(Committed);
-        clearWaitingOnCommit();
-        clearWaitingOnApply();
+        Preconditions.checkState(!isWaitingOnCommit());
+        Preconditions.checkState(!isWaitingOnApply());
 
         for (TxnId id : savedDeps().on(commandStore()))
         {
@@ -155,7 +159,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
                 case PreAccepted:
                 case Accepted:
                     // we don't know when these dependencies will execute, and cannot execute until we do
-                    addWaitingOnCommit(id, command);
+                    addWaitingOnCommit(command);
                     command.addListener(this);
                     break;
                 case Committed:
@@ -169,14 +173,6 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
                     updatePredecessor(command);
                     break;
             }
-        }
-        // TODO: except for above, explicit waiting on clearing can probably be removed
-        //   was probably to prevent having to write != null && !isEmpty everywhere
-        if (!isWaitingOnCommit())
-        {
-            clearWaitingOnCommit();
-            if (!isWaitingOnApply())
-                clearWaitingOnApply();
         }
         notifyListeners();
         return maybeExecute();
@@ -218,17 +214,13 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
             case ReadyToExecute:
             case Executed:
             case Applied:
-                if (isWaitingOnApply())
+                if (isUnableToApply())
                 {
                     updatePredecessor(command);
                     if (isWaitingOnCommit())
                     {
-                        removeWaitingOnCommit(command.txnId());
-                        if (!isWaitingOnCommit())
-                            clearWaitingOnCommit();
+                        removeWaitingOnCommit(command);
                     }
-                    if (!isWaitingOnCommit() && !isWaitingOnApply())
-                        clearWaitingOnApply();
                 }
                 else
                 {
@@ -264,7 +256,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         if (status() != Committed && status() != Executed)
             return Write.SUCCESS;
 
-        if (isWaitingOnApply())
+        if (isUnableToApply())
             return Write.SUCCESS;
 
         switch (status())
@@ -289,12 +281,12 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         }
         else if (committed.hasBeen(Applied))
         {
-            removeWaitingOnApply(committed.executeAt());
+            removeWaitingOnApply(committed);
             committed.removeListener(this);
         }
         else
         {
-            addWaitingOnApplyIfAbsent(committed.executeAt(), committed);
+            addWaitingOnApplyIfAbsent(committed);
         }
     }
 

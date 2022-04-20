@@ -189,18 +189,12 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public void clearWaitingOnCommit()
-    {
-        waitingOnCommit = null;
-    }
-
-    @Override
-    public void addWaitingOnCommit(TxnId txnId, Command command)
+    public void addWaitingOnCommit(Command command)
     {
         if (waitingOnCommit == null)
             waitingOnCommit = new TreeMap<>();
 
-        waitingOnCommit.put(txnId, command);
+        waitingOnCommit.put(command.txnId(), command);
     }
 
     @Override
@@ -210,11 +204,11 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public void removeWaitingOnCommit(TxnId txnId)
+    public void removeWaitingOnCommit(Command command)
     {
         if (waitingOnCommit == null)
             return;
-        waitingOnCommit.remove(txnId);
+        waitingOnCommit.remove(command.txnId());
     }
 
     @Override
@@ -224,18 +218,12 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public void clearWaitingOnApply()
-    {
-        waitingOnApply = null;
-    }
-
-    @Override
-    public void addWaitingOnApplyIfAbsent(Timestamp timestamp, Command command)
+    public void addWaitingOnApplyIfAbsent(Command command)
     {
         if (waitingOnApply == null)
             waitingOnApply = new TreeMap<>();
 
-        waitingOnApply.putIfAbsent(timestamp, command);
+        waitingOnApply.putIfAbsent(command.executeAt(), command);
     }
 
     @Override
@@ -245,11 +233,11 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public void removeWaitingOnApply(Timestamp timestamp)
+    public void removeWaitingOnApply(Command command)
     {
         if (waitingOnApply == null)
             return;
-        waitingOnApply.remove(timestamp);
+        waitingOnApply.remove(command.executeAt());
     }
 
     @Override
