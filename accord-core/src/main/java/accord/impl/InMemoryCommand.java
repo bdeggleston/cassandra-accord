@@ -29,7 +29,7 @@ public class InMemoryCommand extends Command
     private boolean isGloballyPersistent; // only set on home shard
 
     private NavigableMap<TxnId, Command> waitingOnCommit;
-    private NavigableMap<Timestamp, Command> waitingOnApply;
+    private NavigableMap<TxnId, Command> waitingOnApply;
 
     private final Listeners listeners = new Listeners();
 
@@ -264,7 +264,7 @@ public class InMemoryCommand extends Command
         if (waitingOnApply == null)
             waitingOnApply = new TreeMap<>();
 
-        waitingOnApply.putIfAbsent(command.executeAt(), command);
+        waitingOnApply.putIfAbsent(command.txnId(), command);
     }
 
     @Override
@@ -278,7 +278,7 @@ public class InMemoryCommand extends Command
     {
         if (waitingOnApply == null)
             return;
-        waitingOnApply.remove(command.executeAt());
+        waitingOnApply.remove(command.txnId());
     }
 
     @Override
