@@ -62,7 +62,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
     public boolean hasBeen(Status status)
     {
-        return status().compareTo(status) >= 0;
+        return status().hasBeen(status);
     }
 
     public boolean is(Status status)
@@ -137,9 +137,9 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         }
 
         witness(txn);
-        status(Committed);
         savedDeps(deps);
         executeAt(executeAt);
+        status(Committed);
         clearWaitingOnCommit();
         clearWaitingOnApply();
 

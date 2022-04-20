@@ -8,4 +8,9 @@ public enum Status
     {
         return a.compareTo(b) >= 0 ? a : b;
     }
+
+    public boolean hasBeen(Status status)
+    {
+        return compareTo(status) >= 0;
+    }
 }
