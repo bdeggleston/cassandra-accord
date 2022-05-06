@@ -1,6 +1,7 @@
 package accord.maelstrom;
 
 import accord.api.*;
+import accord.local.CommandStore;
 import accord.txn.Keys;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
@@ -16,7 +17,7 @@ public class MaelstromRead implements Read
     }
 
     @Override
-    public Future<Data> read(Key key, Timestamp executeAt, Store store)
+    public Future<Data> read(Key key, CommandStore commandStore, Timestamp executeAt, Store store)
     {
         MaelstromStore s = (MaelstromStore)store;
         MaelstromData result = new MaelstromData();

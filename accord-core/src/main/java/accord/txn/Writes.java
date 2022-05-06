@@ -45,7 +45,7 @@ public class Writes
 
         List<Future<?>> futures = keys.foldl(commandStore.ranges(), (key, accumulate) -> {
             if (commandStore.hashIntersects(key))
-                accumulate.add(write.apply(key, executeAt, commandStore.store()));
+                accumulate.add(write.apply(key, commandStore, executeAt, commandStore.store()));
             return accumulate;
         }, new ArrayList<>());
         Preconditions.checkState(!futures.isEmpty());

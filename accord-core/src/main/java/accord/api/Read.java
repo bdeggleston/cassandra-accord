@@ -1,5 +1,6 @@
 package accord.api;
 
+import accord.local.CommandStore;
 import accord.txn.Keys;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.AsyncPromise;
@@ -15,7 +16,7 @@ import java.util.function.BiConsumer;
  */
 public interface Read
 {
-    Future<Data> read(Key key, Timestamp executeAt, Store store);
+    Future<Data> read(Key key, CommandStore commandStore, Timestamp executeAt, Store store);
 
     class ReadFuture extends AsyncPromise<Data> implements BiConsumer<Data, Throwable>
     {

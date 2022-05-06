@@ -1,6 +1,7 @@
 package accord.impl.list;
 
 import accord.api.*;
+import accord.local.CommandStore;
 import accord.txn.Keys;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
@@ -20,7 +21,7 @@ public class ListRead implements Read
     }
 
     @Override
-    public Future<Data> read(Key key, Timestamp executeAt, Store store)
+    public Future<Data> read(Key key, CommandStore commandStore, Timestamp executeAt, Store store)
     {
         ListStore s = (ListStore)store;
         ListData result = new ListData();
