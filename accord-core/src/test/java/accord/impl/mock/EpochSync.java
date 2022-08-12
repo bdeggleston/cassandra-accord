@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
+import static accord.impl.InMemoryCommandStore.inMemory;
 import static accord.impl.mock.MockCluster.configService;
 
 public class EpochSync implements Runnable
@@ -170,7 +171,7 @@ public class EpochSync implements Runnable
         {
             Map<TxnId, SyncCommitted> syncMessages = new ConcurrentHashMap<>();
             Consumer<Command> commandConsumer = command -> syncMessages.put(command.txnId(), new SyncCommitted(command, syncEpoch));
-            node.forEachLocal(commandStore -> commandStore.forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
+            node.forEachLocal(commandStore -> inMemory(commandStore).forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
 
             for (SyncCommitted message : syncMessages.values())
                 CommandSync.sync(node, message, nextTopology);

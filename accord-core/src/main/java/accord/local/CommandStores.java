@@ -1,25 +1,22 @@
 package accord.local;
 
 import accord.api.Agent;
-import accord.api.Key;
 import accord.api.DataStore;
-import accord.local.CommandStore.RangesForEpoch;
-import accord.messages.TxnRequest;
+import accord.api.Key;
 import accord.api.ProgressLog;
+import accord.local.CommandStore.RangesForEpoch;
 import accord.topology.KeyRanges;
 import accord.topology.Topology;
 import accord.txn.Keys;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.function.*;
-
-import static java.lang.Boolean.FALSE;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 
 /**
  * Manages the single threaded metadata shards
@@ -35,12 +32,12 @@ public abstract class CommandStores
                              ProgressLog.Factory progressLogFactory);
     }
 
-    interface Fold<I1, I2, O>
+    protected interface Fold<I1, I2, O>
     {
         O fold(CommandStore store, I1 i1, I2 i2, O accumulator);
     }
 
-    interface Select<Scope>
+    protected interface Select<Scope>
     {
         long select(ShardedRanges ranges, Scope scope, long minEpoch, long maxEpoch);
     }
@@ -83,7 +80,7 @@ public abstract class CommandStores
         }
     }
 
-    private static class Supplier
+    protected static class Supplier
     {
         private final Node node;
         private final Agent agent;
@@ -239,7 +236,7 @@ public abstract class CommandStores
     final Supplier supplier;
     volatile Snapshot current;
 
-    private CommandStores(Supplier supplier)
+    protected CommandStores(Supplier supplier)
     {
         this.supplier = supplier;
         this.current = new Snapshot(new ShardedRanges[0], Topology.EMPTY, Topology.EMPTY);
@@ -428,7 +425,7 @@ public abstract class CommandStores
         return accumulator;
     }
 
-    <S, I1, I2, O> O foldl(Select<S> select, S scope, long minEpoch, long maxEpoch, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
+    protected <S, I1, I2, O> O foldl(Select<S> select, S scope, long minEpoch, long maxEpoch, Fold<? super I1, ? super I2, O> fold, I1 param1, I2 param2, IntFunction<? extends O> factory)
     {
         ShardedRanges[] ranges = current.ranges;
         O accumulator = null;
@@ -482,89 +479,4 @@ public abstract class CommandStores
         }
         throw new IllegalArgumentException();
     }
-
-    public static class Synchronized extends CommandStores
-    {
-        public Synchronized(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
-        {
-            super(num, node, agent, store, progressLogFactory, CommandStore.Synchronized::new);
-        }
-
-        public Synchronized(Supplier supplier)
-        {
-            super(supplier);
-        }
-
-        @Override
-        protected <S, T> T mapReduce(Select<S> select, S scope, long minEpoch, long maxEpoch, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
-        {
-            return foldl(select, scope, minEpoch, maxEpoch, (store, f, r, t) -> t == null ? f.apply(store) : r.apply(t, f.apply(store)), map, reduce, ignore -> null);
-        }
-
-        @Override
-        protected <S> void forEach(Select<S> select, S scope, long minEpoch, long maxEpoch, Consumer<? super CommandStore> forEach)
-        {
-            foldl(select, scope, minEpoch, maxEpoch, (store, f, r, t) -> { f.accept(store); return null; }, forEach, null, ignore -> FALSE);
-        }
-    }
-
-    public static class SingleThread extends CommandStores
-    {
-        public SingleThread(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
-        {
-            this(num, node, agent, store, progressLogFactory, CommandStore.SingleThread::new);
-        }
-
-        public SingleThread(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory, CommandStore.Factory shardFactory)
-        {
-            super(num, node, agent, store, progressLogFactory, shardFactory);
-        }
-
-        private <S, F, T> T mapReduce(Select<S> select, S scope, long minEpoch, long maxEpoch, F f, Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
-        {
-            List<Future<T>> futures = foldl(select, scope, minEpoch, maxEpoch, fold, f, null, ArrayList::new);
-            if (futures == null)
-                return null;
-
-            T result = null;
-            for (Future<T> future : futures)
-            {
-                try
-                {
-                    T next = future.get();
-                    if (result == null) result = next;
-                    else result = reduce.apply(result, next);
-                }
-                catch (InterruptedException e)
-                {
-                    throw new UncheckedInterruptedException(e);
-                }
-                catch (ExecutionException e)
-                {
-                    throw new RuntimeException(e.getCause());
-                }
-            }
-            return result;
-        }
-
-        @Override
-        protected <S, T> T mapReduce(Select<S> select, S scope, long minEpoch, long maxEpoch, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
-        {
-            return mapReduce(select, scope, minEpoch, maxEpoch, map, (store, f, i, t) -> { t.add(store.process(f)); return t; }, reduce);
-        }
-
-        protected <S> void forEach(Select<S> select, S scope, long minEpoch, long maxEpoch, Consumer<? super CommandStore> forEach)
-        {
-            mapReduce(select, scope, minEpoch, maxEpoch, forEach, (store, f, i, t) -> { t.add(store.process(f)); return t; }, (Void i1, Void i2) -> null);
-        }
-    }
-
-    public static class Debug extends SingleThread
-    {
-        public Debug(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
-        {
-            super(num, node, agent, store, progressLogFactory, CommandStore.Debug::new);
-        }
-    }
-
 }

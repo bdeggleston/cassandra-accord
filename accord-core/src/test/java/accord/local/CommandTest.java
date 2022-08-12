@@ -1,18 +1,15 @@
 package accord.local;
 
-import accord.api.Key;
 import accord.api.ProgressLog;
 import accord.api.TestableConfigurationService;
+import accord.impl.InMemoryCommandStores;
 import accord.impl.IntKey;
 import accord.impl.TestAgent;
 import accord.impl.TopologyFactory;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockConfigurationService;
 import accord.impl.mock.MockStore;
-import accord.local.CommandStore.RangesForEpoch;
-import accord.local.CommandStores.Synchronized;
 import accord.local.Node.Id;
-import accord.topology.KeyRanges;
 import accord.topology.Topology;
 import accord.txn.Keys;
 import accord.txn.Timestamp;
@@ -21,13 +18,12 @@ import accord.txn.TxnId;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-
-import javax.annotation.Nullable;
 
 import static accord.Utils.id;
 import static accord.Utils.writeTxn;
@@ -54,6 +50,7 @@ public class CommandTest
 
     private static CommandStore createStore(CommandStoreSupport storeSupport)
     {
+//<<<<<<< HEAD
         return createNode(ID1, storeSupport).unsafeByIndex(0);
     }
 
@@ -104,7 +101,7 @@ public class CommandTest
     {
         return new Node(id, null, new MockConfigurationService(null, (epoch, service) -> { }, storeSupport.local.get()),
                         new MockCluster.Clock(100), () -> storeSupport.data, new TestAgent(), new Random(), null,
-                        ignore -> ignore2 -> new NoOpProgressLog(), Synchronized::new);
+                        ignore -> ignore2 -> new NoOpProgressLog(), InMemoryCommandStores.Synchronized::new);
     }
 
     @Test
