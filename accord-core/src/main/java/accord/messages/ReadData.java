@@ -64,6 +64,12 @@ public class ReadData extends TxnRequest
                 read(command);
         }
 
+        @Override
+        public boolean isTransient()
+        {
+            return true;
+        }
+
         private void read(Command command)
         {
             // TODO: threading/futures (don't want to perform expensive reads within this mutually exclusive context)

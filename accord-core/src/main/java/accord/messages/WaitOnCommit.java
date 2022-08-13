@@ -52,6 +52,12 @@ public class WaitOnCommit extends TxnRequest
             ack();
         }
 
+        @Override
+        public boolean isTransient()
+        {
+            return true;
+        }
+
         private void ack()
         {
             if (waitingOn.decrementAndGet() == 0)
