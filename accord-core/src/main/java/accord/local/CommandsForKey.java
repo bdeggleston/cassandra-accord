@@ -33,8 +33,6 @@ public abstract class CommandsForKey implements Listener, Iterable<Command>
         Stream<Command> between(Timestamp min, Timestamp max);
 
         Stream<Command> all();
-
-        boolean isEmpty();
     }
 
     public abstract CommandTimeseries uncommitted();

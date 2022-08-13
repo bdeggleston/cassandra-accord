@@ -251,11 +251,11 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public boolean removeWaitingOnCommit(TxnId txnId)
+    public void removeWaitingOnCommit(TxnId txnId)
     {
         if (waitingOnCommit == null)
-            return false;
-        return waitingOnCommit.remove(txnId) != null;
+            return;
+        waitingOnCommit.remove(txnId);
     }
 
     @Override
@@ -286,11 +286,11 @@ public class InMemoryCommand extends Command
     }
 
     @Override
-    public boolean removeWaitingOnApply(Timestamp timestamp)
+    public void removeWaitingOnApply(Timestamp timestamp)
     {
         if (waitingOnApply == null)
-            return false;
-        return waitingOnApply.remove(timestamp) != null;
+            return;
+        waitingOnApply.remove(timestamp);
     }
 
     @Override

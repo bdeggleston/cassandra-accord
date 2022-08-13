@@ -61,12 +61,6 @@ public class InMemoryCommandsForKey extends CommandsForKey
         {
             return commands.values().stream();
         }
-
-        @Override
-        public boolean isEmpty()
-        {
-            return commands.isEmpty();
-        }
     }
 
     private final InMemoryCommandTimeseries uncommitted = new InMemoryCommandTimeseries();

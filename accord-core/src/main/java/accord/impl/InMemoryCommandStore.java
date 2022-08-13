@@ -130,6 +130,19 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
     }
 
+    protected <T> void processInternal(Function<? super CommandStore, T> function, Promise<T> promise)
+    {
+        try
+        {
+            T result = function.apply(this);
+            promise.setSuccess(result);
+        }
+        catch (Throwable e)
+        {
+            promise.tryFailure(e);
+        }
+    }
+
     public static class Synchronized extends InMemoryCommandStore
     {
         public static final Factory FACTORY = Synchronized::new;
