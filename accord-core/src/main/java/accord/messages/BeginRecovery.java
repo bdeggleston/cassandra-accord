@@ -295,7 +295,7 @@ public class BeginRecovery extends TxnRequest
             CommandsForKey forKey = commandStore.maybeCommandsForKey(key);
             if (forKey == null)
                 return Stream.of();
-            return forKey.uncommitted.headMap(startedBefore, false).values().stream();
+            return forKey.uncommitted().before(startedBefore);
         });
     }
 
@@ -305,7 +305,7 @@ public class BeginRecovery extends TxnRequest
             CommandsForKey forKey = commandStore.maybeCommandsForKey(key);
             if (forKey == null)
                 return Stream.of();
-            return forKey.committedById.headMap(startedBefore, false).values().stream();
+            return forKey.committedById().before(startedBefore);
         });
     }
 
@@ -315,7 +315,7 @@ public class BeginRecovery extends TxnRequest
             CommandsForKey forKey = commandStore.maybeCommandsForKey(key);
             if (forKey == null)
                 return Stream.of();
-            return forKey.uncommitted.tailMap(startedAfter, false).values().stream();
+            return forKey.uncommitted().after(startedAfter);
         });
     }
 
@@ -325,7 +325,7 @@ public class BeginRecovery extends TxnRequest
             CommandsForKey forKey = commandStore.maybeCommandsForKey(key);
             if (forKey == null)
                 return Stream.of();
-            return forKey.committedByExecuteAt.tailMap(startedAfter, false).values().stream();
+            return forKey.committedByExecuteAt().after(startedAfter);
         });
     }
 }

@@ -178,9 +178,9 @@ public class PreAccept extends WithUnsynced
                 return Stream.of();
 
             return Stream.concat(
-                forKey.uncommitted.headMap(mayExecuteBefore, false).values().stream(),
+                forKey.uncommitted().before(mayExecuteBefore),
                 // TODO: only return latest of Committed?
-                forKey.committedByExecuteAt.headMap(mayExecuteBefore, false).values().stream()
+                forKey.committedByExecuteAt().before(mayExecuteBefore)
             );
         });
     }
