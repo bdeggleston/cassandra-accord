@@ -138,6 +138,12 @@ public abstract class CommandStore
         return shardIndex;
     }
 
+    // TODO (now): rename to shardGeneration
+    public int generation()
+    {
+        return generation;
+    }
+
     public boolean hashIntersects(Key key)
     {
         return ShardedRanges.keyIndex(key, numShards) == shardIndex;
