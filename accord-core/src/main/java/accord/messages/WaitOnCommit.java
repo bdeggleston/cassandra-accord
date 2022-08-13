@@ -89,6 +89,7 @@ public class WaitOnCommit extends TxnRequest
         {
             List<CommandStore> instances = node.collectLocal(keys, txnId, ArrayList::new);
             waitingOn.set(instances.size());
+            // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
             instances.forEach(instance -> instance.processBlocking(this::setup));
         }
     }

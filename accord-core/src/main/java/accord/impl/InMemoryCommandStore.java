@@ -18,7 +18,6 @@ import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.Promise;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -26,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public abstract class InMemoryCommandStore extends CommandStore
@@ -170,7 +168,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         @Override
         public <T> Future<T> process(Function<? super CommandStore, T> function)
         {
-            Promise<T> promise = new AsyncPromise<>();
+            AsyncPromise<T> promise = new AsyncPromise<>();
             processInternal(function, promise);
             return promise;
         }

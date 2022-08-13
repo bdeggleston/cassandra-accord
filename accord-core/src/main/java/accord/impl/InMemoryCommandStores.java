@@ -6,6 +6,10 @@ import accord.api.ProgressLog;
 import accord.local.CommandStore;
 import accord.local.CommandStores;
 import accord.local.Node;
+import accord.local.TxnOperation;
+import accord.messages.TxnRequest;
+import accord.topology.KeyRanges;
+import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
@@ -18,9 +22,20 @@ import java.util.function.Function;
 
 import static java.lang.Boolean.FALSE;
 
-public class InMemoryCommandStores
+public abstract class InMemoryCommandStores extends CommandStores
 {
-    public static class Synchronized extends CommandStores
+    public InMemoryCommandStores(int num, Node node, Agent agent, DataStore store,
+                                 ProgressLog.Factory progressLogFactory, CommandStore.Factory shardFactory)
+    {
+        super(num, node, agent, store, progressLogFactory, shardFactory);
+    }
+
+    public InMemoryCommandStores(Supplier supplier)
+    {
+        super(supplier);
+    }
+
+    public static class Synchronized extends InMemoryCommandStores
     {
         public Synchronized(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
         {
@@ -45,7 +60,7 @@ public class InMemoryCommandStores
         }
     }
 
-    public static class SingleThread extends CommandStores
+    public static class SingleThread extends InMemoryCommandStores
     {
         public SingleThread(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
         {

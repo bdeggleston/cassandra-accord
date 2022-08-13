@@ -17,7 +17,7 @@ import accord.utils.DeterministicIdentitySet;
 
 public class ReadData extends TxnRequest
 {
-    static class LocalRead implements Listener
+    static class LocalRead implements Listener, TxnOperation
     {
         final TxnId txnId;
         final Node node;
@@ -95,6 +95,7 @@ public class ReadData extends TxnRequest
             Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);
             waitingOn = node.collectLocal(keys, executeAt, DeterministicIdentitySet::new);
             // FIXME: fix/check thread safety
+            // FIXME (rebase): rework forEach and mapReduce to not require these to be public
             CommandStore.onEach(waitingOn, instance -> {
                 Command command = instance.command(txnId);
                 command.preaccept(txn, homeKey, progressKey); // ensure pre-accepted
