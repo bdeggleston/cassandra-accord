@@ -467,7 +467,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                             break;
                         case Committed:
                         case ReadyToExecute:
-                            Preconditions.checkState(command.hasBeen(Status.Committed) || !command.commandStore.ranges().intersects(txnId.epoch, someKeys));
+                            Preconditions.checkState(command.hasBeen(Status.Committed) || !command.commandStore().ranges().intersects(txnId.epoch, someKeys));
                             if (blockedOn == Status.Committed)
                                 progress = NoneExpected;
                             break;

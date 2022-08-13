@@ -70,7 +70,7 @@ public class ReadData extends TxnRequest
             Data next = command.txn().read(command, readKeys);
             data = data == null ? next : data.merge(next);
 
-            waitingOn.remove(command.commandStore);
+            waitingOn.remove(command.commandStore());
             if (waitingOn.isEmpty())
                 node.reply(replyToNode, replyContext, new ReadOk(data));
         }

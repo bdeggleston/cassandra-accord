@@ -6,6 +6,7 @@ import accord.impl.InMemoryCommandStores;
 import accord.impl.IntKey;
 import accord.impl.TestAgent;
 import accord.impl.TopologyFactory;
+import accord.impl.*;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockConfigurationService;
 import accord.impl.mock.MockStore;
@@ -113,7 +114,7 @@ public class CommandTest
         TxnId txnId = clock.idForNode(1, 1);
         Txn txn = writeTxn(Keys.of(KEY));
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 
@@ -131,7 +132,7 @@ public class CommandTest
         ((MockCluster.Clock)commands.node().unsafeGetNowSupplier()).increment(10);
         Txn txn = writeTxn(Keys.of(KEY));
 
-        Command command = new Command(commands, txnId);
+        Command command = new InMemoryCommand(commands, txnId);
         Assertions.assertEquals(Status.NotWitnessed, command.status());
         Assertions.assertNull(command.executeAt());
 
