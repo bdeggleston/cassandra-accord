@@ -3,8 +3,6 @@ package accord.messages;
 import java.util.Collections;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
-
 import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -83,7 +81,8 @@ public class Commit extends ReadData
     {
         for (Node.Id to : commitTo.nodes())
         {
-            Invalidate send = new Invalidate(to, commitTo, txnId, someKeys);
+            // TODO (now) confirm somekeys == txnkeys
+            Invalidate send = new Invalidate(to, commitTo, txnId, someKeys, someKeys);
             node.send(to, send);
         }
     }
@@ -117,11 +116,25 @@ public class Commit extends ReadData
     public static class Invalidate extends TxnRequest
     {
         final TxnId txnId;
+        final Keys txnKeys;
 
-        public Invalidate(Id to, Topologies topologies, TxnId txnId, Keys someKeys)
+        public Invalidate(Id to, Topologies topologies, TxnId txnId, Keys txnKeys, Keys someKeys)
         {
             super(to, topologies, someKeys);
             this.txnId = txnId;
+            this.txnKeys = txnKeys;
+        }
+
+        @Override
+        public Iterable<TxnId> expectedTxnIds()
+        {
+            return Collections.singleton(txnId);
+        }
+
+        @Override
+        public Iterable<Key> expectedKeys()
+        {
+            return txnKeys;  // TODO (now): we shouldn't need to have relevant commands per key loaded for each command
         }
 
         public void process(Node node, Id from, ReplyContext replyContext)

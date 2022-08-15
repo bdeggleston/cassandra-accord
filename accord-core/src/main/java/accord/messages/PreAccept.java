@@ -1,5 +1,6 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -40,6 +41,18 @@ public class PreAccept extends WithUnsynced
         this.homeKey = homeKey;
         this.txn = txn;
         this.maxEpoch = epoch;
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     public void process(Node node, Id from, ReplyContext replyContext)

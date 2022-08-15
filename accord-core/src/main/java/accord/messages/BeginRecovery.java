@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.api.Key;
 import accord.api.Result;
 import accord.coordinate.Persist;
 import accord.topology.Topologies;
@@ -7,7 +8,6 @@ import accord.topology.Topologies;
 import java.util.List;
 import java.util.stream.Stream;
 
-import accord.api.Key;
 import accord.local.CommandStore;
 import accord.local.CommandsForKey;
 import accord.txn.Keys;
@@ -22,6 +22,8 @@ import accord.local.Status;
 import accord.txn.Txn;
 import accord.txn.TxnId;
 import com.google.common.base.Preconditions;
+
+import java.util.Collections;
 
 import static accord.local.Status.Accepted;
 import static accord.local.Status.Applied;
@@ -159,6 +161,18 @@ public class BeginRecovery extends TxnRequest
                 Persist.persistAndCommit(node, txnId, homeKey, txn, ok.executeAt, ok.deps, ok.writes, ok.result);
             });
         }
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     @Override

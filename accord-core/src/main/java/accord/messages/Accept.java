@@ -12,6 +12,8 @@ import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
 
+import java.util.Collections;
+
 import static accord.messages.PreAccept.calculateDeps;
 
 public class Accept extends WithUnsynced
@@ -53,6 +55,18 @@ public class Accept extends WithUnsynced
             ok1.deps.addAll(ok2.deps);
             return ok1;
         }));
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     @Override

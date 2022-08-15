@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions;
 import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
+import accord.local.TxnOperation;
 import accord.topology.KeyRanges;
 import accord.topology.Topologies;
 import accord.topology.Topology;
@@ -14,7 +15,7 @@ import accord.txn.TxnId;
 
 import static java.lang.Long.min;
 
-public abstract class TxnRequest implements EpochRequest
+public abstract class TxnRequest implements EpochRequest, TxnOperation
 {
     public static abstract class WithUnsynced extends TxnRequest
     {

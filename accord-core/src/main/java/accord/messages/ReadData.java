@@ -4,6 +4,8 @@ import java.util.Set;
 
 import com.google.common.base.Preconditions;
 
+import java.util.Collections;
+
 import accord.api.Key;
 import accord.local.*;
 import accord.local.Node.Id;
@@ -23,20 +25,34 @@ public class ReadData extends TxnRequest
         final Node node;
         final Node.Id replyToNode;
         final Keys readKeys;
+        final Keys txnKeys;
         final ReplyContext replyContext;
 
         Data data;
         boolean isObsolete; // TODO: respond with the Executed result we have stored?
         Set<CommandStore> waitingOn;
 
-        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys readKeys, ReplyContext replyContext)
+        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys readKeys, Keys txnKeys, ReplyContext replyContext)
         {
             Preconditions.checkArgument(!readKeys.isEmpty());
             this.txnId = txnId;
             this.node = node;
             this.replyToNode = replyToNode;
             this.readKeys = readKeys;
+            this.txnKeys = txnKeys;  // TODO (now): is this needed? Does the read update commands per key?
             this.replyContext = replyContext;
+        }
+
+        @Override
+        public Iterable<TxnId> expectedTxnIds()
+        {
+            return Collections.singletonList(txnId);
+        }
+
+        @Override
+        public Iterable<Key> expectedKeys()
+        {
+            return txnKeys;
         }
 
         @Override
@@ -142,8 +158,20 @@ public class ReadData extends TxnRequest
 
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, node, from, txn.read.keys().intersect(scope()), replyContext)
+        new LocalRead(txnId, node, from, txn.read.keys().intersect(scope()), txn.keys(), replyContext)
             .setup(txnId, txn, homeKey, scope(), executeAt);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singletonList(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
     }
 
     @Override
