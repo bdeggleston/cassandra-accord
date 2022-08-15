@@ -374,6 +374,7 @@ public abstract class CommandStores
         forEach(ShardedRanges::shards, request, minEpoch, maxEpoch, forEach);
     }
 
+    // TODO (now): remove unused methods
     public <T> T mapReduce(Keys keys, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
         return mapReduce(keys, epoch, epoch, map, reduce);

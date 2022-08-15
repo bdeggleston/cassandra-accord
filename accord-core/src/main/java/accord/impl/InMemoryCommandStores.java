@@ -6,8 +6,6 @@ import accord.api.ProgressLog;
 import accord.local.CommandStore;
 import accord.local.CommandStores;
 import accord.local.Node;
-import accord.local.TxnOperation;
-import accord.messages.TxnRequest;
 import accord.topology.KeyRanges;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
