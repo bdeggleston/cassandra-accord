@@ -6,6 +6,7 @@ import accord.local.Command;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.local.Status;
+import accord.local.TxnOperation;
 import accord.txn.Ballot;
 import accord.txn.Dependencies;
 import accord.txn.Timestamp;
@@ -13,7 +14,9 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.Writes;
 
-public class CheckStatus implements Request
+import java.util.Collections;
+
+public class CheckStatus implements Request, TxnOperation
 {
     // order is important
     public enum IncludeInfo
@@ -44,10 +47,22 @@ public class CheckStatus implements Request
         this.includeInfo = includeInfo;
     }
 
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return Collections.emptyList();
+    }
+
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
 
-        Reply reply = node.ifLocal(key, epoch, instance -> {
+        Reply reply = node.ifLocal(this, key, epoch, instance -> {
             Command command = instance.command(txnId);
             boolean includeInfo = this.includeInfo.include(command.status());
             if (includeInfo)

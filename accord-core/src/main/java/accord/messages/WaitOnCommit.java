@@ -14,7 +14,7 @@ import accord.txn.Keys;
 
 public class WaitOnCommit extends TxnRequest
 {
-    static class LocalWait implements Listener
+    static class LocalWait implements Listener, TxnOperation
     {
         final Node node;
         final Id replyToNode;
@@ -29,6 +29,18 @@ public class WaitOnCommit extends TxnRequest
             this.replyToNode = replyToNode;
             this.txnId = txnId;
             this.replyContext = replyContext;
+        }
+
+        @Override
+        public Iterable<TxnId> expectedTxnIds()
+        {
+            return Collections.singletonList(txnId);
+        }
+
+        @Override
+        public Iterable<Key> expectedKeys()
+        {
+            return Collections.emptyList();
         }
 
         @Override
@@ -92,7 +104,7 @@ public class WaitOnCommit extends TxnRequest
             List<CommandStore> instances = node.collectLocal(keys, txnId, ArrayList::new);
             waitingOn.set(instances.size());
             // FIXME (rebase): restore TxnRequest/TxnOperation functionality here
-            CommandStore.onEach(instances, this::setup);
+            CommandStore.onEach(this, instances, this::setup);
         }
     }
 

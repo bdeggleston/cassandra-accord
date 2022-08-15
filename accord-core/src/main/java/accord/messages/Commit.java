@@ -134,12 +134,12 @@ public class Commit extends ReadData
         @Override
         public Iterable<Key> expectedKeys()
         {
-            return txnKeys;  // TODO (now): we shouldn't need to have relevant commands per key loaded for each command
+            return Collections.emptyList();
         }
 
         public void process(Node node, Id from, ReplyContext replyContext)
         {
-            node.forEachLocal(scope(), txnId.epoch, instance -> instance.command(txnId).commitInvalidate());
+            node.forEachLocal(this, txnId.epoch, instance -> instance.command(txnId).commitInvalidate());
         }
 
         @Override

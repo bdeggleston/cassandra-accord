@@ -251,6 +251,7 @@ public abstract class Command implements Listener, Consumer<Listener>
         return true;
     }
 
+    // TODO (now): commitInvalidate may need to update cfks _if_ possible
     public boolean commitInvalidate()
     {
         if (hasBeen(Committed))

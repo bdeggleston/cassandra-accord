@@ -3,13 +3,16 @@ package accord.messages;
 import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
+import accord.local.TxnOperation;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+
+import java.util.Collections;
 
 import static accord.messages.InformOfTxn.InformOfTxnNack.nack;
 import static accord.messages.InformOfTxn.InformOfTxnOk.ok;
 
-public class InformOfTxn implements EpochRequest
+public class InformOfTxn implements EpochRequest, TxnOperation
 {
     final TxnId txnId;
     final Key homeKey;
@@ -22,11 +25,23 @@ public class InformOfTxn implements EpochRequest
         this.txn = txn;
     }
 
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return txn.keys();
+    }
+
     // TODO (now): audit all messages to ensure requests passed to command store
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
         Key progressKey = node.selectProgressKey(txnId, txn.keys, homeKey);
-        Reply reply = node.ifLocal(homeKey, txnId, instance -> {
+        Reply reply = node.ifLocal(this, homeKey, txnId, instance -> {
             instance.command(txnId).preaccept(txn, homeKey, progressKey);
             return ok();
         });

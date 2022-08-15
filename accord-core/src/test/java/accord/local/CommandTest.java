@@ -51,7 +51,6 @@ public class CommandTest
 
     private static CommandStore createStore(CommandStoreSupport storeSupport)
     {
-//<<<<<<< HEAD
         return createNode(ID1, storeSupport).unsafeByIndex(0);
     }
 
@@ -139,7 +138,7 @@ public class CommandTest
         setTopologyEpoch(support.local, 2);
         ((TestableConfigurationService)commands.node().configService()).reportTopology(support.local.get().withEpoch(2));
         Timestamp expectedTimestamp = new Timestamp(2, 110, 0, ID1);
-        commands.process((Consumer<? super CommandStore>) cstore -> command.preaccept(txn, KEY, KEY));
+        commands.process(null, (Consumer<? super CommandStore>) cstore -> command.preaccept(txn, KEY, KEY));
         Assertions.assertEquals(Status.PreAccepted, command.status());
         Assertions.assertEquals(expectedTimestamp, command.executeAt());
     }

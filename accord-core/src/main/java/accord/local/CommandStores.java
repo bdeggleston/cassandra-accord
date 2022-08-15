@@ -11,6 +11,8 @@ import accord.topology.Topology;
 import accord.txn.Keys;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.cassandra.utils.concurrent.Future;
+import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,6 +20,8 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Manages the single threaded metadata shards
@@ -81,7 +85,6 @@ public abstract class CommandStores
         }
     }
 
-//<<<<<<< HEAD
     protected static class Supplier
     {
         private final Node node;
@@ -92,14 +95,6 @@ public abstract class CommandStores
         private final int numShards;
 
         Supplier(Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory, CommandStore.Factory shardFactory, int numShards)
-//=======
-//        long matches(TxnRequest request)
-//        {
-//            return request.scope().foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, all());
-//        }
-//
-//        long matches(TxnRequest.Scope scope)
-//>>>>>>> 06ca225 (accept txn message as map reduce scope)
         {
             this.node = node;
             this.agent = agent;
@@ -124,7 +119,7 @@ public abstract class CommandStores
         }
     }
 
-    static class ShardedRanges
+    public static class ShardedRanges
     {
         final CommandStore[] shards;
         final long[] epochs;
@@ -180,12 +175,12 @@ public abstract class CommandStores
             return i;
         }
 
-        long all()
+        public long all()
         {
             return -1L >>> (64 - shards.length);
         }
 
-        long shards(Keys keys, long minEpoch, long maxEpoch)
+        public long shards(Keys keys, long minEpoch, long maxEpoch)
         {
             long accumulate = 0L;
             for (int i = Math.max(0, indexForEpoch(minEpoch)), maxi = indexForEpoch(maxEpoch); i <= maxi ; ++i)
@@ -351,54 +346,93 @@ public abstract class CommandStores
                 commandStore.shutdown();
     }
 
-    protected abstract <S> void forEach(Select<S> select, S scope, long minEpoch, long maxEpoch, Consumer<? super CommandStore> forEach);
-    protected abstract <S, T> T mapReduce(Select<S> select, S scope, long minEpoch, long maxEpoch, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce);
-
-    public void forEach(Consumer<CommandStore> forEach)
+    private static <T> Fold<TxnOperation, Void, List<Future<T>>> mapReduceFold(Function<CommandStore, T> map)
     {
-        forEach((s, i, min, max) -> s.all(), null, 0, 0, forEach);
+        return (store, op, i, t) -> { t.add(store.process(op, map)); return t; };
     }
 
-    public void forEach(Keys keys, long epoch, Consumer<CommandStore> forEach)
+    private  <S, T> T mapReduce(TxnOperation operation,
+                                Select<S> select,
+                                S scope,
+                                long minEpoch,
+                                long maxEpoch,
+                                Fold<TxnOperation, Void, List<Future<T>>> fold,
+                                BiFunction<T, T, T> reduce)
     {
-        forEach(keys, epoch, epoch, forEach);
+        List<Future<T>> futures = foldl(select, scope, minEpoch, maxEpoch, fold, operation, null, ArrayList::new);
+        T result = null;
+        for (Future<T> future : futures)
+        {
+            try
+            {
+                T next = future.get();
+                result = result == null ? next : reduce.apply(result, next);
+            }
+            catch (InterruptedException e)
+            {
+                throw new UncheckedInterruptedException(e);
+            }
+            catch (ExecutionException e)
+            {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+        return result;
     }
 
-    public void forEach(Keys keys, long minEpoch, long maxEpoch, Consumer<CommandStore> forEach)
+    public <T> T mapReduce(TxnOperation operation, Key key, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
-        forEach(ShardedRanges::shards, keys, minEpoch, maxEpoch, forEach);
+        return mapReduce(operation, ShardedRanges::shard, key, minEpoch, maxEpoch, mapReduceFold(map), reduce);
+    }
+
+    public <T> T mapReduce(TxnOperation operation, Key key, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return mapReduce(operation, key, epoch, epoch, map, reduce);
+    }
+
+    public <T> T mapReduceSince(TxnOperation operation, Key key, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return mapReduce(operation, key, epoch, Long.MAX_VALUE, map, reduce);
+    }
+
+    public <T> T mapReduce(TxnOperation operation, Keys keys, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        // probably need to split txnOperation and scope stuff here
+        return mapReduce(operation, ShardedRanges::shards, keys, minEpoch, maxEpoch, mapReduceFold(map), reduce);
+    }
+
+    private static Fold<TxnOperation, Void, List<Future<Void>>> forEachFold(Consumer<CommandStore> forEach)
+    {
+        return (store, op, i, t) -> { t.add(store.process(op, forEach)); return t; };
+    }
+
+    public void forEach(TxnOperation operation, Keys keys, long minEpoch, long maxEpoch, Consumer<CommandStore> forEach)
+    {
+        mapReduce(operation, ShardedRanges::shards, keys, minEpoch, maxEpoch, forEachFold(forEach), (o1, o2) -> null);
+    }
+
+    public void forEach(TxnOperation operation, Consumer<CommandStore> forEach)
+    {
+        mapReduce(operation, (s, i, min, max) -> s.all(), null, 0, 0, forEachFold(forEach), (o1, o2) -> null);
+    }
+
+    public void forEach(TxnRequest request, long epoch, Consumer<CommandStore> forEach)
+    {
+        forEach(request, request.scope(), epoch, epoch, forEach);
+    }
+
+    public void forEach(TxnOperation operation, Keys keys, long epoch, Consumer<CommandStore> forEach)
+    {
+        forEach(operation, keys, epoch, epoch, forEach);
+    }
+    public void forEachSince(TxnOperation operation, Keys keys, long epoch, Consumer<CommandStore> forEach)
+    {
+        forEach(operation, keys, epoch, Long.MAX_VALUE, forEach);
     }
 
     public void forEach(TxnRequest request, long minEpoch, long maxEpoch, Consumer<CommandStore> forEach)
     {
-        forEach(ShardedRanges::shards, request, minEpoch, maxEpoch, forEach);
-    }
-
-    // TODO (now): remove unused methods
-    public <T> T mapReduce(Keys keys, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return mapReduce(keys, epoch, epoch, map, reduce);
-    }
-
-    public <T> T mapReduce(Keys keys, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return mapReduce(ShardedRanges::shards, keys, minEpoch, maxEpoch, map, reduce);
-    }
-
-
-    public <T> T mapReduce(TxnRequest request, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return mapReduce(ShardedRanges::shards, request, minEpoch, maxEpoch, map, reduce);
-    }
-
-    public <T> T mapReduce(Key key, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return mapReduce(ShardedRanges::shard, key, epoch, epoch, map, reduce);
-    }
-
-    public <T> T mapReduceSince(Key key, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
-    {
-        return mapReduce(ShardedRanges::shard, key, epoch, Long.MAX_VALUE, map, reduce);
+        forEach(request, request.scope(), minEpoch, maxEpoch, forEach);
     }
 
     public <T extends Collection<CommandStore>> T collect(Keys keys, long epoch, IntFunction<T> factory)

@@ -3,11 +3,10 @@ package accord.coordinate;
 import accord.api.Key;
 import accord.local.Command;
 import accord.local.Node;
+import accord.local.TxnOperation;
 import accord.messages.CheckStatus.CheckStatusOkFull;
 import accord.messages.CheckStatus.IncludeInfo;
 import accord.topology.Shard;
-import accord.txn.Keys;
-import accord.txn.Txn;
 import accord.txn.TxnId;
 
 import static accord.local.Status.Executed;
@@ -56,23 +55,24 @@ public class CheckOnCommitted extends CheckShardStatus<CheckStatusOkFull>
         }
 
         Key progressKey = node.trySelectProgressKey(txnId, max.txn.keys, max.homeKey);
+        TxnOperation scope = TxnOperation.scopeFor(txnId, max.txn.keys);
         switch (max.status)
         {
             default: throw new IllegalStateException();
             case Executed:
             case Applied:
-                node.forEachLocalSince(max.txn.keys, max.executeAt.epoch, commandStore -> {
+                node.forEachLocalSince(scope, max.txn.keys, max.executeAt.epoch, commandStore -> {
                     Command command = commandStore.command(txnId);
                     command.apply(max.txn, max.homeKey, progressKey, max.executeAt, max.deps, max.writes, max.result);
                 });
-                node.forEachLocal(max.txn.keys, txnId.epoch, max.executeAt.epoch - 1, commandStore -> {
+                node.forEachLocal(scope, max.txn.keys, txnId.epoch, max.executeAt.epoch - 1, commandStore -> {
                     Command command = commandStore.command(txnId);
                     command.commit(max.txn, max.homeKey, progressKey, max.executeAt, max.deps);
                 });
                 break;
             case Committed:
             case ReadyToExecute:
-                node.forEachLocalSince(max.txn.keys, txnId.epoch, commandStore -> {
+                node.forEachLocalSince(scope, max.txn.keys, txnId.epoch, commandStore -> {
                     Command command = commandStore.command(txnId);
                     command.commit(max.txn, max.homeKey, progressKey, max.executeAt, max.deps);
                 });

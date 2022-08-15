@@ -112,7 +112,7 @@ public class ReadData extends TxnRequest
             waitingOn = node.collectLocal(keys, executeAt, DeterministicIdentitySet::new);
             // FIXME: fix/check thread safety
             // FIXME (rebase): rework forEach and mapReduce to not require these to be public
-            CommandStore.onEach(waitingOn, instance -> {
+            CommandStore.onEach(this, waitingOn, instance -> {
                 Command command = instance.command(txnId);
                 command.preaccept(txn, homeKey, progressKey); // ensure pre-accepted
                 switch (command.status())

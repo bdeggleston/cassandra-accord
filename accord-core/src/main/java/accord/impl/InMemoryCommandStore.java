@@ -9,6 +9,7 @@ import accord.local.CommandStore;
 import accord.local.CommandsForKey;
 import accord.local.Node;
 import accord.topology.KeyRange;
+import accord.local.*;
 import accord.topology.KeyRanges;
 import accord.txn.Timestamp;
 import accord.txn.TxnId;
@@ -158,7 +159,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public synchronized Future<Void> process(Consumer<? super CommandStore> consumer)
+        public synchronized Future<Void> process(TxnOperation unused, Consumer<? super CommandStore> consumer)
         {
             Promise<Void> promise = new AsyncPromise<>();
             processInternal(consumer, promise);
@@ -166,7 +167,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        public <T> Future<T> process(TxnOperation unused, Function<? super CommandStore, T> function)
         {
             AsyncPromise<T> promise = new AsyncPromise<>();
             processInternal(function, promise);
@@ -233,7 +234,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public Future<Void> process(Consumer<? super CommandStore> consumer)
+        public Future<Void> process(TxnOperation unused, Consumer<? super CommandStore> consumer)
         {
             ConsumerWrapper future = new ConsumerWrapper(consumer);
             executor.execute(future);
@@ -241,7 +242,7 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
-        public <T> Future<T> process(Function<? super CommandStore, T> function)
+        public <T> Future<T> process(TxnOperation unused, Function<? super CommandStore, T> function)
         {
             FunctionWrapper<T> future = new FunctionWrapper<>(function);
             executor.execute(future);

@@ -6,6 +6,7 @@ import accord.local.Command;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.local.Status;
+import accord.local.TxnOperation;
 import accord.messages.BeginRecovery.RecoverNack;
 import accord.messages.BeginRecovery.RecoverOk;
 import accord.messages.BeginRecovery.RecoverReply;
@@ -16,7 +17,9 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.Writes;
 
-public class BeginInvalidate implements EpochRequest
+import java.util.Collections;
+
+public class BeginInvalidate implements EpochRequest, TxnOperation
 {
     final Ballot ballot;
     final TxnId txnId;
@@ -31,7 +34,7 @@ public class BeginInvalidate implements EpochRequest
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        RecoverReply reply = node.ifLocal(someKey, txnId, instance -> {
+        RecoverReply reply = node.ifLocal(this, someKey, txnId, instance -> {
             Command command = instance.command(txnId);
 
             if (!command.preAcceptInvalidate(ballot))
@@ -42,6 +45,18 @@ public class BeginInvalidate implements EpochRequest
         });
 
         node.reply(replyToNode, replyContext, reply);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return Collections.emptyList();
     }
 
     @Override

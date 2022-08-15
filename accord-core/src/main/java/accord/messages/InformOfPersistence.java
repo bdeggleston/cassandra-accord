@@ -1,17 +1,19 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.Set;
 
 import accord.api.Key;
 import accord.local.Node;
 import accord.local.Node.Id;
+import accord.local.TxnOperation;
 import accord.txn.Timestamp;
 import accord.txn.TxnId;
 
 import static accord.messages.InformOfTxn.InformOfTxnNack.nack;
 import static accord.messages.InformOfTxn.InformOfTxnOk.ok;
 
-public class InformOfPersistence implements Request
+public class InformOfPersistence implements Request, TxnOperation
 {
     final TxnId txnId;
     final Key homeKey;
@@ -28,7 +30,7 @@ public class InformOfPersistence implements Request
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        Reply reply = node.ifLocal(homeKey, txnId, instance -> {
+        Reply reply = node.ifLocal(this, homeKey, txnId, instance -> {
             instance.command(txnId).setGloballyPersistent(homeKey, executeAt);
             instance.progressLog().executedOnAllShards(txnId, persistedOn);
             return ok();
@@ -38,6 +40,18 @@ public class InformOfPersistence implements Request
             reply = nack();
 
         node.reply(replyToNode, replyContext, reply);
+    }
+
+    @Override
+    public Iterable<TxnId> expectedTxnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> expectedKeys()
+    {
+        return Collections.emptyList();
     }
 
     @Override

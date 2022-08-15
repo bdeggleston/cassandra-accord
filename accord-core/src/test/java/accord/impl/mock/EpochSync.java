@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
+import static accord.impl.InMemoryCommandStores.inMemory;
 import static accord.impl.InMemoryCommandStore.inMemory;
 import static accord.impl.mock.MockCluster.configService;
 
@@ -59,7 +60,7 @@ public class EpochSync implements Runnable
         public void process(Node node, Node.Id from, ReplyContext replyContext)
         {
             Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);
-            node.forEachLocalSince(txn.keys, epoch, commandStore -> {
+            inMemory(node).forEachLocalSince(txn.keys, epoch, commandStore -> {
                 Command command = commandStore.command(txnId);
                 command.commit(txn, homeKey, progressKey, executeAt, deps);
             });
@@ -171,7 +172,7 @@ public class EpochSync implements Runnable
         {
             Map<TxnId, SyncCommitted> syncMessages = new ConcurrentHashMap<>();
             Consumer<Command> commandConsumer = command -> syncMessages.put(command.txnId(), new SyncCommitted(command, syncEpoch));
-            node.forEachLocal(commandStore -> inMemory(commandStore).forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
+            inMemory(node).forEachLocal(commandStore -> inMemory(commandStore).forCommittedInEpoch(syncTopology.ranges(), syncEpoch, commandConsumer));
 
             for (SyncCommitted message : syncMessages.values())
                 CommandSync.sync(node, message, nextTopology);

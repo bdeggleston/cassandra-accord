@@ -1,5 +1,6 @@
 package accord.messages;
 
+import accord.local.TxnOperation;
 import accord.messages.TxnRequest.WithUnsynced;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
@@ -75,7 +76,8 @@ public class Accept extends WithUnsynced
         return MessageType.ACCEPT_REQ;
     }
 
-    public static class Invalidate implements EpochRequest
+    // TODO (now): can EpochRequest inherit TxnOperation?
+    public static class Invalidate implements EpochRequest, TxnOperation
     {
         public final Ballot ballot;
         public final TxnId txnId;
@@ -90,12 +92,24 @@ public class Accept extends WithUnsynced
 
         public void process(Node node, Node.Id replyToNode, ReplyContext replyContext)
         {
-            node.reply(replyToNode, replyContext, node.ifLocal(someKey, txnId.epoch, instance -> {
+            node.reply(replyToNode, replyContext, node.ifLocal(this, someKey, txnId.epoch, instance -> {
                 Command command = instance.command(txnId);
                 if (!command.acceptInvalidate(ballot))
                     return new AcceptNack(txnId, command.promised());
                 return new AcceptOk(txnId, null);
             }));
+        }
+
+        @Override
+        public Iterable<TxnId> expectedTxnIds()
+        {
+            return Collections.singleton(txnId);
+        }
+
+        @Override
+        public Iterable<Key> expectedKeys()
+        {
+            return Collections.emptyList();
         }
 
         @Override
