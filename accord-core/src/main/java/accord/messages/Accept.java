@@ -38,7 +38,7 @@ public class Accept extends WithUnsynced
         // TODO: when we begin expunging old epochs we need to ensure we handle the case where we do not fully handle the keys;
         //       since this will likely imply the transaction has been applied or aborted we can indicate the coordinator
         //       should enquire as to the result
-        node.reply(replyToNode, replyContext, node.mapReduceLocal(scope(), minEpoch, executeAt.epoch, instance -> {
+        node.reply(replyToNode, replyContext, node.mapReduceLocal(this, minEpoch, executeAt.epoch, instance -> {
             Command command = instance.command(txnId);
             if (!command.accept(ballot, txn, homeKey, progressKey, executeAt, deps))
                 return new AcceptNack(txnId, command.promised());

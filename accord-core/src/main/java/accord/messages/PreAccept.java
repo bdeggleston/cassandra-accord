@@ -46,7 +46,7 @@ public class PreAccept extends WithUnsynced
     {
         // TODO: verify we handle all of the scope() keys
         Key progressKey = progressKey(node, homeKey);
-        node.reply(from, replyContext, node.mapReduceLocal(scope(), minEpoch, maxEpoch, instance -> {
+        node.reply(from, replyContext, node.mapReduceLocal(this, minEpoch, maxEpoch, instance -> {
             // note: this diverges from the paper, in that instead of waiting for JoinShard,
             //       we PreAccept to both old and new topologies and require quorums in both.
             //       This necessitates sending to ALL replicas of old topology, not only electorate (as fast path may be unreachable).

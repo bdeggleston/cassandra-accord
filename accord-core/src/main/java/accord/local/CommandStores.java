@@ -5,6 +5,7 @@ import accord.api.DataStore;
 import accord.api.Key;
 import accord.api.ProgressLog;
 import accord.local.CommandStore.RangesForEpoch;
+import accord.messages.TxnRequest;
 import accord.topology.KeyRanges;
 import accord.topology.Topology;
 import accord.txn.Keys;
@@ -80,6 +81,7 @@ public abstract class CommandStores
         }
     }
 
+//<<<<<<< HEAD
     protected static class Supplier
     {
         private final Node node;
@@ -90,6 +92,14 @@ public abstract class CommandStores
         private final int numShards;
 
         Supplier(Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory, CommandStore.Factory shardFactory, int numShards)
+//=======
+//        long matches(TxnRequest request)
+//        {
+//            return request.scope().foldl(ranges, StoreGroup::addKeyIndex, stores.length, 0L, all());
+//        }
+//
+//        long matches(TxnRequest.Scope scope)
+//>>>>>>> 06ca225 (accept txn message as map reduce scope)
         {
             this.node = node;
             this.agent = agent;
@@ -183,6 +193,11 @@ public abstract class CommandStores
                 accumulate = keys.foldl(ranges[i], ShardedRanges::addKeyIndex, shards.length, accumulate, -1L);
             }
             return accumulate;
+        }
+
+        long shards(TxnRequest request, long minEpoch, long maxEpoch)
+        {
+            return shards(request.scope(), minEpoch, maxEpoch);
         }
 
         long shard(Key scope, long minEpoch, long maxEpoch)
@@ -354,6 +369,11 @@ public abstract class CommandStores
         forEach(ShardedRanges::shards, keys, minEpoch, maxEpoch, forEach);
     }
 
+    public void forEach(TxnRequest request, long minEpoch, long maxEpoch, Consumer<CommandStore> forEach)
+    {
+        forEach(ShardedRanges::shards, request, minEpoch, maxEpoch, forEach);
+    }
+
     public <T> T mapReduce(Keys keys, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
         return mapReduce(keys, epoch, epoch, map, reduce);
@@ -362,6 +382,12 @@ public abstract class CommandStores
     public <T> T mapReduce(Keys keys, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
         return mapReduce(ShardedRanges::shards, keys, minEpoch, maxEpoch, map, reduce);
+    }
+
+
+    public <T> T mapReduce(TxnRequest request, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return mapReduce(ShardedRanges::shards, request, minEpoch, maxEpoch, map, reduce);
     }
 
     public <T> T mapReduce(Key key, long epoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)

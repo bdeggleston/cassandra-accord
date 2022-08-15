@@ -11,6 +11,7 @@ import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import accord.messages.*;
 import com.google.common.annotations.VisibleForTesting;
 
 import accord.api.*;
@@ -27,11 +28,7 @@ import accord.api.ProgressLog;
 import accord.api.Scheduler;
 import accord.api.DataStore;
 import accord.coordinate.Recover;
-import accord.messages.Callback;
 import accord.messages.CheckStatus.CheckStatusOk;
-import accord.messages.ReplyContext;
-import accord.messages.Request;
-import accord.messages.Reply;
 import accord.topology.KeyRange;
 import accord.topology.KeyRanges;
 import accord.topology.Shard;
@@ -250,6 +247,11 @@ public class Node implements ConfigurationService.Listener
         commandStores.forEach(keys, minEpoch, maxEpoch, forEach);
     }
 
+    public void forEachLocal(TxnRequest request, long minEpoch, long maxEpoch, Consumer<CommandStore> forEach)
+    {
+        commandStores.forEach(request, minEpoch, maxEpoch, forEach);
+    }
+
     public void forEachLocal(Keys keys, Timestamp minAt, Timestamp maxAt, Consumer<CommandStore> forEach)
     {
         commandStores.forEach(keys, minAt.epoch, maxAt.epoch, forEach);
@@ -258,6 +260,11 @@ public class Node implements ConfigurationService.Listener
     public void forEachLocalSince(Keys keys, Timestamp since, Consumer<CommandStore> forEach)
     {
         commandStores.forEach(keys, since.epoch, Long.MAX_VALUE, forEach);
+    }
+
+    public void forEachLocalSince(TxnRequest request, Timestamp since, Consumer<CommandStore> forEach)
+    {
+        commandStores.forEach(request, since.epoch, Long.MAX_VALUE, forEach);
     }
 
     public void forEachLocalSince(Keys keys, long sinceEpoch, Consumer<CommandStore> forEach)
@@ -278,6 +285,11 @@ public class Node implements ConfigurationService.Listener
     public <T> T mapReduceLocal(Keys keys, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
     {
         return commandStores.mapReduce(keys, minEpoch, maxEpoch, map, reduce);
+    }
+
+    public <T> T mapReduceLocal(TxnRequest request, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return commandStores.mapReduce(request, minEpoch, maxEpoch, map, reduce);
     }
 
     public <T> T mapReduceLocalSince(Keys keys, Timestamp since, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)

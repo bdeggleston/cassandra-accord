@@ -22,6 +22,7 @@ public class InformOfTxn implements EpochRequest
         this.txn = txn;
     }
 
+    // TODO (now): audit all messages to ensure requests passed to command store
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
         Key progressKey = node.selectProgressKey(txnId, txn.keys, homeKey);
