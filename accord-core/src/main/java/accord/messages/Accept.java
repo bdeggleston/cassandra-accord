@@ -66,9 +66,9 @@ public class Accept extends WithUnsynced
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
+        return Collections.singleton(txnId);
     }
 
     @Override
@@ -108,9 +108,9 @@ public class Accept extends WithUnsynced
         }
 
         @Override
-        public TxnId txnId()
+        public Iterable<TxnId> txnIds()
         {
-            return txnId;
+            return Collections.singleton(txnId);
         }
 
         @Override

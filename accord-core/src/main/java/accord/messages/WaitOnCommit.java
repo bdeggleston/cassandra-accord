@@ -32,9 +32,9 @@ public class WaitOnCommit extends TxnRequest
         }
 
         @Override
-        public TxnId txnId()
+        public Iterable<TxnId> txnIds()
         {
-            return txnId;
+            return Collections.singleton(txnId);
         }
 
         @Override
@@ -116,9 +116,9 @@ public class WaitOnCommit extends TxnRequest
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
+        return Collections.singleton(txnId);
     }
 
     @Override

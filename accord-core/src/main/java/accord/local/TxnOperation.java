@@ -11,27 +11,28 @@ import java.util.Collections;
  */
 public interface TxnOperation
 {
-    TxnId txnId();
+    Iterable<TxnId> txnIds();
     Iterable<Key> keys();
-    default Iterable<TxnId> depsIds()
-    {
-        return Collections.emptyList();
-    }
 
-    static TxnOperation scopeFor(TxnId txnId, Iterable<Key> keys)
+    static TxnOperation scopeFor(Iterable<TxnId> txnIds, Iterable<Key> keys)
     {
         return new TxnOperation()
         {
             @Override
-            public TxnId txnId() { return txnId; }
+            public Iterable<TxnId> txnIds() { return txnIds; }
 
             @Override
             public Iterable<Key> keys() { return keys; }
         };
     }
 
+    static TxnOperation scopeFor(TxnId txnId, Iterable<Key> keys)
+    {
+        return scopeFor(Collections.singleton(txnId), keys);
+    }
+
     static TxnOperation scopeFor(TxnId txnId)
     {
-        return scopeFor(txnId, Collections.emptyList());
+        return scopeFor(Collections.singleton(txnId), Collections.emptyList());
     }
 }

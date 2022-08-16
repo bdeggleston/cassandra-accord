@@ -12,6 +12,9 @@ import accord.txn.Timestamp;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.collect.Iterables;
+
+import java.util.Collections;
 
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends ReadData
@@ -86,15 +89,9 @@ public class Commit extends ReadData
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
-    }
-
-    @Override
-    public Iterable<TxnId> depsIds()
-    {
-        return deps.txnIds();
+        return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
     }
 
     @Override
@@ -142,9 +139,9 @@ public class Commit extends ReadData
         }
 
         @Override
-        public TxnId txnId()
+        public Iterable<TxnId> txnIds()
         {
-            return txnId;
+            return Collections.singleton(txnId);
         }
 
         @Override

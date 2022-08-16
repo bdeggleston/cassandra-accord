@@ -16,6 +16,7 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.*;
 import accord.utils.DeterministicIdentitySet;
+import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
@@ -46,15 +47,9 @@ public class ReadData extends TxnRequest
         }
 
         @Override
-        public TxnId txnId()
+        public Iterable<TxnId> txnIds()
         {
-            return txnId;
-        }
-
-        @Override
-        public Iterable<TxnId> depsIds()
-        {
-            return deps.txnIds();
+            return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
         }
 
         @Override
@@ -179,16 +174,9 @@ public class ReadData extends TxnRequest
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
-    }
-
-    @Override
-    public Iterable<TxnId> depsIds()
-    {
-        // FIXME: maybe duplicate command data into waiting on maps
-        return deps.txnIds();
+        return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
     }
 
     @Override

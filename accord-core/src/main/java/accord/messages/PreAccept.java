@@ -45,9 +45,9 @@ public class PreAccept extends WithUnsynced
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
+        return Collections.singleton(txnId);
     }
 
     @Override

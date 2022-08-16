@@ -11,9 +11,11 @@ import accord.txn.Timestamp;
 import accord.txn.Writes;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.collect.Iterables;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
 import static accord.messages.MessageType.APPLY_REQ;
@@ -70,15 +72,9 @@ public class Apply extends TxnRequest
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
-    }
-
-    @Override
-    public Iterable<TxnId> depsIds()
-    {
-        return deps.txnIds();
+        return Iterables.concat(Collections.singleton(txnId), deps.txnIds());
     }
 
     @Override

@@ -48,9 +48,9 @@ public class CheckStatus implements Request, TxnOperation
     }
 
     @Override
-    public TxnId txnId()
+    public Iterable<TxnId> txnIds()
     {
-        return txnId;
+        return Collections.singleton(txnId);
     }
 
     @Override
