@@ -12,6 +12,7 @@ import accord.txn.Keys;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.cassandra.utils.concurrent.Future;
+import org.apache.cassandra.utils.concurrent.FutureCombiner;
 import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
 
 import java.util.Arrays;
@@ -351,15 +352,8 @@ public abstract class CommandStores
         return (store, op, i, t) -> { t.add(store.process(op, map)); return t; };
     }
 
-    private  <S, T> T mapReduce(TxnOperation operation,
-                                Select<S> select,
-                                S scope,
-                                long minEpoch,
-                                long maxEpoch,
-                                Fold<TxnOperation, Void, List<Future<T>>> fold,
-                                BiFunction<T, T, T> reduce)
+    private static <T> T reduce(List<Future<T>> futures, BiFunction<T, T, T> reduce)
     {
-        List<Future<T>> futures = foldl(select, scope, minEpoch, maxEpoch, fold, operation, null, ArrayList::new);
         T result = null;
         for (Future<T> future : futures)
         {
@@ -378,6 +372,12 @@ public abstract class CommandStores
             }
         }
         return result;
+    }
+
+    private  <S, T> T mapReduce(TxnOperation operation, Select<S> select, S scope, long minEpoch, long maxEpoch, Fold<TxnOperation, Void, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
+    {
+        List<Future<T>> futures = foldl(select, scope, minEpoch, maxEpoch, fold, operation, null, ArrayList::new);
+        return reduce(futures, reduce);
     }
 
     public <T> T mapReduce(TxnOperation operation, Key key, long minEpoch, long maxEpoch, Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
@@ -539,5 +539,37 @@ public abstract class CommandStores
             }
         }
         throw new IllegalArgumentException();
+    }
+
+    public static Future<?> forEachNonBlocking(Collection<CommandStore> commandStores, TxnOperation scope, Consumer<CommandStore> forEach)
+    {
+        List<Future<Void>> futures = new ArrayList<>(commandStores.size());
+        for (CommandStore commandStore : commandStores)
+            futures.add(commandStore.process(scope, forEach));
+        return FutureCombiner.allOf(futures);
+    }
+
+    public static void forEachBlocking(Collection<CommandStore> commandStores, TxnOperation scope, Consumer<CommandStore> forEach)
+    {
+        try
+        {
+            forEachNonBlocking(commandStores, scope, forEach).get();
+        }
+        catch (InterruptedException e)
+        {
+            throw new UncheckedInterruptedException(e);
+        }
+        catch (ExecutionException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static <T> T mapReduce(Collection<CommandStore> commandStores, TxnOperation scope, Function<? super CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        List<Future<T>> futures = new ArrayList<>(commandStores.size());
+        for (CommandStore commandStore : commandStores)
+            futures.add(commandStore.process(scope, map));
+        return reduce(futures, reduce);
     }
 }
