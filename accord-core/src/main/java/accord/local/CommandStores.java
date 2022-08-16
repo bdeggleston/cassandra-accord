@@ -120,13 +120,13 @@ public abstract class CommandStores
         }
     }
 
-    public static class ShardedRanges
+    protected static class ShardedRanges
     {
         final CommandStore[] shards;
         final long[] epochs;
         final KeyRanges[] ranges;
 
-        public ShardedRanges(CommandStore[] shards, long epoch, KeyRanges ranges)
+        protected ShardedRanges(CommandStore[] shards, long epoch, KeyRanges ranges)
         {
             Preconditions.checkArgument(shards.length <= 64);
             this.shards = shards;
