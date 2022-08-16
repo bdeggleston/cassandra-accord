@@ -3,7 +3,12 @@ package accord.txn;
 import accord.api.Write;
 import accord.local.CommandStore;
 import accord.topology.KeyRanges;
+import com.google.common.base.Preconditions;
+import org.apache.cassandra.utils.concurrent.Future;
+import org.apache.cassandra.utils.concurrent.FutureCombiner;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class Writes
@@ -34,20 +39,22 @@ public class Writes
         return Objects.hash(executeAt, keys, write);
     }
 
-    public void apply(CommandStore commandStore)
+    public Future<?> apply(CommandStore commandStore)
     {
         if (write == null)
-            return;
+            return Write.SUCCESS;
 
         KeyRanges ranges = commandStore.ranges().since(executeAt.epoch);
         if (ranges == null)
-            return;
+            return Write.SUCCESS;
 
-        keys.foldl(ranges, (key, accumulate) -> {
+        List<Future<?>> futures = keys.foldl(ranges, (key, accumulate) -> {
             if (commandStore.hashIntersects(key))
-                write.apply(key, executeAt, commandStore.store());
+                accumulate.add(write.apply(key, executeAt, commandStore.store()));
             return accumulate;
-        }, null);
+        }, new ArrayList<>());
+        Preconditions.checkState(!futures.isEmpty());
+        return futures.size() > 1 ? FutureCombiner.allOf(futures) : futures.get(0);
     }
 
     @Override

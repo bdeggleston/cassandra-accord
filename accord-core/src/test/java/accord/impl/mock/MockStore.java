@@ -25,7 +25,7 @@ public class MockStore implements DataStore
 
     public static final Result RESULT = new Result() {};
     public static final Query QUERY = data -> RESULT;
-    public static final Write WRITE = (key, executeAt, store) -> {};
+    public static final Write WRITE = (key, executeAt, store) -> ImmediateFuture.success(null);
     public static final Update UPDATE = data -> WRITE;
 
     public static Read read(Keys keys)
