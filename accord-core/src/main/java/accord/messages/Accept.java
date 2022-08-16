@@ -3,8 +3,9 @@ package accord.messages;
 import accord.local.TxnOperation;
 import accord.messages.TxnRequest.WithUnsynced;
 import accord.local.Node.Id;
-import accord.topology.Topologies;
 import accord.api.Key;
+import accord.local.CommandStore;
+import accord.topology.Topologies;
 import accord.txn.Ballot;
 import accord.local.Node;
 import accord.txn.Timestamp;
@@ -12,6 +13,7 @@ import accord.local.Command;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Collections;
 
@@ -35,18 +37,23 @@ public class Accept extends WithUnsynced
         this.deps = deps;
     }
 
-    public void process(Node node, Node.Id replyToNode, ReplyContext replyContext)
+    @VisibleForTesting
+    public AcceptReply process(CommandStore instance, Key progressKey)
     {
-        Key progressKey = progressKey(node, homeKey);
         // TODO: when we begin expunging old epochs we need to ensure we handle the case where we do not fully handle the keys;
         //       since this will likely imply the transaction has been applied or aborted we can indicate the coordinator
         //       should enquire as to the result
-        node.reply(replyToNode, replyContext, node.mapReduceLocal(this, minEpoch, executeAt.epoch, instance -> {
-            Command command = instance.command(txnId);
-            if (!command.accept(ballot, txn, homeKey, progressKey, executeAt, deps))
-                return new AcceptNack(txnId, command.promised());
-            return new AcceptOk(txnId, calculateDeps(instance, txnId, txn, executeAt));
-        }, (r1, r2) -> {
+        Command command = instance.command(txnId);
+        if (!command.accept(ballot, txn, homeKey, progressKey, executeAt, deps))
+            return new AcceptNack(txnId, command.promised());
+        return new AcceptOk(txnId, calculateDeps(instance, txnId, txn, executeAt));
+    }
+
+    public void process(Node node, Node.Id replyToNode, ReplyContext replyContext)
+    {
+        Key progressKey = progressKey(node, homeKey);
+        node.reply(replyToNode, replyContext, node.mapReduceLocal(this, minEpoch, executeAt.epoch, cs -> process(cs, progressKey),
+        (r1, r2) -> {
             if (!r1.isOK()) return r1;
             if (!r2.isOK()) return r2;
             AcceptOk ok1 = (AcceptOk) r1;
