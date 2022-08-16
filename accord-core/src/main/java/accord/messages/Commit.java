@@ -85,6 +85,24 @@ public class Commit extends ReadData
         }
     }
 
+    @Override
+    public TxnId txnId()
+    {
+        return txnId;
+    }
+
+    @Override
+    public Iterable<TxnId> depsIds()
+    {
+        return deps.txnIds();
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return txn.keys();
+    }
+
     public void process(Node node, Id from, ReplyContext replyContext)
     {
         Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);

@@ -16,7 +16,6 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.*;
 import accord.utils.DeterministicIdentitySet;
-import org.apache.cassandra.utils.concurrent.Future;
 
 public class ReadData extends TxnRequest
 {
