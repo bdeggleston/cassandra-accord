@@ -1,5 +1,6 @@
 package accord.api;
 
+import accord.local.CommandStore;
 import accord.txn.Timestamp;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.ImmediateFuture;
@@ -12,5 +13,5 @@ import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 public interface Write
 {
     Future<?> SUCCESS = ImmediateFuture.success(null);
-    Future<?> apply(Key key, Timestamp executeAt, DataStore store);
+    Future<?> apply(Key key, CommandStore commandStore, Timestamp executeAt, DataStore store);
 }
