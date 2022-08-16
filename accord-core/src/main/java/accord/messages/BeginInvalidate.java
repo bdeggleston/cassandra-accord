@@ -48,13 +48,13 @@ public class BeginInvalidate implements EpochRequest, TxnOperation
     }
 
     @Override
-    public Iterable<TxnId> expectedTxnIds()
+    public TxnId txnId()
     {
-        return Collections.singleton(txnId);
+        return txnId;
     }
 
     @Override
-    public Iterable<Key> expectedKeys()
+    public Iterable<Key> keys()
     {
         return Collections.emptyList();
     }

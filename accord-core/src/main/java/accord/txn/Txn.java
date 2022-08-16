@@ -1,9 +1,12 @@
 package accord.txn;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import accord.api.*;
 import accord.local.*;
+import org.apache.cassandra.utils.concurrent.Future;
 
 public class Txn
 {
@@ -89,15 +92,17 @@ public class Txn
         return "{read:" + read.toString() + (update != null ? ", update:" + update : "") + '}';
     }
 
-    public Data read(Command command, Keys keys)
+    public Future<Data> read(Command command, Keys keys)
     {
-        return keys.foldl(command.commandStore().ranges().at(command.executeAt().epoch), (key, accumulate) -> {
+        List<Future<Data>> futures = keys.foldl(command.commandStore().ranges().at(command.executeAt().epoch), (key, accumulate) -> {
             CommandStore commandStore = command.commandStore();
             if (!commandStore.hashIntersects(key))
                 return accumulate;
 
-            Data result = read.read(key, command.executeAt(), commandStore.store());
-            return accumulate != null ? accumulate.merge(result) : result;
-        }, null);
+            Future<Data> result = read.read(key, command.executeAt(), commandStore.store());
+            accumulate.add(result);
+            return accumulate;
+        }, new ArrayList<>());
+        return new Read.Reducer(futures);
     }
 }
