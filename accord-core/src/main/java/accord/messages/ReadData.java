@@ -16,13 +16,13 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import accord.txn.*;
 import accord.utils.DeterministicIdentitySet;
-import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
     static class LocalRead implements Listener, TxnOperation
     {
         final TxnId txnId;
+        final Dependencies deps;
         final Node node;
         final Node.Id replyToNode;
         final Keys readKeys;
@@ -33,10 +33,11 @@ public class ReadData extends TxnRequest
         boolean isObsolete; // TODO: respond with the Executed result we have stored?
         Set<CommandStore> waitingOn;
 
-        LocalRead(TxnId txnId, Node node, Id replyToNode, Keys readKeys, Keys txnKeys, ReplyContext replyContext)
+        LocalRead(TxnId txnId, Dependencies deps, Node node, Id replyToNode, Keys readKeys, Keys txnKeys, ReplyContext replyContext)
         {
             Preconditions.checkArgument(!readKeys.isEmpty());
             this.txnId = txnId;
+            this.deps = deps;
             this.node = node;
             this.replyToNode = replyToNode;
             this.readKeys = readKeys;
@@ -45,13 +46,20 @@ public class ReadData extends TxnRequest
         }
 
         @Override
-        public Iterable<TxnId> expectedTxnIds()
+        public TxnId txnId()
         {
-            return Collections.singletonList(txnId);
+            return txnId;
         }
 
         @Override
-        public Iterable<Key> expectedKeys()
+        public Iterable<TxnId> depsIds()
+        {
+            // FIXME: maybe duplicate command data into waiting on maps
+            return deps.txnIds();
+        }
+
+        @Override
+        public Iterable<Key> keys()
         {
             return txnKeys;
         }
@@ -166,20 +174,27 @@ public class ReadData extends TxnRequest
 
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, node, from, txn.read.keys().intersect(scope()), txn.keys(), replyContext)
+        new LocalRead(txnId, deps, node, from, txn.read.keys().intersect(scope()), txn.keys(), replyContext)
             .setup(txnId, txn, homeKey, scope(), executeAt);
     }
 
     @Override
-    public Iterable<TxnId> expectedTxnIds()
+    public TxnId txnId()
     {
-        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
+        return txnId;
     }
 
     @Override
-    public Iterable<Key> expectedKeys()
+    public Iterable<TxnId> depsIds()
     {
-        return txn.keys();
+        // FIXME: maybe duplicate command data into waiting on maps
+        return deps.txnIds();
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return Collections.emptyList();
     }
 
     @Override

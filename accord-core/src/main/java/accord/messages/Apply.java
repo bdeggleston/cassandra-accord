@@ -10,11 +10,9 @@ import accord.txn.Timestamp;
 import accord.txn.Writes;
 import accord.txn.Txn;
 import accord.txn.TxnId;
-import com.google.common.collect.Iterables;
 
 import static accord.messages.MessageType.APPLY_REQ;
 import static accord.messages.MessageType.APPLY_RSP;
-import java.util.Collections;
 
 public class Apply extends TxnRequest
 {
@@ -48,13 +46,19 @@ public class Apply extends TxnRequest
     }
 
     @Override
-    public Iterable<TxnId> expectedTxnIds()
+    public TxnId txnId()
     {
-        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
+        return txnId;
     }
 
     @Override
-    public Iterable<Key> expectedKeys()
+    public Iterable<TxnId> depsIds()
+    {
+        return deps.txnIds();
+    }
+
+    @Override
+    public Iterable<Key> keys()
     {
         return txn.keys();
     }
