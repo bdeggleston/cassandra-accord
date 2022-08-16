@@ -12,20 +12,15 @@ import accord.txn.Timestamp;
 import accord.txn.Dependencies;
 import accord.txn.Txn;
 import accord.txn.TxnId;
-import com.google.common.collect.Iterables;
-
-import java.util.Collections;
 
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends ReadData
 {
-    public final Dependencies deps;
     public final boolean read;
 
     public Commit(Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey, Timestamp executeAt, Dependencies deps, boolean read)
     {
-        super(to, topologies, txnId, txn, homeKey, executeAt);
-        this.deps = deps;
+        super(to, topologies, txnId, txn, deps, homeKey, executeAt);
         this.read = read;
     }
 
@@ -88,12 +83,6 @@ public class Commit extends ReadData
             Invalidate send = new Invalidate(to, commitTo, txnId, someKeys, someKeys);
             node.send(to, send);
         }
-    }
-
-    @Override
-    public Iterable<TxnId> expectedTxnIds()
-    {
-        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
     }
 
     public void process(Node node, Id from, ReplyContext replyContext)

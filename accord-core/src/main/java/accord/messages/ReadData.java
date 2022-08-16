@@ -1,10 +1,9 @@
 package accord.messages;
 
+import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
-
-import java.util.Collections;
 
 import accord.api.Key;
 import accord.local.*;
@@ -15,7 +14,9 @@ import accord.txn.Keys;
 import accord.txn.Timestamp;
 import accord.txn.Txn;
 import accord.txn.TxnId;
+import accord.txn.*;
 import accord.utils.DeterministicIdentitySet;
+import com.google.common.collect.Iterables;
 
 public class ReadData extends TxnRequest
 {
@@ -149,14 +150,16 @@ public class ReadData extends TxnRequest
 
     public final TxnId txnId;
     public final Txn txn;
+    public final Dependencies deps;
     final Key homeKey;
     public final Timestamp executeAt;
 
-    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey, Timestamp executeAt)
+    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Dependencies deps, Key homeKey, Timestamp executeAt)
     {
         super(to, topologies, txn.keys);
         this.txnId = txnId;
         this.txn = txn;
+        this.deps = deps;
         this.homeKey = homeKey;
         this.executeAt = executeAt;
     }
@@ -170,7 +173,7 @@ public class ReadData extends TxnRequest
     @Override
     public Iterable<TxnId> expectedTxnIds()
     {
-        return Collections.singletonList(txnId);
+        return Iterables.concat(Collections.singletonList(txnId), deps.txnIds());
     }
 
     @Override
