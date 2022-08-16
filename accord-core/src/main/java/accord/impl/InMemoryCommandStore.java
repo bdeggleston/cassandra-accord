@@ -159,6 +159,22 @@ public abstract class InMemoryCommandStore extends CommandStore
         }
 
         @Override
+        public Future<Void> processSetup(Consumer<? super CommandStore> function)
+        {
+            AsyncPromise<Void> promise = new AsyncPromise<>();
+            processInternal(function, promise);
+            return promise;
+        }
+
+        @Override
+        public <T> Future<T> processSetup(Function<? super CommandStore, T> function)
+        {
+            AsyncPromise<T> promise = new AsyncPromise<>();
+            processInternal(function, promise);
+            return promise;
+        }
+
+        @Override
         public synchronized Future<Void> process(TxnOperation unused, Consumer<? super CommandStore> consumer)
         {
             Promise<Void> promise = new AsyncPromise<>();
@@ -231,6 +247,22 @@ public abstract class InMemoryCommandStore extends CommandStore
                 thread.setName(CommandStore.class.getSimpleName() + '[' + node.id() + ':' + index + ']');
                 return thread;
             });
+        }
+
+        @Override
+        public Future<Void> processSetup(Consumer<? super CommandStore> function)
+        {
+            ConsumerWrapper future = new ConsumerWrapper(function);
+            executor.execute(future);
+            return future;
+        }
+
+        @Override
+        public <T> Future<T> processSetup(Function<? super CommandStore, T> function)
+        {
+            FunctionWrapper<T> future = new FunctionWrapper<>(function);
+            executor.execute(future);
+            return future;
         }
 
         @Override

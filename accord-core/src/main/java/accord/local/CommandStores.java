@@ -374,6 +374,12 @@ public abstract class CommandStores
         return result;
     }
 
+    private <F, T> T setup(F f, Fold<F, ?, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
+    {
+        List<Future<T>> futures = foldl((s, i, mn, mx) -> s.all(), null, Long.MIN_VALUE, Long.MAX_VALUE, fold, f, null, ArrayList::new);
+        return reduce(futures, reduce);
+    }
+
     private  <S, T> T mapReduce(TxnOperation operation, Select<S> select, S scope, long minEpoch, long maxEpoch, Fold<TxnOperation, Void, List<Future<T>>> fold, BiFunction<T, T, T> reduce)
     {
         List<Future<T>> futures = foldl(select, scope, minEpoch, maxEpoch, fold, operation, null, ArrayList::new);
@@ -399,6 +405,16 @@ public abstract class CommandStores
     {
         // probably need to split txnOperation and scope stuff here
         return mapReduce(operation, ShardedRanges::shards, keys, minEpoch, maxEpoch, mapReduceFold(map), reduce);
+    }
+
+    public void setup(Consumer<CommandStore> forEach)
+    {
+        setup(forEach, (store, f, i, t) -> { t.add(store.processSetup(f)); return t; }, (Void i1, Void i2) -> null);
+    }
+
+    public <T> T setup(Function<CommandStore, T> map, BiFunction<T, T, T> reduce)
+    {
+        return setup(map, (store, f, i, t) -> { t.add(store.processSetup(f)); return t; }, reduce);
     }
 
     private static Fold<TxnOperation, Void, List<Future<Void>>> forEachFold(Consumer<CommandStore> forEach)
