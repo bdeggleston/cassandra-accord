@@ -18,13 +18,15 @@ public interface Read
     Keys keys();
     Future<Data> read(Key key, Timestamp executeAt, DataStore store);
 
-    class Reducer extends AsyncPromise<Data> implements BiConsumer<Data, Throwable>
+    class ReadFuture extends AsyncPromise<Data> implements BiConsumer<Data, Throwable>
     {
+        public final Keys keyScope;
         private Data result = null;
         private int pending = 0;
 
-        public Reducer(List<Future<Data>> futures)
+        public ReadFuture(Keys keyScope, List<Future<Data>> futures)
         {
+            this.keyScope = keyScope;
             pending = futures.size();
             listen(futures);
         }

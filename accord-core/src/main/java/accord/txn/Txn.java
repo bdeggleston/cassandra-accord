@@ -92,7 +92,7 @@ public class Txn
         return "{read:" + read.toString() + (update != null ? ", update:" + update : "") + '}';
     }
 
-    public Future<Data> read(Command command, Keys keys)
+    public Read.ReadFuture read(Command command, Keys readKeys)
     {
         List<Future<Data>> futures = keys.foldl(command.commandStore().ranges().at(command.executeAt().epoch), (key, accumulate) -> {
             CommandStore commandStore = command.commandStore();
@@ -103,6 +103,6 @@ public class Txn
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());
-        return new Read.Reducer(futures);
+        return new Read.ReadFuture(readKeys, futures);
     }
 }
