@@ -54,7 +54,6 @@ public class ReadData extends TxnRequest
         @Override
         public Iterable<TxnId> depsIds()
         {
-            // FIXME: maybe duplicate command data into waiting on maps
             return deps.txnIds();
         }
 
@@ -127,8 +126,6 @@ public class ReadData extends TxnRequest
         {
             Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);
             waitingOn = node.collectLocal(keys, executeAt, DeterministicIdentitySet::new);
-            // FIXME: fix/check thread safety
-            // FIXME (rebase): rework forEach and mapReduce to not require these to be public
             CommandStores.forEachNonBlocking(waitingOn, this, instance -> {
                 Command command = instance.command(txnId);
                 command.preaccept(txn, homeKey, progressKey); // ensure pre-accepted
