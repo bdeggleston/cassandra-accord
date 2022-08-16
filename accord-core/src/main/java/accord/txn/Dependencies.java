@@ -102,6 +102,11 @@ public class Dependencies implements Iterable<Entry<TxnId, Txn>>
         return deps.get(txnId).homeKey;
     }
 
+    public Iterable<TxnId> txnIds()
+    {
+        return deps.keySet();
+    }
+
     @Override
     public Iterator<Entry<TxnId, Txn>> iterator()
     {
