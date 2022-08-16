@@ -784,8 +784,8 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
         @Override
         public void process(Node node, Id from, ReplyContext replyContext)
         {
-            Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);
-            TxnOperation scope = TxnOperation.scopeFor(txnId, txn.keys);
+            Key progressKey = node.trySelectProgressKey(txnId, txn.keys(), homeKey);
+            TxnOperation scope = TxnOperation.scopeFor(txnId, txn.keys());
             node.reply(from, replyContext, node.mapReduceLocalSince(scope, scope(), executeAt, instance -> {
                 Command command = instance.command(txnId);
                 command.apply(txn, homeKey, progressKey, executeAt, deps, writes, result);

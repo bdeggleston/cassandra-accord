@@ -131,7 +131,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
         if (executeAt() == null)
         {
-            Timestamp max = commandStore().maxConflict(txn.keys);
+            Timestamp max = commandStore().maxConflict(txn.keys());
             // unlike in the Accord paper, we partition shards within a node, so that to ensure a total order we must either:
             //  - use a global logical clock to issue new timestamps; or
             //  - assign each shard _and_ process a unique id, and use both as components of the timestamp
@@ -478,7 +478,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
         Keys someKeys = cur.someKeys();
         if (someKeys == null)
-            someKeys = prev.savedDeps().get(cur.txnId()).keys;
+            someKeys = prev.savedDeps().get(cur.txnId()).keys();
         return new BlockedBy(cur.txnId(), someKeys);
     }
 
@@ -514,8 +514,8 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         if (homeKey() != null)
             return homeKey();
 
-        if (txn().keys != null)
-            return txn().keys.get(0);
+        if (txn().keys() != null)
+            return txn().keys().get(0);
 
         return null;
     }
@@ -539,7 +539,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public boolean executes()
     {
         KeyRanges ranges = commandStore().ranges().at(executeAt().epoch);
-        return ranges != null && txn().keys.any(ranges, commandStore()::hashIntersects);
+        return ranges != null && txn().keys().any(ranges, commandStore()::hashIntersects);
     }
 
     public final void txn(Txn txn)

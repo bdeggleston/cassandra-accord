@@ -8,33 +8,72 @@ import accord.api.*;
 import accord.local.*;
 import org.apache.cassandra.utils.concurrent.Future;
 
-public class Txn
+public abstract class Txn
 {
-    enum Kind { READ, WRITE, RECONFIGURE }
+    public enum Kind { READ, WRITE, RECONFIGURE }
 
-    final Kind kind;
-    public final Keys keys;
-    public final Read read;
-    public final Query query;
-    public final Update update;
-
-    public Txn(Keys keys, Read read, Query query)
+    public static class InMemory extends Txn
     {
-        this.kind = Kind.READ;
-        this.keys = keys;
-        this.read = read;
-        this.query = query;
-        this.update = null;
+        private final Kind kind;
+        private final Keys keys;
+        private final Read read;
+        private final Query query;
+        private final Update update;
+
+        public InMemory(Keys keys, Read read, Query query)
+        {
+            this.kind = Kind.READ;
+            this.keys = keys;
+            this.read = read;
+            this.query = query;
+            this.update = null;
+        }
+
+        public InMemory(Keys keys, Read read, Query query, Update update)
+        {
+            this.kind = Kind.WRITE;
+            this.keys = keys;
+            this.read = read;
+            this.update = update;
+            this.query = query;
+        }
+
+        @Override
+        public Kind kind()
+        {
+            return kind;
+        }
+
+        @Override
+        public Keys keys()
+        {
+            return keys;
+        }
+
+        @Override
+        public Read read()
+        {
+            return read;
+        }
+
+        @Override
+        public Query query()
+        {
+            return query;
+        }
+
+        @Override
+        public Update update()
+        {
+            return update;
+        }
     }
 
-    public Txn(Keys keys, Read read, Query query, Update update)
-    {
-        this.kind = Kind.WRITE;
-        this.keys = keys;
-        this.read = read;
-        this.update = update;
-        this.query = query;
-    }
+    public abstract Kind kind();
+    public abstract Keys keys();
+    public abstract Read read();
+    public abstract Query query();
+    public abstract Update update();
 
     @Override
     public boolean equals(Object o)
@@ -42,22 +81,22 @@ public class Txn
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Txn txn = (Txn) o;
-        return kind == txn.kind
-                && keys.equals(txn.keys)
-                && read.equals(txn.read)
-                && query.equals(txn.query)
-                && Objects.equals(update, txn.update);
+        return kind() == txn.kind()
+                && keys().equals(txn.keys())
+                && read().equals(txn.read())
+                && query().equals(txn.query())
+                && Objects.equals(update(), txn.update());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(kind, keys, read, query, update);
+        return Objects.hash(kind(), keys(), read(), query(), update());
     }
 
     public boolean isWrite()
     {
-        switch (kind)
+        switch (kind())
         {
             default:
                 throw new IllegalStateException();
@@ -71,35 +110,30 @@ public class Txn
 
     public Result result(Data data)
     {
-        return query.compute(data);
+        return query().compute(data);
     }
 
     public Writes execute(Timestamp executeAt, Data data)
     {
-        if (update == null)
-            return new Writes(executeAt, keys, null);
+        if (update() == null)
+            return new Writes(executeAt, keys(), null);
 
-        return new Writes(executeAt, keys, update.apply(data));
-    }
-
-    public Keys keys()
-    {
-        return keys;
+        return new Writes(executeAt, keys(), update().apply(data));
     }
 
     public String toString()
     {
-        return "{read:" + read.toString() + (update != null ? ", update:" + update : "") + '}';
+        return "{read:" + read().toString() + (update() != null ? ", update:" + update() : "") + '}';
     }
 
     public Read.ReadFuture read(Command command, Keys readKeys)
     {
-        List<Future<Data>> futures = keys.foldl(command.commandStore().ranges().at(command.executeAt().epoch), (key, accumulate) -> {
+        List<Future<Data>> futures = keys().foldl(command.commandStore().ranges().at(command.executeAt().epoch), (key, accumulate) -> {
             CommandStore commandStore = command.commandStore();
             if (!commandStore.hashIntersects(key))
                 return accumulate;
 
-            Future<Data> result = read.read(key, command.executeAt(), commandStore.store());
+            Future<Data> result = read().read(key, command.executeAt(), commandStore.store());
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());

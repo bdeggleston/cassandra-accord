@@ -29,7 +29,7 @@ public class Accept extends WithUnsynced
 
     public Accept(Id to, Topologies topologies, Ballot ballot, TxnId txnId, Key homeKey, Txn txn, Timestamp executeAt, Dependencies deps)
     {
-        super(to, topologies, txn.keys, txnId);
+        super(to, topologies, txn.keys(), txnId);
         this.ballot = ballot;
         this.homeKey = homeKey;
         this.txn = txn;

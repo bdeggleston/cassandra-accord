@@ -61,7 +61,7 @@ public class CheckOnUncommitted extends CheckOnCommitted
                 break;
             case PreAccepted:
             case Accepted:
-                node.forEachLocalSince(TxnOperation.scopeFor(txnId), full.txn.keys, txnId.epoch, commandStore -> {
+                node.forEachLocalSince(TxnOperation.scopeFor(txnId), full.txn.keys(), txnId.epoch, commandStore -> {
                     Command command = commandStore.ifPresent(txnId);
                     if (command != null)
                         command.homeKey(full.homeKey);

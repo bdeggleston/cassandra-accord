@@ -197,9 +197,9 @@ public class Json
                 return;
             }
 
-            Keys keys = txn.keys;
-            MaelstromRead read = (MaelstromRead) txn.read;
-            MaelstromUpdate update = (MaelstromUpdate) txn.update;
+            Keys keys = txn.keys();
+            MaelstromRead read = (MaelstromRead) txn.read();
+            MaelstromUpdate update = (MaelstromUpdate) txn.update();
 
             out.beginObject();
             out.name("r");
@@ -228,9 +228,9 @@ public class Json
             }
             out.endArray();
             out.name("client");
-            out.value(((MaelstromQuery)txn.query).client.id);
+            out.value(((MaelstromQuery)txn.query()).client.id);
             out.name("requestId");
-            out.value(((MaelstromQuery)txn.query).requestId);
+            out.value(((MaelstromQuery)txn.query()).requestId);
             out.endObject();
         }
 
@@ -291,7 +291,7 @@ public class Json
             MaelstromRead read = new MaelstromRead(keys);
             MaelstromQuery query = new MaelstromQuery(client, requestId, readKeys, update);
 
-            return new Txn(keys, read, query, update);
+            return new Txn.InMemory(keys, read, query, update);
         }
     };
 

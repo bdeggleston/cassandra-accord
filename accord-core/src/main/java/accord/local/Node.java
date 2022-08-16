@@ -391,11 +391,11 @@ public class Node implements ConfigurationService.Listener
 
     private Future<Result> initiateCoordination(TxnId txnId, Txn txn)
     {
-        Key homeKey = trySelectHomeKey(txnId, txn.keys);
+        Key homeKey = trySelectHomeKey(txnId, txn.keys());
         if (homeKey == null)
         {
             homeKey = selectRandomHomeKey(txnId);
-            txn = new Txn(txn.keys.with(homeKey), txn.read, txn.query, txn.update);
+            txn = new Txn.InMemory(txn.keys().with(homeKey), txn.read(), txn.query(), txn.update());
         }
         return Coordinate.coordinate(this, txnId, txn, homeKey);
     }

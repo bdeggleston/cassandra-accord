@@ -41,7 +41,7 @@ class Execute implements Callback<ReadReply>
         this.executeAt = executeAt;
         this.dependencies = dependencies;
         this.topologies = node.topology().forEpoch(txn, executeAt.epoch);
-        Topologies readTopologies = node.topology().forEpoch(txn.read.keys(), executeAt.epoch);
+        Topologies readTopologies = node.topology().forEpoch(txn.read().keys(), executeAt.epoch);
         this.readTracker = new ReadTracker(readTopologies);
         this.callback = callback;
     }

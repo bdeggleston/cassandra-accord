@@ -119,7 +119,7 @@ public class ReadData extends TxnRequest
 
         synchronized void setup(TxnId txnId, Txn txn, Key homeKey, Keys keys, Timestamp executeAt)
         {
-            Key progressKey = node.trySelectProgressKey(txnId, txn.keys, homeKey);
+            Key progressKey = node.trySelectProgressKey(txnId, txn.keys(), homeKey);
             waitingOn = node.collectLocal(keys, executeAt, DeterministicIdentitySet::new);
             CommandStores.forEachNonBlocking(waitingOn, this, instance -> {
                 Command command = instance.command(txnId);
@@ -159,7 +159,7 @@ public class ReadData extends TxnRequest
 
     public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Txn txn, Dependencies deps, Key homeKey, Timestamp executeAt)
     {
-        super(to, topologies, txn.keys);
+        super(to, topologies, txn.keys());
         this.txnId = txnId;
         this.txn = txn;
         this.deps = deps;
@@ -169,7 +169,7 @@ public class ReadData extends TxnRequest
 
     public void process(Node node, Node.Id from, ReplyContext replyContext)
     {
-        new LocalRead(txnId, deps, node, from, txn.read.keys().intersect(scope()), txn.keys(), replyContext)
+        new LocalRead(txnId, deps, node, from, txn.read().keys().intersect(scope()), txn.keys(), replyContext)
             .setup(txnId, txn, homeKey, scope(), executeAt);
     }
 

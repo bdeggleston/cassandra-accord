@@ -41,7 +41,7 @@ public class BeginRecovery extends TxnRequest
 
     public BeginRecovery(Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey, Ballot ballot)
     {
-        super(to, topologies, txn.keys);
+        super(to, topologies, txn.keys());
         this.txnId = txnId;
         this.txn = txn;
         this.homeKey = homeKey;
@@ -50,7 +50,7 @@ public class BeginRecovery extends TxnRequest
 
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        Key progressKey = node.selectProgressKey(txnId, txn.keys, homeKey);
+        Key progressKey = node.selectProgressKey(txnId, txn.keys(), homeKey);
         RecoverReply reply = node.mapReduceLocal(this, txnId.epoch, txnId.epoch, instance -> {
             Command command = instance.command(txnId);
 
@@ -70,20 +70,20 @@ public class BeginRecovery extends TxnRequest
             }
             else
             {
-                rejectsFastPath = uncommittedStartedAfter(instance, txnId, txn.keys)
+                rejectsFastPath = uncommittedStartedAfter(instance, txnId, txn.keys())
                                              .filter(c -> c.hasBeen(Accepted))
                                              .anyMatch(c -> !c.savedDeps().contains(txnId));
                 if (!rejectsFastPath)
-                    rejectsFastPath = committedExecutesAfter(instance, txnId, txn.keys)
+                    rejectsFastPath = committedExecutesAfter(instance, txnId, txn.keys())
                                          .anyMatch(c -> !c.savedDeps().contains(txnId));
 
                 // committed txns with an earlier txnid and have our txnid as a dependency
-                earlierCommittedWitness = committedStartedBefore(instance, txnId, txn.keys)
+                earlierCommittedWitness = committedStartedBefore(instance, txnId, txn.keys())
                                           .filter(c -> c.savedDeps().contains(txnId))
                                           .collect(Dependencies::new, Dependencies::add, Dependencies::addAll);
 
                 // accepted txns with an earlier txnid that don't have our txnid as a dependency
-                earlierAcceptedNoWitness = uncommittedStartedBefore(instance, txnId, txn.keys)
+                earlierAcceptedNoWitness = uncommittedStartedBefore(instance, txnId, txn.keys())
                                               .filter(c -> c.is(Accepted)
                                                            && !c.savedDeps().contains(txnId)
                                                            && c.executeAt().compareTo(txnId) > 0)

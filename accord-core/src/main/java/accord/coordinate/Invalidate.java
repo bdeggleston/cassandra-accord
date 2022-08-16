@@ -72,7 +72,7 @@ public class Invalidate extends AsyncFuture<Outcome> implements Callback<Recover
             InvalidateNack nack = (InvalidateNack) response;
             if (nack.homeKey != null && nack.txn != null)
             {
-                Key progressKey = node.trySelectProgressKey(txnId.epoch, nack.txn.keys, nack.homeKey);
+                Key progressKey = node.trySelectProgressKey(txnId.epoch, nack.txn.keys(), nack.homeKey);
                 // TODO: consider limiting epoch upper bound we process this status for
                 node.ifLocalSince(TxnOperation.scopeFor(txnId, nack.txn.keys()), someKey, txnId, instance -> {
                     instance.command(txnId).preaccept(nack.txn, nack.homeKey, progressKey);

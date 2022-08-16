@@ -40,7 +40,7 @@ public class InformOfTxn implements EpochRequest, TxnOperation
     // TODO (now): audit all messages to ensure requests passed to command store
     public void process(Node node, Id replyToNode, ReplyContext replyContext)
     {
-        Key progressKey = node.selectProgressKey(txnId, txn.keys, homeKey);
+        Key progressKey = node.selectProgressKey(txnId, txn.keys(), homeKey);
         Reply reply = node.ifLocal(this, homeKey, txnId, instance -> {
             instance.command(txnId).preaccept(txn, homeKey, progressKey);
             return ok();

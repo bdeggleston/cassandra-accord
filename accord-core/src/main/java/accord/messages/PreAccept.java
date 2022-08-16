@@ -29,7 +29,7 @@ public class PreAccept extends WithUnsynced
 
     public PreAccept(Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey)
     {
-        super(to, topologies, txn.keys, txnId);
+        super(to, topologies, txn.keys(), txnId);
         this.homeKey = homeKey;
         this.txn = txn;
         this.maxEpoch = topologies.currentEpoch();
@@ -170,7 +170,7 @@ public class PreAccept extends WithUnsynced
     public static Dependencies calculateDeps(CommandStore commandStore, TxnId txnId, Txn txn, Timestamp executeAt)
     {
         Dependencies deps = new Dependencies();
-        conflictsMayExecuteBefore(commandStore, executeAt, txn.keys).forEach(conflict -> {
+        conflictsMayExecuteBefore(commandStore, executeAt, txn.keys()).forEach(conflict -> {
             if (conflict.txnId().equals(txnId))
                 return;
 

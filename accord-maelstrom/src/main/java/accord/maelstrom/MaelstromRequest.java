@@ -59,9 +59,9 @@ public class MaelstromRequest extends Body implements Request
         }
 
         out.beginArray();
-        Keys keys = txn.keys;
-        MaelstromQuery query = (MaelstromQuery) txn.query;
-        MaelstromUpdate update = (MaelstromUpdate) txn.update;
+        Keys keys = txn.keys();
+        MaelstromQuery query = (MaelstromQuery) txn.query();
+        MaelstromUpdate update = (MaelstromUpdate) txn.update();
         for (int i = 0 ; i < keys.size() ; ++i)
         {
             MaelstromKey key = (MaelstromKey) keys.get(i);
@@ -121,7 +121,7 @@ public class MaelstromRequest extends Body implements Request
         MaelstromRead read = new MaelstromRead(keys);
         MaelstromQuery query = new MaelstromQuery(client, requestId, readKeys, update);
 
-        return new Txn(keys, read, query, update);
+        return new Txn.InMemory(keys, read, query, update);
     }
 
 }
