@@ -1,16 +1,13 @@
 package accord.messages;
 
 import accord.api.Key;
+import accord.utils.ProvidedForImplementation;
 import accord.api.Write;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.api.Result;
 import accord.topology.Topologies;
-import accord.txn.Dependencies;
-import accord.txn.Timestamp;
-import accord.txn.Writes;
-import accord.txn.Txn;
-import accord.txn.TxnId;
+import accord.txn.*;
 import com.google.common.collect.Iterables;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.UncheckedInterruptedException;
@@ -25,7 +22,7 @@ public class Apply extends TxnRequest
 {
     public final TxnId txnId;
     public final Txn txn;
-    protected final Key homeKey;
+    public final Key homeKey;
     public final Timestamp executeAt;
     public final Dependencies deps;
     public final Writes writes;
@@ -39,6 +36,19 @@ public class Apply extends TxnRequest
         this.homeKey = homeKey;
         this.deps = deps;
         this.executeAt = executeAt;
+        this.writes = writes;
+        this.result = result;
+    }
+
+    @ProvidedForImplementation
+    public Apply(Keys scope, long waitForEpoch, TxnId txnId, Txn txn, Key homeKey, Timestamp executeAt, Dependencies deps, Writes writes, Result result)
+    {
+        super(scope, waitForEpoch);
+        this.txnId = txnId;
+        this.txn = txn;
+        this.homeKey = homeKey;
+        this.executeAt = executeAt;
+        this.deps = deps;
         this.writes = writes;
         this.result = result;
     }

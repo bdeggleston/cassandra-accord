@@ -1,20 +1,14 @@
 package accord.txn;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.TreeMap;
-
 import accord.api.Key;
 import accord.local.Command;
 import accord.local.CommandStore;
 import accord.topology.KeyRanges;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+
+import java.util.*;
+import java.util.Map.Entry;
 
 // TODO: do not send Txn
 // TODO: implementation efficiency

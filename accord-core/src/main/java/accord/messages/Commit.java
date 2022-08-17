@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.Set;
 
 import accord.api.Key;
+import accord.utils.ProvidedForImplementation;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
@@ -14,8 +15,6 @@ import accord.txn.Txn;
 import accord.txn.TxnId;
 import com.google.common.collect.Iterables;
 
-import java.util.Collections;
-
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends ReadData
 {
@@ -24,6 +23,13 @@ public class Commit extends ReadData
     public Commit(Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey, Timestamp executeAt, Dependencies deps, boolean read)
     {
         super(to, topologies, txnId, txn, deps, homeKey, executeAt);
+        this.read = read;
+    }
+
+    @ProvidedForImplementation
+    public Commit(Keys scope, long waitForEpoch, TxnId txnId, Txn txn, Dependencies deps, Key homeKey, Timestamp executeAt, boolean read)
+    {
+        super(scope, waitForEpoch, txnId, txn, deps, homeKey, executeAt);
         this.read = read;
     }
 

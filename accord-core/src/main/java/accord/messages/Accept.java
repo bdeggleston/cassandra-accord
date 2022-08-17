@@ -1,18 +1,15 @@
 package accord.messages;
 
+import accord.utils.ProvidedForImplementation;
 import accord.local.TxnOperation;
 import accord.messages.TxnRequest.WithUnsynced;
 import accord.local.Node.Id;
 import accord.api.Key;
 import accord.local.CommandStore;
 import accord.topology.Topologies;
-import accord.txn.Ballot;
+import accord.txn.*;
 import accord.local.Node;
-import accord.txn.Timestamp;
 import accord.local.Command;
-import accord.txn.Dependencies;
-import accord.txn.Txn;
-import accord.txn.TxnId;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Collections;
@@ -30,6 +27,17 @@ public class Accept extends WithUnsynced
     public Accept(Id to, Topologies topologies, Ballot ballot, TxnId txnId, Key homeKey, Txn txn, Timestamp executeAt, Dependencies deps)
     {
         super(to, topologies, txn.keys(), txnId);
+        this.ballot = ballot;
+        this.homeKey = homeKey;
+        this.txn = txn;
+        this.executeAt = executeAt;
+        this.deps = deps;
+    }
+
+    @ProvidedForImplementation
+    public Accept(Keys scope, long epoch, TxnId txnId, Ballot ballot, Key homeKey, Txn txn, Timestamp executeAt, Dependencies deps)
+    {
+        super(scope, epoch, txnId);
         this.ballot = ballot;
         this.homeKey = homeKey;
         this.txn = txn;
