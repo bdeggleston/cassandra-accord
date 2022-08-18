@@ -16,24 +16,13 @@ import com.google.common.base.Preconditions;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * Single threaded internal shard of accord transaction metadata
  */
 public abstract class CommandStore
 {
-    public interface Factory
-    {
-        CommandStore create(int generation,
-                            int shardIndex,
-                            int numShards,
-                            Node node,
-                            Agent agent,
-                            DataStore store,
-                            ProgressLog.Factory progressLogFactory,
-                            RangesForEpoch rangesForEpoch);
-    }
-
     public interface RangesForEpoch
     {
         KeyRanges at(long epoch);
@@ -44,7 +33,8 @@ public abstract class CommandStore
     private final int generation;
     private final int shardIndex;
     private final int numShards;
-    private final Node node;
+    private final Function<Timestamp, Timestamp> uniqueNow;
+    private final LongSupplier currentEpoch;
     private final Agent agent;
     private final DataStore store;
     private final ProgressLog progressLog;
@@ -54,7 +44,8 @@ public abstract class CommandStore
     public CommandStore(int generation,
                         int shardIndex,
                         int numShards,
-                        Node node,
+                        Function<Timestamp, Timestamp> uniqueNow,
+                        LongSupplier currentEpoch,
                         Agent agent,
                         DataStore store,
                         ProgressLog.Factory progressLogFactory,
@@ -64,7 +55,8 @@ public abstract class CommandStore
         this.generation = generation;
         this.shardIndex = shardIndex;
         this.numShards = numShards;
-        this.node = node;
+        this.uniqueNow = uniqueNow;
+        this.currentEpoch = currentEpoch;
         this.agent = agent;
         this.store = store;
         this.progressLog = progressLogFactory.create(this);
@@ -88,7 +80,7 @@ public abstract class CommandStore
 
     public Timestamp uniqueNow(Timestamp atLeast)
     {
-        return node.uniqueNow(atLeast);
+        return uniqueNow.apply(atLeast);
     }
 
     public Agent agent()
@@ -101,11 +93,6 @@ public abstract class CommandStore
         return progressLog;
     }
 
-    public Node node()
-    {
-        return node;
-    }
-
     public RangesForEpoch ranges()
     {
         return rangesForEpoch;
@@ -114,7 +101,7 @@ public abstract class CommandStore
     public long latestEpoch()
     {
         // TODO: why not inject the epoch to each command store?
-        return node.epoch();
+        return currentEpoch.getAsLong();
     }
 
     protected Timestamp maxConflict(Keys keys)
