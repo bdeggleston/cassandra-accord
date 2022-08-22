@@ -14,9 +14,9 @@ import static accord.messages.InformOfTxn.InformOfTxnOk.ok;
 
 public class InformOfTxn implements EpochRequest, TxnOperation
 {
-    final TxnId txnId;
-    final Key homeKey;
-    final Txn txn;
+    public final TxnId txnId;
+    public final Key homeKey;
+    public final Txn txn;
 
     public InformOfTxn(TxnId txnId, Key homeKey, Txn txn)
     {
@@ -76,7 +76,7 @@ public class InformOfTxn implements EpochRequest, TxnOperation
             return MessageType.INFORM_RSP;
         }
 
-        static InformOfTxnReply ok()
+        public static InformOfTxnReply ok()
         {
             return instance;
         }
@@ -106,7 +106,7 @@ public class InformOfTxn implements EpochRequest, TxnOperation
             return MessageType.INFORM_RSP;
         }
 
-        static InformOfTxnReply nack()
+        public static InformOfTxnReply nack()
         {
             return instance;
         }
