@@ -26,6 +26,21 @@ public class Dependencies implements Iterable<Entry<TxnId, Txn>>
             this.txn = txn;
             this.homeKey = homeKey;
         }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TxnAndHomeKey that = (TxnAndHomeKey) o;
+            return txn.equals(that.txn) && homeKey.equals(that.homeKey);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(txn, homeKey);
+        }
     }
 
     // TODO: encapsulate
