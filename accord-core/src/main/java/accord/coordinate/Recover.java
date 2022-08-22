@@ -236,7 +236,7 @@ public class Recover extends AsyncFuture<Result> implements Callback<RecoverRepl
                         else
                         {
                             tryFailure(new Invalidated());
-                            Commit.commitInvalidate(node, txnId, txn.keys, recoverOks.stream().map(ok -> ok.executeAt).reduce(txnId, Timestamp::max));
+                            Commit.commitInvalidate(node, txnId, txn.keys(), recoverOks.stream().map(ok -> ok.executeAt).reduce(txnId, Timestamp::max));
                         }
                     });
                     return;
@@ -252,7 +252,7 @@ public class Recover extends AsyncFuture<Result> implements Callback<RecoverRepl
                 case Invalidated:
                     Timestamp invalidateUntil = recoverOks.stream().map(ok -> ok.executeAt).reduce(txnId, Timestamp::max);
                     node.withEpoch(invalidateUntil.epoch, () -> {
-                        Commit.commitInvalidate(node, txnId, txn.keys, invalidateUntil);
+                        Commit.commitInvalidate(node, txnId, txn.keys(), invalidateUntil);
                     });
                     tryFailure(new Invalidated());
                     return;

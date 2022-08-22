@@ -43,7 +43,7 @@ class Execute implements Callback<ReadReply>
         this.executeAt = executeAt;
         this.deps = deps;
         this.topologies = node.topology().forEpoch(txn, executeAt.epoch);
-        Topologies readTopologies = node.topology().forEpoch(txn.read.keys(), executeAt.epoch);
+        Topologies readTopologies = node.topology().forEpoch(txn.read().keys(), executeAt.epoch);
         this.readTracker = new ReadTracker(readTopologies);
         this.callback = callback;
     }
@@ -95,7 +95,7 @@ class Execute implements Callback<ReadReply>
     {
         Set<Id> readFrom = readTracker.computeMinimalReadSetAndMarkInflight();
         if (readFrom != null)
-            node.send(readFrom, to -> new ReadData(to, readTracker.topologies(), txnId, txn, homeKey, executeAt), this);
+            node.send(readFrom, to -> new ReadData(to, readTracker.topologies(), txnId, txn, dependencies, homeKey, executeAt), this);
     }
 
     @Override
@@ -115,7 +115,7 @@ class Execute implements Callback<ReadReply>
         Set<Id> readFrom = readTracker.computeMinimalReadSetAndMarkInflight();
         if (readFrom != null)
         {
-            node.send(readFrom, to -> new ReadData(to, readTracker.topologies(), txnId, txn, homeKey, executeAt), this);
+            node.send(readFrom, to -> new ReadData(to, readTracker.topologies(), txnId, txn, dependencies, homeKey, executeAt), this);
         }
         else if (readTracker.hasFailed())
         {

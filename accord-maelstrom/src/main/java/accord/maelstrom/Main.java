@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 
 import accord.coordinate.Timeout;
 import accord.impl.SimpleProgressLog;
-import accord.local.CommandStores;
+import accord.impl.InMemoryCommandStores;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.api.Scheduler;
@@ -142,7 +142,7 @@ public class Main
             sink = new StdoutSink(System::currentTimeMillis, scheduler, start, init.self, out, err);
             on = new Node(init.self, sink, new SimpleConfigService(topology), System::currentTimeMillis,
                           MaelstromStore::new, MaelstromAgent.INSTANCE, new Random(), scheduler,
-                          SimpleProgressLog::new, CommandStores.SingleThread::new);
+                          SimpleProgressLog::new, InMemoryCommandStores.SingleThread::new);
             err.println("Initialized node " + init.self);
             err.flush();
             sink.send(packet.src, new Body(Type.init_ok, Body.SENTINEL_MSG_ID, init.msg_id));
