@@ -1,7 +1,7 @@
 package accord.messages;
 
 import accord.api.Key;
-import accord.utils.ProvidedForImplementation;
+import accord.utils.VisibleForImplementation;
 import accord.api.Result;
 import accord.coordinate.Persist;
 import accord.topology.Topologies;
@@ -49,7 +49,7 @@ public class BeginRecovery extends TxnRequest
         this.ballot = ballot;
     }
 
-    @ProvidedForImplementation
+    @VisibleForImplementation
     public BeginRecovery(Keys scope, long waitForEpoch, TxnId txnId, Txn txn, Key homeKey, Ballot ballot)
     {
         super(scope, waitForEpoch);
