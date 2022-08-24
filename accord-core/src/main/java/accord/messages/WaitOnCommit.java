@@ -1,8 +1,6 @@
 package accord.messages;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import accord.api.Key;
@@ -42,6 +40,12 @@ public class WaitOnCommit extends TxnRequest
         public Iterable<Key> keys()
         {
             return Collections.emptyList();
+        }
+
+        @Override
+        public TxnOperation listenerScope(TxnId caller)
+        {
+            return TxnOperation.scopeFor(List.of(txnId, caller), keys());
         }
 
         @Override
