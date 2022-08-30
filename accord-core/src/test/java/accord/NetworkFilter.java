@@ -55,7 +55,7 @@ public class NetworkFilter
 
     public static Predicate<Message> notMessageType(Class<? extends Message> klass)
     {
-        return Predicate.not(isMessageType(klass));
+        return msg -> !klass.isAssignableFrom(msg.getClass());
     }
 
     /**

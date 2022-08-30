@@ -15,6 +15,8 @@ import accord.local.Node.Id;
 import accord.maelstrom.Cluster.Queue;
 import accord.maelstrom.Cluster.QueueSupplier;
 
+import static accord.utils.Utils.toArray;
+
 public class Runner
 {
     static class StandardQueue<T> implements Queue<T>
@@ -196,7 +198,7 @@ public class Runner
         }
 
         long start = System.nanoTime();
-        return new Supplier<>()
+        return new Supplier<T>()
         {
             int i = 0;
             @Override
@@ -237,7 +239,7 @@ public class Runner
             @Override
             public <T> Queue<T> get()
             {
-                return new Queue<>()
+                return new Queue<T>()
                 {
                     @Override
                     public void add(T t)
@@ -277,7 +279,7 @@ public class Runner
 
     static void run(int nodeCount, QueueSupplier queueSupplier, Supplier<Random> randomSupplier, TopologyFactory factory, String ... commands) throws IOException
     {
-        run(nodeCount, queueSupplier, randomSupplier, factory, new Supplier<>()
+        run(nodeCount, queueSupplier, randomSupplier, factory, new Supplier<Packet>()
         {
             int i = 0;
             @Override
@@ -294,6 +296,6 @@ public class Runner
         for (int i = 1 ; i <= nodeCount ; ++i)
             nodes.add(new Id(i));
 
-        Cluster.run(nodes.toArray(Id[]::new), queueSupplier, ignore -> {}, randomSupplier, () -> new AtomicLong()::incrementAndGet, factory, commands, System.err);
+        Cluster.run(toArray(nodes, Id[]::new), queueSupplier, ignore -> {}, randomSupplier, () -> new AtomicLong()::incrementAndGet, factory, commands, System.err);
     }
 }

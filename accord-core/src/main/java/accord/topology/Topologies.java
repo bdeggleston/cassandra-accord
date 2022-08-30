@@ -52,7 +52,7 @@ public interface Topologies
         }
     }
 
-    private static boolean equals(Topologies t, Object o)
+    static boolean equals(Topologies t, Object o)
     {
         if (o == t)
             return true;
@@ -72,7 +72,7 @@ public interface Topologies
         return true;
     }
 
-    private static int hashCode(Topologies t)
+    static int hashCode(Topologies t)
     {
         int hashCode = 1;
         for (int i=0, mi=t.size(); i<mi; i++) {
@@ -81,7 +81,7 @@ public interface Topologies
         return hashCode;
     }
 
-    private static String toString(Topologies t)
+    static String toString(Topologies t)
     {
         StringBuilder sb = new StringBuilder("[");
         for (int i=0, mi=t.size(); i<mi; i++)
@@ -136,7 +136,7 @@ public interface Topologies
         public Topology get(int i)
         {
             if (i != 0)
-                throw new IndexOutOfBoundsException(i);
+                throw new IndexOutOfBoundsException(Integer.toString(i));
             return topology;
         }
 

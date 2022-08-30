@@ -25,7 +25,7 @@ import accord.messages.ReadData.ReadOk;
 public class Json
 {
     public static final Gson GSON;
-    public static final TypeAdapter<Object> DEFAULT_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Object> DEFAULT_ADAPTER = new TypeAdapter<Object>()
     {
         @Override
         public void write(JsonWriter out, Object value)
@@ -40,7 +40,7 @@ public class Json
         }
     };
 
-    public static final TypeAdapter<Id> ID_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Id> ID_ADAPTER = new TypeAdapter<Id>()
     {
         @Override
         public void write(JsonWriter out, Id value) throws IOException
@@ -78,7 +78,7 @@ public class Json
         else return "n" + id.id;
     }
 
-    public static final TypeAdapter<Timestamp> TIMESTAMP_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Timestamp> TIMESTAMP_ADAPTER = new TypeAdapter<Timestamp>()
     {
         @Override
         public void write(JsonWriter out, Timestamp value) throws IOException
@@ -125,7 +125,7 @@ public class Json
         out.endArray();
     }
 
-    public static final TypeAdapter<TxnId> TXNID_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<TxnId> TXNID_ADAPTER = new TypeAdapter<TxnId>()
     {
         @Override
         public void write(JsonWriter out, TxnId value) throws IOException
@@ -140,7 +140,7 @@ public class Json
         }
     };
 
-    public static final TypeAdapter<Ballot> BALLOT_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Ballot> BALLOT_ADAPTER = new TypeAdapter<Ballot>()
     {
         @Override
         public void write(JsonWriter out, Ballot value) throws IOException
@@ -156,7 +156,7 @@ public class Json
     };
 
 
-    public static final TypeAdapter<Keys> KEYS_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Keys> KEYS_ADAPTER = new TypeAdapter<Keys>()
     {
         @Override
         public void write(JsonWriter out, Keys value) throws IOException
@@ -170,16 +170,16 @@ public class Json
         @Override
         public Keys read(JsonReader in) throws IOException
         {
-            List<MaelstromKey> keys = new ArrayList<>();
+            List<Key> keys = new ArrayList<>();
             in.beginArray();
             while (in.hasNext())
                 keys.add(MaelstromKey.read(in));
             in.endArray();
-            return Keys.of(keys.toArray(Key[]::new));
+            return Keys.of(keys);
         }
     };
 
-    public static final TypeAdapter<Txn> TXN_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Txn> TXN_ADAPTER = new TypeAdapter<Txn>()
     {
         @Override
         public void write(JsonWriter out, Txn txn) throws IOException
@@ -288,7 +288,7 @@ public class Json
         }
     };
 
-    public static final TypeAdapter<Deps> DEPS_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Deps> DEPS_ADAPTER = new TypeAdapter<Deps>()
     {
         @Override
         public void write(JsonWriter out, Deps value) throws IOException
@@ -336,7 +336,7 @@ public class Json
         }
     };
 
-    public static final TypeAdapter<Writes> TXN_WRITES_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Writes> TXN_WRITES_ADAPTER = new TypeAdapter<Writes>()
     {
         @Override
         public void write(JsonWriter out, Writes value) throws IOException
@@ -410,7 +410,7 @@ public class Json
         }
     };
 
-    public static final TypeAdapter<ReadOk> READ_OK_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<ReadOk> READ_OK_ADAPTER = new TypeAdapter<ReadOk>()
     {
         @Override
         public void write(JsonWriter out, ReadOk value) throws IOException

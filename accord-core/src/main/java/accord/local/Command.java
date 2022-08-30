@@ -1,7 +1,6 @@
 package accord.local;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
@@ -31,6 +30,7 @@ import static accord.local.Status.Invalidated;
 import static accord.local.Status.NotWitnessed;
 import static accord.local.Status.PreAccepted;
 import static accord.local.Status.ReadyToExecute;
+import static accord.utils.Utils.listOf;
 
 public abstract class Command implements Listener, Consumer<Listener>, TxnOperation
 {
@@ -336,7 +336,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     @Override
     public TxnOperation listenerScope(TxnId caller)
     {
-        return TxnOperation.scopeFor(List.of(txnId(), caller), Collections.emptyList());
+        return TxnOperation.scopeFor(listOf(txnId(), caller), Collections.emptyList());
     }
 
     @Override

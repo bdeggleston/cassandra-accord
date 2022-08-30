@@ -2,7 +2,7 @@ package accord.maelstrom;
 
 import java.io.IOException;
 import java.util.function.BiFunction;
-import java.util.zip.CRC32C;
+import java.util.zip.CRC32;
 
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
@@ -194,7 +194,7 @@ public class Datum implements Comparable<Datum>
         if (object instanceof Hash)
             return ((Hash) object).hash;
 
-        CRC32C crc32c = new CRC32C();
+        CRC32 crc32c = new CRC32();
         int i = object.hashCode();
         crc32c.update(i);
         crc32c.update(i >> 8);
@@ -264,7 +264,7 @@ public class Datum implements Comparable<Datum>
         return constructor.apply(type, value);
     }
 
-    public static final TypeAdapter<Datum> GSON_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Datum> GSON_ADAPTER = new TypeAdapter<Datum>()
     {
         @Override
         public void write(JsonWriter out, Datum value) throws IOException

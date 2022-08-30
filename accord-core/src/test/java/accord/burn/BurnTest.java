@@ -39,6 +39,8 @@ import accord.verify.StrictSerializabilityVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static accord.utils.Utils.toArray;
+
 public class BurnTest
 {
     private static final Logger logger = LoggerFactory.getLogger(BurnTest.class);
@@ -144,7 +146,7 @@ public class BurnTest
 
         StrictSerializabilityVerifier strictSerializable = new StrictSerializabilityVerifier(keyCount);
 
-        Packet[] requests = generate(random, clients, nodes, keyCount, operations).toArray(Packet[]::new);
+        Packet[] requests = toArray(generate(random, clients, nodes, keyCount, operations), Packet[]::new);
         int[] starts = new int[requests.length];
         Packet[] replies = new Packet[requests.length];
 
@@ -214,7 +216,7 @@ public class BurnTest
 
         try
         {
-            Cluster.run(nodes.toArray(Id[]::new), () -> queue,
+            Cluster.run(toArray(nodes, Id[]::new), () -> queue,
                         responseSink, failures::add,
                         () -> new Random(random.nextLong()),
                         () -> new AtomicLong()::incrementAndGet,

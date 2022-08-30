@@ -10,6 +10,7 @@ import com.google.common.collect.Iterators;
 import java.util.*;
 
 import static accord.utils.SortedArrays.Search.FAST;
+import static accord.utils.Utils.toArray;
 
 public class KeyRanges implements Iterable<KeyRange>
 {
@@ -26,7 +27,7 @@ public class KeyRanges implements Iterable<KeyRange>
 
     public KeyRanges(List<KeyRange> ranges)
     {
-        this(ranges.toArray(KeyRange[]::new));
+        this(toArray(ranges, KeyRange[]::new));
     }
 
     @Override
@@ -189,7 +190,7 @@ public class KeyRanges implements Iterable<KeyRange>
             if (thisRange != null)
                 result.add(thisRange);
         }
-        return new KeyRanges(result.toArray(KeyRange[]::new));
+        return new KeyRanges(toArray(result, KeyRange[]::new));
     }
 
     /**

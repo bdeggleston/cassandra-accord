@@ -113,7 +113,7 @@ public class Packet implements ReplyContext
         return Json.GSON.toJson(this);
     }
 
-    public static final TypeAdapter<Packet> GSON_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Packet> GSON_ADAPTER = new TypeAdapter<Packet>()
     {
         @Override
         public void write(JsonWriter out, Packet value) throws IOException

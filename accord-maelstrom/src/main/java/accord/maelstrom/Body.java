@@ -14,6 +14,8 @@ import accord.local.Node.Id;
 import accord.txn.Txn;
 import accord.maelstrom.Packet.Type;
 
+import static accord.utils.Utils.toArray;
+
 public class Body
 {
     public static final long SENTINEL_MSG_ID = Long.MIN_VALUE;
@@ -45,7 +47,7 @@ public class Body
         }
     }
 
-    public static final TypeAdapter<Body> GSON_ADAPTER = new TypeAdapter<>()
+    public static final TypeAdapter<Body> GSON_ADAPTER = new TypeAdapter<Body>()
     {
         @Override
         public void write(JsonWriter out, Body value) throws IOException
@@ -62,7 +64,7 @@ public class Body
         }
     };
 
-    public static final TypeAdapter<Body> FAIL_READ = new TypeAdapter<>()
+    public static final TypeAdapter<Body> FAIL_READ = new TypeAdapter<Body>()
     {
         @Override
         public void write(JsonWriter out, Body value) throws IOException
@@ -149,7 +151,7 @@ public class Body
 
         switch (type)
         {
-            case init: return new MaelstromInit(msg_id, node_id, node_ids.toArray(Id[]::new));
+            case init: return new MaelstromInit(msg_id, node_id, toArray(node_ids, Id[]::new));
             case init_ok: return new Body(Type.init_ok, msg_id, in_reply_to);
             case txn: return new MaelstromRequest(msg_id, txn);
             case txn_ok: return new MaelstromReply(in_reply_to, txn_ok);
