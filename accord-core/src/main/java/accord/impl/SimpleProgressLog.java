@@ -1,5 +1,6 @@
 package accord.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -736,7 +737,8 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
             // TODO: we want to be able to poll others about pending dependencies to check forward progress,
             //       as we don't know all dependencies locally (or perhaps any, at execution time) so we may
             //       begin expecting forward progress too early
-            instance.stateMap.values().forEach(state -> state.update(node));
+            // state map may be updated during iteration, so need to clone the values set
+            new ArrayList<>(instance.stateMap.values()).forEach(state -> state.update(node));
         }
     }
 
