@@ -8,11 +8,15 @@ import accord.api.Key;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import com.google.common.collect.Iterators;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static accord.utils.Utils.*;
 
 public abstract class CommandsForKey implements Listener, Iterable<Command>
 {
+    private static final Logger logger = LoggerFactory.getLogger(CommandsForKey.class);
+
     public interface CommandTimeseries
     {
         Command get(Timestamp timestamp);
@@ -56,6 +60,8 @@ public abstract class CommandsForKey implements Listener, Iterable<Command>
     @Override
     public void onChange(Command command)
     {
+        logger.trace("cfk[{}]: updating as listener in response to change on {} with status {} ({})",
+                     key(), command.txnId(), command.status(), command);
         updateMax(command.executeAt());
         switch (command.status())
         {

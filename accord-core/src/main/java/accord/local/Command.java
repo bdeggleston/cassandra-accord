@@ -11,6 +11,8 @@ import accord.txn.Writes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import org.apache.cassandra.utils.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.function.Consumer;
@@ -20,6 +22,8 @@ import static accord.utils.Utils.listOf;
 
 public abstract class Command implements Listener, Consumer<Listener>, TxnOperation
 {
+    private static final Logger logger = LoggerFactory.getLogger(Command.class);
+
     public abstract TxnId txnId();
     public abstract CommandStore commandStore();
 
@@ -140,15 +144,22 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public boolean preaccept(Txn txn, Key homeKey, Key progressKey)
     {
         if (promised().compareTo(Ballot.ZERO) > 0)
+        {
+            logger.trace("{}: skipping preaccept - witnessed higher ballot ({})", txnId(), promised());
             return false;
+        }
 
         if (hasBeen(PreAccepted))
+        {
+            logger.trace("{}: skipping preaccept - already preaccepted ({})", txnId(), status());
             return true;
+        }
 
         witness(txn, homeKey, progressKey);
         boolean isProgressShard = progressKey != null && handles(txnId().epoch, progressKey);
         commandStore().progressLog().preaccept(txnId(), isProgressShard, isProgressShard && progressKey.equals(homeKey));
 
+        logger.trace("{}: preaccepted with executeAt: {}, deps: {}", txnId(), executeAt(), savedDeps());
         notifyListeners();
         return true;
     }
@@ -156,10 +167,16 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public boolean accept(Ballot ballot, Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps)
     {
         if (promised().compareTo(ballot) > 0)
+        {
+            logger.trace("{}: skipping accept - witnessed higher ballot ({} > {})", txnId(), promised(), ballot);
             return false;
+        }
 
         if (hasBeen(Committed))
+        {
+            logger.trace("{}: skipping accept - already committed ({})", txnId(), status());
             return false;
+        }
 
         witness(txn, homeKey, progressKey);
         savedDeps(deps);
@@ -170,6 +187,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
         boolean isProgressShard = progressKey != null && handles(txnId().epoch, progressKey);
         commandStore().progressLog().accept(txnId(), isProgressShard, isProgressShard && progressKey.equals(homeKey));
+        logger.trace("{}: preaccepted with executeAt: {}, deps: {}", txnId(), executeAt, deps);
 
         notifyListeners();
         return true;
@@ -178,14 +196,21 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public boolean acceptInvalidate(Ballot ballot)
     {
         if (this.promised().compareTo(ballot) > 0)
+        {
+            logger.trace("{}: skipping accept invalidated - witnessed higher ballot ({} > {})", txnId(), promised(), ballot);
             return false;
+        }
 
         if (hasBeen(Committed))
+        {
+            logger.trace("{}: skipping accept invalidated - already committed ({})", txnId(), status());
             return false;
+        }
 
         promised(ballot);
         accepted(ballot);
         status(AcceptedInvalidate);
+        logger.trace("{}: accepted invalidated", txnId());
 
         notifyListeners();
         return true;
@@ -196,6 +221,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     {
         if (hasBeen(Committed))
         {
+            logger.trace("{}: skipping commit - already committed ({})", txnId(), status());
             if (executeAt.equals(executeAt()) && status() != Invalidated)
                 return false;
 
@@ -208,12 +234,14 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         status(Committed);
         Preconditions.checkState(!isWaitingOnCommit());
         Preconditions.checkState(!isWaitingOnApply());
+        logger.trace("{}: committed with executeAt: {}, deps: {}", txnId(), executeAt, deps);
 
         KeyRanges ranges = commandStore().ranges().since(executeAt.epoch);
         if (ranges != null)
         {
             savedDeps().forEachOn(ranges, commandStore()::hashIntersects, txnId -> {
                 Command command = commandStore().command(txnId);
+                logger.trace("{}: dep {} is {}", txnId(), command.txnId(), command.status());
                 switch (command.status())
                 {
                     default:
@@ -261,6 +289,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     {
         if (hasBeen(Committed))
         {
+            logger.trace("{}: skipping commit invalidated - already committed ({})", txnId(), status());
             if (!hasBeen(Invalidated))
                 commandStore().agent().onInconsistentTimestamp(this, Timestamp.NONE, executeAt());
 
@@ -271,6 +300,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
         boolean isProgressShard = progressKey() != null && handles(txnId().epoch, progressKey());
         commandStore().progressLog().invalidate(txnId(), isProgressShard, isProgressShard && progressKey().equals(homeKey()));
+        logger.trace("{}: committed invalidated", txnId());
 
         notifyListeners();
         return true;
@@ -279,7 +309,10 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public Future<?> apply(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps, Writes writes, Result result)
     {
         if (hasBeen(Executed) && executeAt.equals(executeAt()))
+        {
+            logger.trace("{}: skipping apply - already executed ({})", txnId(), status());
             return Write.SUCCESS;
+        }
         else if (!hasBeen(Committed))
             commit(txn, homeKey, progressKey, executeAt, deps);
         else if (!executeAt.equals(executeAt()))
@@ -289,6 +322,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         writes(writes);
         result(result);
         status(Executed);
+        logger.trace("{}: apply, status set to Executed with executeAt: {}, deps: {}", txnId(), executeAt, deps);
 
         boolean isProgressShard = progressKey != null && handles(txnId().epoch, progressKey);
         commandStore().progressLog().execute(txnId(), isProgressShard, isProgressShard && progressKey.equals(homeKey));
@@ -299,7 +333,10 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     public boolean recover(Txn txn, Key homeKey, Key progressKey, Ballot ballot)
     {
         if (this.promised().compareTo(ballot) > 0)
+        {
+            logger.trace("{}: skipping recover - higher ballot witnessed ({})", txnId(), promised());
             return false;
+        }
 
         Status status = status();
         witness(txn, homeKey, progressKey);
@@ -307,15 +344,20 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         if (status == NotWitnessed)
             commandStore().progressLog().preaccept(txnId(), isProgressShard, isProgressShard && progressKey.equals(homeKey));
         promised(ballot);
+        logger.trace("{}: recovery started with executeAt: {}, deps: {}", txnId(), executeAt(), savedDeps());
         return true;
     }
 
     public boolean preAcceptInvalidate(Ballot ballot)
     {
         if (promised().compareTo(ballot) > 0)
+        {
+            logger.trace("{}: skipping preaccept invalidate - higher ballot witnessed ({})", txnId(), promised());
             return false;
+        }
 
         promised(ballot);
+        logger.trace("{}: preaccepted invalidated", txnId());
         return true;
     }
 
@@ -328,6 +370,8 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
     @Override
     public void onChange(Command command)
     {
+        logger.trace("{}: updating as listener in response to change on {} with status {} ({})",
+                     txnId(), command.txnId(), command.status(), command);
         switch (command.status())
         {
             default: throw new IllegalStateException();
@@ -363,6 +407,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
     protected void postApply()
     {
+        logger.trace("{} applied, setting status to Applied and notifying listeners", txnId());
         status(Applied);
         notifyListeners();
     }
@@ -383,6 +428,9 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
 
     private Future<?> maybeExecute(boolean notifyListenersOnNoop)
     {
+        if (logger.isTraceEnabled())
+            logger.trace("{}: Maybe executing with status {}. Will notify listeners on noop: {}", txnId(), status(), notifyListenersOnNoop);
+
         if (status() != Committed && status() != Executed)
         {
             if (notifyListenersOnNoop) notifyListeners();
@@ -394,6 +442,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
             BlockedBy blockedBy = blockedBy();
             if (blockedBy != null)
             {
+                logger.trace("{}: not executing, blocked on {}", txnId(), blockedBy.txnId);
                 commandStore().progressLog().waiting(blockedBy.txnId, blockedBy.someKeys);
                 if (notifyListenersOnNoop) notifyListeners();
                 return Write.SUCCESS;
@@ -406,11 +455,13 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
             case Committed:
                 // TODO: maintain distinct ReadyToRead and ReadyToWrite states
                 status(ReadyToExecute);
+                logger.trace("{}: set to ReadyToExecute", txnId());
                 boolean isProgressShard = progressKey() != null && handles(txnId().epoch, progressKey());
                 commandStore().progressLog().readyToExecute(txnId(), isProgressShard, isProgressShard && progressKey().equals(homeKey()));
                 notifyListeners();
                 break;
             case Executed:
+                logger.trace("{}: applying", txnId());
                 if (notifyListenersOnNoop) notifyListeners();
                 return apply();
         }
@@ -425,21 +476,25 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         Preconditions.checkState(dependency.hasBeen(Committed));
         if (dependency.hasBeen(Invalidated))
         {
+            logger.trace("{}: {} is invalidated. Stop listening and removing from waiting on commit set.", txnId(), dependency.txnId());
             dependency.removeListener(this);
             removeWaitingOnCommit(dependency);
         }
         else if (dependency.executeAt().compareTo(executeAt()) > 0)
         {
             // cannot be a predecessor if we execute later
+            logger.trace("{}: {} executes after us. Stop listening.", txnId(), dependency.txnId());
             dependency.removeListener(this);
         }
         else if (dependency.hasBeen(Applied))
         {
+            logger.trace("{}: {} has been applied. Stop listening and removing from waiting on apply set.", txnId(), dependency.txnId());
             removeWaitingOnApply(dependency);
             dependency.removeListener(this);
         }
         else
         {
+            logger.trace("{}: adding {} to waiting on apply set.", txnId(), dependency.txnId());
             addWaitingOnApplyIfAbsent(dependency);
         }
     }
