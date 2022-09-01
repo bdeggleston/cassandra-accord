@@ -15,6 +15,7 @@ compileJava {
 
 dependencies {
     implementation project(':accord-core')
+    implementation group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.1-alpha1'
     implementation 'com.google.code.gson:gson:2.8.7'
     implementation 'com.google.guava:guava:30.1.1-jre'
     implementation 'ch.qos.logback:logback-classic:1.2.3'

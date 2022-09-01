@@ -2,7 +2,6 @@ package accord.api;
 
 import accord.local.Node;
 import accord.topology.Topology;
-import org.apache.cassandra.utils.concurrent.Future;
 
 /**
  * ConfigurationService is responsible for:

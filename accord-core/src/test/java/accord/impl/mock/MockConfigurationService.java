@@ -5,7 +5,6 @@ import accord.api.TestableConfigurationService;
 import accord.local.Node;
 import accord.topology.Topology;
 import accord.utils.EpochFunction;
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
 import org.apache.cassandra.utils.concurrent.Future;
 import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 import org.junit.jupiter.api.Assertions;
