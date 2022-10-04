@@ -20,8 +20,8 @@ package accord.api;
 
 import accord.primitives.Timestamp;
 import accord.local.CommandStore;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.ImmediateFuture;
+
+import java.util.function.BiConsumer;
 
 /**
  * A collection of data to write to one or more stores
@@ -30,6 +30,5 @@ import org.apache.cassandra.utils.concurrent.ImmediateFuture;
  */
 public interface Write
 {
-    Future<Void> SUCCESS = ImmediateFuture.success(null);
-    Future<Void> apply(Key key, CommandStore commandStore, Timestamp executeAt, DataStore store);
+    void apply(Key key, CommandStore commandStore, Timestamp executeAt, DataStore store, BiConsumer<Void, Throwable> callback);
 }

@@ -24,18 +24,18 @@ import accord.api.Write;
 import accord.primitives.Timestamp;
 import accord.local.CommandStore;
 import accord.utils.Timestamped;
-import org.apache.cassandra.utils.concurrent.Future;
 
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 
 public class MaelstromWrite extends TreeMap<Key, Value> implements Write
 {
     @Override
-    public Future<Void> apply(Key key, CommandStore commandStore, Timestamp executeAt, DataStore store)
+    public void apply(Key key, CommandStore commandStore, Timestamp executeAt, DataStore store, BiConsumer<Void, Throwable> callback)
     {
         MaelstromStore s = (MaelstromStore) store;
         if (containsKey(key))
             s.data.merge(key, new Timestamped<>(executeAt, get(key)), Timestamped::merge);
-        return SUCCESS;
+        callback.accept(null, null);
     }
 }

@@ -23,13 +23,11 @@ import accord.local.CommandStore;
 import accord.primitives.Keys;
 import accord.primitives.Timestamp;
 import accord.primitives.KeyRanges;
+import accord.utils.MultiCallback;
 import com.google.common.base.Preconditions;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.FutureCombiner;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 
 public class Writes
 {
@@ -59,22 +57,36 @@ public class Writes
         return Objects.hash(executeAt, keys, write);
     }
 
-    public Future<?> apply(CommandStore commandStore)
+    public void apply(CommandStore commandStore, BiConsumer<Void, Throwable> callback)
     {
         if (write == null)
-            return Write.SUCCESS;
+        {
+            callback.accept(null, null);
+            return;
+        }
 
         KeyRanges ranges = commandStore.ranges().since(executeAt.epoch);
         if (ranges == null)
-            return Write.SUCCESS;
+        {
+            callback.accept(null, null);
+            return;
+        }
 
-        List<Future<?>> futures = keys.foldl(ranges, (index, key, accumulate) -> {
+        MultiCallback.LockFree callbacks = new MultiCallback.LockFree()
+        {
+            @Override
+            public void onComplete(Void result, Throwable failure)
+            {
+                callback.accept(result, failure);
+            }
+        };
+        keys.foldl(ranges, (index, key, accumulate) -> {
             if (commandStore.hashIntersects(key))
-                accumulate.add(write.apply(key, commandStore, executeAt, commandStore.store()));
+                write.apply(key, commandStore, executeAt, commandStore.store(), callbacks.registerAndGet());
             return accumulate;
-        }, new ArrayList<>());
-        Preconditions.checkState(!futures.isEmpty());
-        return futures.size() > 1 ? FutureCombiner.allOf(futures) : futures.get(0);
+        }, null);
+        Preconditions.checkState(callbacks.registered() > 0);
+        callbacks.listen();
     }
 
     @Override

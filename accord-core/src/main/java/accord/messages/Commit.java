@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Set;
 
 import accord.api.Key;
+import accord.utils.MultiCallback;
 import accord.utils.VisibleForImplementation;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -32,10 +33,14 @@ import accord.primitives.Deps;
 import accord.txn.Txn;
 import accord.primitives.TxnId;
 import com.google.common.collect.Iterables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends ReadData
 {
+    private static final Logger logger = LoggerFactory.getLogger(Commit.class);
+
     public final boolean read;
 
     public Commit(Id to, Topologies topologies, TxnId txnId, Txn txn, Key homeKey, Timestamp executeAt, Deps deps, boolean read)
@@ -127,11 +132,24 @@ public class Commit extends ReadData
     public void process(Node node, Id from, ReplyContext replyContext)
     {
         Key progressKey = node.trySelectProgressKey(txnId, txn.keys(), homeKey);
-        node.mapReduceLocal(this, txnId.epoch, executeAt.epoch,
-                            instance -> instance.command(txnId).commitAndBeginExecution(txn, homeKey, progressKey, executeAt, deps), Apply::waitAndReduce);
-
-        if (read)
-            super.process(node, from, replyContext);
+        MultiCallback.LockFree callbacks = new MultiCallback.LockFree()
+        {
+            @Override
+            public void onComplete(Void result, Throwable failure)
+            {
+                if (failure != null)
+                {
+                    logger.error("Error completing commit", failure);
+                }
+                else if (read)
+                {
+                    Commit.super.process(node, from, replyContext);
+                }
+            }
+        };
+        node.forEachLocal(this, txnId.epoch, executeAt.epoch,
+                          instance -> instance.command(txnId).commitAndBeginExecution(txn, homeKey, progressKey, executeAt, deps, callbacks.registerAndGet()));
+        callbacks.listen();
     }
 
     @Override

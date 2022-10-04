@@ -21,20 +21,18 @@ package accord.local;
 import accord.api.Key;
 import accord.api.Read;
 import accord.api.Result;
-import accord.api.Write;
 import accord.local.Node.Id;
 import accord.primitives.*;
 import accord.txn.Txn;
 import accord.txn.Writes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import org.apache.cassandra.utils.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static accord.local.Status.*;
 import static accord.utils.Utils.listOf;
@@ -295,12 +293,15 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         return true;
     }
 
-    public Future<Void> commitAndBeginExecution(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps)
+    public void commitAndBeginExecution(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps, BiConsumer<Void, Throwable> callback)
     {
         if (!commit(txn, homeKey, progressKey, executeAt, deps))
-            return Write.SUCCESS;
+        {
+            callback.accept(null, null);
+            return;
+        }
 
-        return maybeExecute(true);
+        maybeExecute(true, callback);
     }
 
     // TODO (now): commitInvalidate may need to update cfks _if_ possible
@@ -325,12 +326,13 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         return true;
     }
 
-    public Future<Void> apply(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps, Writes writes, Result result)
+    public void apply(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps, Writes writes, Result result, BiConsumer<Void, Throwable> callback)
     {
         if (hasBeen(Executed) && executeAt.equals(executeAt()))
         {
             logger.trace("{}: skipping apply - already executed ({})", txnId(), status());
-            return Write.SUCCESS;
+            callback.accept(null, null);
+            return;
         }
         else if (!hasBeen(Committed))
             commit(txn, homeKey, progressKey, executeAt, deps);
@@ -346,7 +348,13 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         boolean isProgressShard = progressKey != null && handles(txnId().epoch, progressKey);
         commandStore().progressLog().execute(this, isProgressShard, isProgressShard && progressKey.equals(homeKey));
 
-        return maybeExecute(true);
+        maybeExecute(true, callback);
+    }
+
+    public void apply(Txn txn, Key homeKey, Key progressKey, Timestamp executeAt, Deps deps, Writes writes, Result result)
+    {
+        apply(txn, homeKey, progressKey, executeAt, deps, writes, result, (r, t) -> {});
+
     }
 
     public boolean recover(Txn txn, Key homeKey, Key progressKey, Ballot ballot)
@@ -417,7 +425,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
                 {
                     command.removeListener(this);
                 }
-                maybeExecute(false);
+                maybeExecute(false, (r, t) -> {});
                 break;
         }
     }
@@ -435,21 +443,24 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         notifyListeners();
     }
 
-    private static Function<CommandStore, Void> callPostApply(TxnId txnId)
+    private static Consumer<CommandStore> callPostApply(TxnId txnId, BiConsumer<Void, Throwable> callback)
     {
         return commandStore -> {
             commandStore.command(txnId).postApply();
-            return null;
+            callback.accept(null, null);
         };
     }
 
-    protected Future<Void> apply()
+    protected void apply(BiConsumer<Void, Throwable> callback)
     {
         // important: we can't include a reference to *this* in the lambda, since the C* implementation may evict
         // the command instance from memory between now and the write completing (and post apply being called)
-        return writes().apply(commandStore()).flatMap(unused ->
-            commandStore().process(this, callPostApply(txnId()))
-        );
+        writes().apply(commandStore(), (result, failure) -> {
+            if (failure == null)
+                commandStore().process(this, callPostApply(txnId(), callback));
+            else
+                callback.accept(null, failure);
+        });
     }
 
     public Read.ReadFuture read(Keys readKeys)
@@ -457,7 +468,7 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         return txn().read(this, readKeys);
     }
 
-    private Future<Void> maybeExecute(boolean notifyListenersOnNoop)
+    private void maybeExecute(boolean notifyListenersOnNoop, BiConsumer<Void, Throwable> callback)
     {
         if (logger.isTraceEnabled())
             logger.trace("{}: Maybe executing with status {}. Will notify listeners on noop: {}", txnId(), status(), notifyListenersOnNoop);
@@ -465,7 +476,8 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
         if (status() != Committed && status() != Executed)
         {
             if (notifyListenersOnNoop) notifyListeners();
-            return Write.SUCCESS;
+            callback.accept(null, null);
+            return;
         }
 
         if (isUnableToApply())
@@ -476,7 +488,8 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
                 logger.trace("{}: not executing, blocked on {}", txnId(), blockedBy.command.txnId());
                 commandStore().progressLog().waiting(blockedBy.command, blockedBy.someKeys);
                 if (notifyListenersOnNoop) notifyListeners();
-                return Write.SUCCESS;
+                callback.accept(null, null);
+                return;
             }
             assert !isWaitingOnApply();
         }
@@ -494,9 +507,10 @@ public abstract class Command implements Listener, Consumer<Listener>, TxnOperat
             case Executed:
                 logger.trace("{}: applying", txnId());
                 if (notifyListenersOnNoop) notifyListeners();
-                return apply();
+                apply(callback);
+                return;
         }
-        return Write.SUCCESS;
+        callback.accept(null, null);
     }
 
     /**

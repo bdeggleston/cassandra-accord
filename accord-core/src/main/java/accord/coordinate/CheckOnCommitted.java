@@ -84,7 +84,7 @@ public class CheckOnCommitted extends CheckShardStatus<CheckStatusOkFull>
             case Applied:
                 node.forEachLocalSince(scope, max.txn.keys(), max.executeAt.epoch, commandStore -> {
                     Command command = commandStore.command(txnId);
-                    command.apply(max.txn, max.homeKey, progressKey, max.executeAt, max.deps, max.writes, max.result);
+                    command.apply(max.txn, max.homeKey, progressKey, max.executeAt, max.deps, max.writes, max.result, (r, t) -> {});
                 });
                 node.forEachLocal(scope, max.txn.keys(), txnId.epoch, max.executeAt.epoch - 1, commandStore -> {
                     Command command = commandStore.command(txnId);
