@@ -33,7 +33,7 @@ import static accord.Utils.id;
 import static accord.Utils.ids;
 import static accord.Utils.writeTxn;
 import static accord.impl.IntKey.keys;
-import static accord.utils.async.AsyncNotifiers.getUninterruptibly;
+import static accord.utils.async.AsyncResults.getUninterruptibly;
 
 public class CoordinateTest
 {

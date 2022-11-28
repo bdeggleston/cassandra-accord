@@ -18,14 +18,11 @@
 
 package accord.coordinate;
 
-import accord.impl.mock.EpochSync;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockConfigurationService;
-import accord.impl.mock.RecordingMessageSink;
 import accord.local.Command;
 import accord.local.Node;
 import accord.local.Status;
-import accord.messages.Accept;
 import accord.primitives.KeyRange;
 import accord.topology.Topology;
 import accord.primitives.Keys;
@@ -35,16 +32,12 @@ import accord.utils.EpochFunction;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import static accord.Utils.*;
 import static accord.impl.IntKey.keys;
 import static accord.impl.IntKey.range;
 import static accord.local.PreLoadContext.empty;
 import static accord.utils.async.AsyncChains.awaitUninterruptibly;
-import static accord.utils.async.AsyncNotifiers.awaitUninterruptibly;
+import static accord.utils.async.AsyncResults.awaitUninterruptibly;
 
 public class TopologyChangeTest
 {

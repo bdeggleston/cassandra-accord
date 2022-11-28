@@ -28,8 +28,8 @@ import java.util.function.BiConsumer;
 import accord.coordinate.tracking.*;
 import accord.primitives.*;
 import accord.messages.Commit;
-import accord.utils.async.AsyncNotifier;
-import accord.utils.async.AsyncNotifiers;
+import accord.utils.async.AsyncResult;
+import accord.utils.async.AsyncResults;
 import com.google.common.base.Preconditions;
 
 import accord.api.Result;
@@ -52,7 +52,7 @@ import static accord.messages.BeginRecovery.RecoverOk.maxAcceptedOrLater;
 // TODO: rename to Recover (verb); rename Recover message to not clash
 public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throwable>
 {
-    class AwaitCommit extends AsyncNotifiers.Settable<Timestamp> implements Callback<WaitOnCommitOk>
+    class AwaitCommit extends AsyncResults.Settable<Timestamp> implements Callback<WaitOnCommitOk>
     {
         // TODO: this should collect the executeAt of any commit, and terminate as soon as one is found
         //       that is earlier than TxnId for the Txn we are recovering; if all commits we wait for
@@ -91,10 +91,10 @@ public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throw
         }
     }
 
-    AsyncNotifier<Object> awaitCommits(Node node, Deps waitOn)
+    AsyncResult<Object> awaitCommits(Node node, Deps waitOn)
     {
         AtomicInteger remaining = new AtomicInteger(waitOn.txnIdCount());
-        AsyncNotifier.Settable<Object> notifier = AsyncNotifiers.settable();
+        AsyncResult.Settable<Object> notifier = AsyncResults.settable();
         for (int i = 0 ; i < waitOn.txnIdCount() ; ++i)
         {
             TxnId txnId = waitOn.txnId(i);

@@ -35,8 +35,8 @@ import accord.primitives.KeyRanges;
 import accord.topology.Shard;
 import accord.topology.Topology;
 import accord.utils.MessageTask;
-import accord.utils.async.AsyncNotifier;
-import accord.utils.async.AsyncNotifiers;
+import accord.utils.async.AsyncResult;
+import accord.utils.async.AsyncResults;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
@@ -144,7 +144,7 @@ public class TopologyUpdates
         };
     }
 
-    public static <T> AsyncNotifier<T> dieExceptionally(AsyncNotifier<T> stage)
+    public static <T> AsyncResult<T> dieExceptionally(AsyncResult<T> stage)
     {
         stage.addCallback(dieOnException());
         return stage;
@@ -255,14 +255,14 @@ public class TopologyUpdates
         return messageStream;
     }
 
-    public static AsyncNotifier<Void> sync(Node node, long syncEpoch)
+    public static AsyncResult<Void> sync(Node node, long syncEpoch)
     {
         Stream<MessageTask> messageStream = optimizedSync(node, syncEpoch);
 
         Iterator<MessageTask> iter = messageStream.iterator();
         if (!iter.hasNext())
         {
-            return AsyncNotifiers.success(null);
+            return AsyncResults.success(null);
         }
 
         MessageTask first = iter.next();
@@ -278,9 +278,9 @@ public class TopologyUpdates
         return dieExceptionally(last);
     }
 
-    public AsyncNotifier<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
+    public AsyncResult<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
     {
-        AsyncNotifier<Void> notifier = dieExceptionally(sync(originator, epoch)
+        AsyncResult<Void> notifier = dieExceptionally(sync(originator, epoch)
                 .flatMap(v -> MessageTask.apply(originator, cluster, "SyncComplete:" + epoch, (node, from, onDone) -> {
                     node.onEpochSyncComplete(originator.id(), epoch);
                     onDone.accept(true);

@@ -8,10 +8,10 @@ import java.util.function.Function;
  * Handle for async computations that supports multiple listeners and registering
  * listeners after the computation has started
  */
-public interface AsyncNotifier<V>
+public interface AsyncResult<V>
 {
-    <T> AsyncNotifier<T> map(Function<V, T> map);
-    <T> AsyncNotifier<T> flatMap(Function<? super V, ? extends AsyncNotifier<T>> mapper);
+    <T> AsyncResult<T> map(Function<V, T> map);
+    <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper);
 
     void listen(BiConsumer<? super V, Throwable> callback);
 
@@ -68,7 +68,7 @@ public interface AsyncNotifier<V>
         listen(runnable, executor);
     }
 
-    interface Settable<V> extends AsyncNotifier<V>
+    interface Settable<V> extends AsyncResult<V>
     {
         boolean trySuccess(V value);
 

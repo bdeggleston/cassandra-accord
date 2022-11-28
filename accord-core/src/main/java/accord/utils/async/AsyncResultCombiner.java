@@ -7,15 +7,14 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.IntFunction;
 
-public abstract class AsyncNotifierCombiner<I, O> extends AsyncNotifiers.Settable<O>
+public abstract class AsyncResultCombiner<I, O> extends AsyncResults.Settable<O>
 {
-    private static final AtomicIntegerFieldUpdater<AsyncNotifierCombiner> REMAINING = AtomicIntegerFieldUpdater.newUpdater(AsyncNotifierCombiner.class, "remaining");
+    private static final AtomicIntegerFieldUpdater<AsyncResultCombiner> REMAINING = AtomicIntegerFieldUpdater.newUpdater(AsyncResultCombiner.class, "remaining");
     private final I[] results;
     private volatile int remaining;
 
-    protected AsyncNotifierCombiner(List<? extends AsyncNotifier<? extends I>> inputs)
+    protected AsyncResultCombiner(List<? extends AsyncResult<? extends I>> inputs)
     {
         Preconditions.checkArgument(!inputs.isEmpty());
         this.results = (I[]) new Object[inputs.size()];
@@ -57,9 +56,9 @@ public abstract class AsyncNotifierCombiner<I, O> extends AsyncNotifiers.Settabl
         return (result, failure) -> callback(idx, result, failure);
     }
 
-    static class All<V> extends AsyncNotifierCombiner<V, List<V>>
+    static class All<V> extends AsyncResultCombiner<V, List<V>>
     {
-        public All(List<? extends AsyncNotifier<? extends V>> inputs)
+        public All(List<? extends AsyncResult<? extends V>> inputs)
         {
             super(inputs);
         }
@@ -72,10 +71,10 @@ public abstract class AsyncNotifierCombiner<I, O> extends AsyncNotifiers.Settabl
         }
     }
 
-    static class Reduce<V> extends AsyncNotifierCombiner<V, V>
+    static class Reduce<V> extends AsyncResultCombiner<V, V>
     {
         private final BiFunction<V, V, V> reducer;
-        Reduce(List<? extends AsyncNotifier<? extends V>> asyncChains, BiFunction<V, V, V> reducer)
+        Reduce(List<? extends AsyncResult<? extends V>> asyncChains, BiFunction<V, V, V> reducer)
         {
             super(asyncChains);
             this.reducer = reducer;

@@ -42,8 +42,8 @@ import com.google.common.base.Preconditions;
 import static accord.coordinate.Propose.Invalidate.proposeInvalidate;
 import static accord.messages.Commit.Invalidate.commitInvalidate;
 
-import accord.utils.async.AsyncNotifier;
-import accord.utils.async.AsyncNotifiers;
+import accord.utils.async.AsyncResult;
+import accord.utils.async.AsyncResults;
 
 /**
  * Perform initial rounds of PreAccept and Accept until we have reached agreement about when we should execute.
@@ -51,7 +51,7 @@ import accord.utils.async.AsyncNotifiers;
  *
  * TODO: dedicated burn test to validate outcomes
  */
-public class Coordinate extends AsyncNotifiers.Settable<Result> implements Callback<PreAcceptReply>, BiConsumer<Result, Throwable>
+public class Coordinate extends AsyncResults.Settable<Result> implements Callback<PreAcceptReply>, BiConsumer<Result, Throwable>
 {
     final Node node;
     final TxnId txnId;
@@ -80,7 +80,7 @@ public class Coordinate extends AsyncNotifiers.Settable<Result> implements Callb
         node.send(tracker.nodes(), to -> new PreAccept(to, tracker.topologies(), txnId, txn, route), this);
     }
 
-    public static AsyncNotifier<Result> coordinate(Node node, TxnId txnId, Txn txn, Route route)
+    public static AsyncResult<Result> coordinate(Node node, TxnId txnId, Txn txn, Route route)
     {
         Coordinate coordinate = new Coordinate(node, txnId, txn, route);
         coordinate.start();

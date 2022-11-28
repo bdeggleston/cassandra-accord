@@ -33,7 +33,7 @@ import accord.coordinate.*;
 import accord.local.*;
 import accord.local.Status.Known;
 import accord.primitives.*;
-import accord.utils.async.AsyncNotifier;
+import accord.utils.async.AsyncResult;
 import com.google.common.base.Preconditions;
 
 import accord.api.ProgressLog;
@@ -190,7 +190,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                         RoutingKey homeKey = command.homeKey();
                         node.withEpoch(txnId.epoch, () -> {
 
-                            AsyncNotifier<? extends Outcome> recover = node.maybeRecover(txnId, homeKey, command.route(), token);
+                            AsyncResult<? extends Outcome> recover = node.maybeRecover(txnId, homeKey, command.route(), token);
                             recover.addCallback((success, fail) -> {
                                 if (status.isAtMost(ReadyToExecute) && progress == Investigating)
                                 {
@@ -589,7 +589,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                     break;
                 case StillUnsafe:
                     // make sure a quorum of the home shard is aware of the transaction, so we can rely on it to ensure progress
-                    AsyncNotifier<Void> inform = inform(node, txnId, command.homeKey());
+                    AsyncResult<Void> inform = inform(node, txnId, command.homeKey());
                     inform.addCallback((success, fail) -> {
                         if (nonHomeState == Safe)
                             return;

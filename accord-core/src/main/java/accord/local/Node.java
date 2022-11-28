@@ -32,8 +32,8 @@ import accord.messages.*;
 import accord.primitives.*;
 import accord.utils.MapReduceConsume;
 import accord.utils.async.AsyncChain;
-import accord.utils.async.AsyncNotifier;
-import accord.utils.async.AsyncNotifiers;
+import accord.utils.async.AsyncResult;
+import accord.utils.async.AsyncResults;
 import com.google.common.annotations.VisibleForTesting;
 
 import accord.api.*;
@@ -128,7 +128,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     private final Scheduler scheduler;
 
     // TODO (soon): monitor the contents of this collection for stalled coordination, and excise them
-    private final Map<TxnId, AsyncNotifier<? extends Outcome>> coordinating = new ConcurrentHashMap<>();
+    private final Map<TxnId, AsyncResult<? extends Outcome>> coordinating = new ConcurrentHashMap<>();
 
     public Node(Id id, MessageSink messageSink, ConfigurationService configService, LongSupplier nowSupplier,
                 Supplier<DataStore> dataSupplier, Agent agent, Random random, Scheduler scheduler, TopologySorter.Supplier topologySorter,
@@ -205,7 +205,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         }
     }
 
-    public <T> AsyncNotifier<T> withEpoch(long epoch, Supplier<AsyncNotifier<T>> supplier)
+    public <T> AsyncResult<T> withEpoch(long epoch, Supplier<AsyncResult<T>> supplier)
     {
         if (topology.hasEpoch(epoch))
         {
@@ -366,24 +366,24 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         return new TxnId(uniqueNow());
     }
 
-    public AsyncNotifier<Result> coordinate(Txn txn)
+    public AsyncResult<Result> coordinate(Txn txn)
     {
         return coordinate(nextTxnId(), txn);
     }
 
-    public AsyncNotifier<Result> coordinate(TxnId txnId, Txn txn)
+    public AsyncResult<Result> coordinate(TxnId txnId, Txn txn)
     {
         // TODO: The combination of updating the epoch of the next timestamp with epochs we don't have topologies for,
         //  and requiring preaccept to talk to its topology epoch means that learning of a new epoch via timestamp
         //  (ie not via config service) will halt any new txns from a node until it receives this topology
-        AsyncNotifier<Result> result = withEpoch(txnId.epoch, () -> initiateCoordination(txnId, txn));
+        AsyncResult<Result> result = withEpoch(txnId.epoch, () -> initiateCoordination(txnId, txn));
         coordinating.putIfAbsent(txnId, result);
         // TODO: if we fail, nominate another node to try instead
         result.listen((success, fail) -> coordinating.remove(txnId, result));
         return result;
     }
 
-    private AsyncNotifier<Result> initiateCoordination(TxnId txnId, Txn txn)
+    private AsyncResult<Result> initiateCoordination(TxnId txnId, Txn txn)
     {
         return Coordinate.coordinate(this, txnId, txn, computeRoute(txnId, txn.keys()));
     }
@@ -444,7 +444,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         return range.endInclusive() ? range.end() : range.start();
     }
 
-    static class RecoverFuture<T> extends AsyncNotifiers.Settable<T> implements BiConsumer<T, Throwable>
+    static class RecoverFuture<T> extends AsyncResults.Settable<T> implements BiConsumer<T, Throwable>
     {
         @Override
         public void accept(T success, Throwable fail)
@@ -454,15 +454,15 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         }
     }
 
-    public AsyncNotifier<? extends Outcome> recover(TxnId txnId, Route route)
+    public AsyncResult<? extends Outcome> recover(TxnId txnId, Route route)
     {
         {
-            AsyncNotifier<? extends Outcome> result = coordinating.get(txnId);
+            AsyncResult<? extends Outcome> result = coordinating.get(txnId);
             if (result != null)
                 return result;
         }
 
-        AsyncNotifier<Outcome> result = withEpoch(txnId.epoch, () -> {
+        AsyncResult<Outcome> result = withEpoch(txnId.epoch, () -> {
             RecoverFuture<Outcome> future = new RecoverFuture<>();
             RecoverWithRoute.recover(this, txnId, route, future);
             return future;
@@ -476,9 +476,9 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     }
 
     // TODO: coalesce other maybeRecover calls also? perhaps have mutable knownStatuses so we can inject newer ones?
-    public AsyncNotifier<? extends Outcome> maybeRecover(TxnId txnId, RoutingKey homeKey, @Nullable AbstractRoute route, ProgressToken prevProgress)
+    public AsyncResult<? extends Outcome> maybeRecover(TxnId txnId, RoutingKey homeKey, @Nullable AbstractRoute route, ProgressToken prevProgress)
     {
-        AsyncNotifier<? extends Outcome> result = coordinating.get(txnId);
+        AsyncResult<? extends Outcome> result = coordinating.get(txnId);
         if (result != null)
             return result;
 

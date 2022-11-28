@@ -28,13 +28,12 @@ import accord.primitives.TxnId;
 import accord.topology.Topologies.Single;
 import accord.topology.Topology;
 
-import accord.utils.async.AsyncNotifiers;
+import accord.utils.async.AsyncResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import static accord.impl.InMemoryCommandStore.inMemory;
@@ -94,7 +93,7 @@ public class EpochSync implements Runnable
         }
     }
 
-    private static class CommandSync extends AsyncNotifiers.Settable<Void> implements Callback<SimpleReply>
+    private static class CommandSync extends AsyncResults.Settable<Void> implements Callback<SimpleReply>
     {
         private final QuorumTracker tracker;
 
@@ -128,7 +127,7 @@ public class EpochSync implements Runnable
 
         public static void sync(Node node, AbstractRoute route, SyncCommitted message, Topology topology)
         {
-            AsyncNotifiers.getUninterruptibly(new CommandSync(node, route, message, topology));
+            AsyncResults.getUninterruptibly(new CommandSync(node, route, message, topology));
         }
     }
 

@@ -12,9 +12,9 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class AsyncNotifiers
+public class AsyncResults
 {
-    private AsyncNotifiers() {}
+    private AsyncResults() {}
 
     private static class Result<V>
     {
@@ -28,9 +28,9 @@ public class AsyncNotifiers
         }
     }
 
-    static class AbstractNotifier<V> implements AsyncNotifier<V>
+    static class AbstractResult<V> implements AsyncResult<V>
     {
-        private static final AtomicReferenceFieldUpdater<AbstractNotifier, Object> STATE = AtomicReferenceFieldUpdater.newUpdater(AbstractNotifier.class, Object.class, "state");
+        private static final AtomicReferenceFieldUpdater<AbstractResult, Object> STATE = AtomicReferenceFieldUpdater.newUpdater(AbstractResult.class, Object.class, "state");
 
         private volatile Object state;
 
@@ -123,23 +123,23 @@ public class AsyncNotifiers
         }
 
         @Override
-        public <T> AsyncNotifier<T> map(Function<V, T> map)
+        public <T> AsyncResult<T> map(Function<V, T> map)
         {
             return new Map<>(this, map);
         }
 
         @Override
-        public <T> AsyncNotifier<T> flatMap(Function<? super V, ? extends AsyncNotifier<T>> mapper)
+        public <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper)
         {
             return new FlatMap<V, T>(this, mapper);
         }
     }
 
-    static class Map<I, O> extends AbstractNotifier<O>
+    static class Map<I, O> extends AbstractResult<O>
     {
         Function<I, O> map;
 
-        public Map(AsyncNotifier<I> notifier, Function<I, O> map)
+        public Map(AsyncResult<I> notifier, Function<I, O> map)
         {
             this.map = map;
             notifier.listen(this::mapResult);
@@ -151,11 +151,11 @@ public class AsyncNotifiers
         }
     }
 
-    static class FlatMap<I, O> extends AbstractNotifier<O>
+    static class FlatMap<I, O> extends AbstractResult<O>
     {
-        Function<? super I, ? extends AsyncNotifier<O>> map;
+        Function<? super I, ? extends AsyncResult<O>> map;
 
-        public FlatMap(AbstractNotifier<I> notifier, Function<? super I, ? extends AsyncNotifier<O>> map)
+        public FlatMap(AbstractResult<I> notifier, Function<? super I, ? extends AsyncResult<O>> map)
         {
             this.map = map;
             notifier.listen(this::mapResult);
@@ -168,7 +168,7 @@ public class AsyncNotifiers
         }
     }
 
-    static class Chain<V> extends AbstractNotifier<V>
+    static class Chain<V> extends AbstractResult<V>
     {
         public Chain(AsyncChain<V> chain)
         {
@@ -176,7 +176,7 @@ public class AsyncNotifiers
         }
     }
 
-    public static class Settable<V> extends AbstractNotifier<V> implements AsyncNotifier.Settable<V>
+    public static class Settable<V> extends AbstractResult<V> implements AsyncResult.Settable<V>
     {
 
         @Override
@@ -192,7 +192,7 @@ public class AsyncNotifiers
         }
     }
 
-    static class Immediate<V> implements AsyncNotifier<V>
+    static class Immediate<V> implements AsyncResult<V>
     {
         private final V value;
         private final Throwable failure;
@@ -216,16 +216,16 @@ public class AsyncNotifiers
         }
 
         @Override
-        public <T> AsyncNotifier<T> map(Function<V, T> map)
+        public <T> AsyncResult<T> map(Function<V, T> map)
         {
             return new Map<>(this, map);
         }
 
         @Override
-        public <T> AsyncNotifier<T> flatMap(Function<? super V, ? extends AsyncNotifier<T>> mapper)
+        public <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper)
         {
             if (failure != null)
-                return (AsyncNotifier<T>) this;
+                return (AsyncResult<T>) this;
             return mapper.apply(value);
         }
 
@@ -245,22 +245,22 @@ public class AsyncNotifiers
     /**
      * Creates a notifier for the given chain. This calls begin on the supplied chain
      */
-    public static <V> AsyncNotifier<V> forChain(AsyncChain<V> chain)
+    public static <V> AsyncResult<V> forChain(AsyncChain<V> chain)
     {
         return new Chain<>(chain);
     }
 
-    public static <V> AsyncNotifier<V> success(V value)
+    public static <V> AsyncResult<V> success(V value)
     {
         return new Immediate<>(value);
     }
 
-    public static <V> AsyncNotifier<V> failure(Throwable failure)
+    public static <V> AsyncResult<V> failure(Throwable failure)
     {
         return new Immediate<>(failure);
     }
 
-    public static <V> AsyncNotifier<V> ofCallable(Executor executor, Callable<V> callable)
+    public static <V> AsyncResult<V> ofCallable(Executor executor, Callable<V> callable)
     {
         Settable<V> notifier = new Settable<V>();
         executor.execute(() -> {
@@ -276,7 +276,7 @@ public class AsyncNotifiers
         return notifier;
     }
 
-    public static AsyncNotifier<Void> ofRunnable(Executor executor, Runnable runnable)
+    public static AsyncResult<Void> ofRunnable(Executor executor, Runnable runnable)
     {
         Settable<Void> notifier = new Settable<Void>();
         executor.execute(() -> {
@@ -293,26 +293,26 @@ public class AsyncNotifiers
         return notifier;
     }
 
-    public static <V> AsyncNotifier.Settable<V> settable()
+    public static <V> AsyncResult.Settable<V> settable()
     {
         return new Settable<>();
     }
 
-    public static <V> AsyncNotifier<List<V>> all(List<? extends AsyncNotifier<? extends V>> notifiers)
+    public static <V> AsyncResult<List<V>> all(List<? extends AsyncResult<? extends V>> notifiers)
     {
         Preconditions.checkArgument(!notifiers.isEmpty());
-        return new AsyncNotifierCombiner.All<>(notifiers);
+        return new AsyncResultCombiner.All<>(notifiers);
     }
 
-    public static <V> AsyncNotifier<? extends V> reduce(List<? extends AsyncNotifier<? extends V>> notifiers, BiFunction<V, V, V> reducer)
+    public static <V> AsyncResult<? extends V> reduce(List<? extends AsyncResult<? extends V>> notifiers, BiFunction<V, V, V> reducer)
     {
         Preconditions.checkArgument(!notifiers.isEmpty());
         if (notifiers.size() == 1)
             return notifiers.get(0);
-        return new AsyncNotifierCombiner.Reduce<>(notifiers, reducer);
+        return new AsyncResultCombiner.Reduce<>(notifiers, reducer);
     }
 
-    public static <V> V getBlocking(AsyncNotifier<V> notifier) throws InterruptedException
+    public static <V> V getBlocking(AsyncResult<V> notifier) throws InterruptedException
     {
         AtomicReference<Result<V>> callbackResult = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
@@ -327,7 +327,7 @@ public class AsyncNotifiers
         else throw new RuntimeException(result.failure);
     }
 
-    public static <V> V getUninterruptibly(AsyncNotifier<V> notifier)
+    public static <V> V getUninterruptibly(AsyncResult<V> notifier)
     {
         try
         {
@@ -339,7 +339,7 @@ public class AsyncNotifiers
         }
     }
 
-    public static <V> void awaitUninterruptibly(AsyncNotifier<V> notifier)
+    public static <V> void awaitUninterruptibly(AsyncResult<V> notifier)
     {
         getUninterruptibly(notifier);
     }
