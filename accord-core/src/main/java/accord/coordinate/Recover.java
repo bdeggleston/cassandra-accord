@@ -28,6 +28,8 @@ import java.util.function.BiConsumer;
 import accord.coordinate.tracking.*;
 import accord.primitives.*;
 import accord.messages.Commit;
+import accord.utils.async.AsyncNotifier;
+import accord.utils.async.AsyncNotifiers;
 import com.google.common.base.Preconditions;
 
 import accord.api.Result;
@@ -41,10 +43,7 @@ import accord.messages.BeginRecovery.RecoverReply;
 import accord.messages.WaitOnCommit;
 import accord.messages.WaitOnCommit.WaitOnCommitOk;
 import accord.topology.Topology;
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
 import org.apache.cassandra.utils.concurrent.AsyncFuture;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.Promise;
 
 import static accord.coordinate.Propose.Invalidate.proposeInvalidate;
 import static accord.coordinate.tracking.RequestStatus.Failed;
@@ -93,23 +92,23 @@ public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throw
         }
     }
 
-    Future<Object> awaitCommits(Node node, Deps waitOn)
+    AsyncNotifier<Object> awaitCommits(Node node, Deps waitOn)
     {
         AtomicInteger remaining = new AtomicInteger(waitOn.txnIdCount());
-        Promise<Object> future = new AsyncPromise<>();
+        AsyncNotifier.Settable<Object> notifier = AsyncNotifiers.settable();
         for (int i = 0 ; i < waitOn.txnIdCount() ; ++i)
         {
             TxnId txnId = waitOn.txnId(i);
             new AwaitCommit(node, txnId, waitOn.someRoutingKeys(txnId)).addCallback((success, failure) -> {
-                if (future.isDone())
+                if (notifier.isDone())
                     return;
                 if (success != null && remaining.decrementAndGet() == 0)
-                    future.setSuccess(success);
+                    notifier.setSuccess(success);
                 else
-                    future.tryFailure(failure);
+                    notifier.tryFailure(failure);
             });
         }
-        return future;
+        return notifier;
     }
 
     private final Node node;

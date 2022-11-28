@@ -33,6 +33,7 @@ import accord.coordinate.*;
 import accord.local.*;
 import accord.local.Status.Known;
 import accord.primitives.*;
+import accord.utils.async.AsyncNotifier;
 import com.google.common.base.Preconditions;
 
 import accord.api.ProgressLog;
@@ -43,7 +44,6 @@ import accord.messages.Callback;
 import accord.messages.InformDurable;
 import accord.messages.SimpleReply;
 import accord.topology.Topologies;
-import org.apache.cassandra.utils.concurrent.Future;
 
 import static accord.api.ProgressLog.ProgressShard.Home;
 import static accord.api.ProgressLog.ProgressShard.Unsure;
@@ -190,7 +190,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                         RoutingKey homeKey = command.homeKey();
                         node.withEpoch(txnId.epoch, () -> {
 
-                            Future<? extends Outcome> recover = node.maybeRecover(txnId, homeKey, command.route(), token);
+                            AsyncNotifier<? extends Outcome> recover = node.maybeRecover(txnId, homeKey, command.route(), token);
                             recover.addCallback((success, fail) -> {
                                 if (status.isAtMost(ReadyToExecute) && progress == Investigating)
                                 {
@@ -589,7 +589,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                     break;
                 case StillUnsafe:
                     // make sure a quorum of the home shard is aware of the transaction, so we can rely on it to ensure progress
-                    Future<Void> inform = inform(node, txnId, command.homeKey());
+                    AsyncNotifier<Void> inform = inform(node, txnId, command.homeKey());
                     inform.addCallback((success, fail) -> {
                         if (nonHomeState == Safe)
                             return;

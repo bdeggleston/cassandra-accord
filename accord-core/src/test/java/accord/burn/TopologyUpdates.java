@@ -35,10 +35,10 @@ import accord.primitives.KeyRanges;
 import accord.topology.Shard;
 import accord.topology.Topology;
 import accord.utils.MessageTask;
+import accord.utils.async.AsyncNotifier;
+import accord.utils.async.AsyncNotifiers;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,9 +144,10 @@ public class TopologyUpdates
         };
     }
 
-    public static <T> Future<T> dieExceptionally(Future<T> stage)
+    public static <T> AsyncNotifier<T> dieExceptionally(AsyncNotifier<T> stage)
     {
-        return stage.addCallback(dieOnException());
+        stage.addCallback(dieOnException());
+        return stage;
     }
 
     public MessageTask notify(Node originator, Collection<Node.Id> cluster, Topology update)
@@ -254,14 +255,14 @@ public class TopologyUpdates
         return messageStream;
     }
 
-    public static Future<Void> sync(Node node, long syncEpoch)
+    public static AsyncNotifier<Void> sync(Node node, long syncEpoch)
     {
         Stream<MessageTask> messageStream = optimizedSync(node, syncEpoch);
 
         Iterator<MessageTask> iter = messageStream.iterator();
         if (!iter.hasNext())
         {
-            return ImmediateFuture.success(null);
+            return AsyncNotifiers.success(null);
         }
 
         MessageTask first = iter.next();
@@ -277,15 +278,15 @@ public class TopologyUpdates
         return dieExceptionally(last);
     }
 
-    public Future<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
+    public AsyncNotifier<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
     {
-        Future<Void> future = dieExceptionally(sync(originator, epoch)
+        AsyncNotifier<Void> notifier = dieExceptionally(sync(originator, epoch)
                 .flatMap(v -> MessageTask.apply(originator, cluster, "SyncComplete:" + epoch, (node, from, onDone) -> {
                     node.onEpochSyncComplete(originator.id(), epoch);
                     onDone.accept(true);
                 })));
-        future.addCallback((unused, throwable) -> pendingTopologies.remove(epoch));
-        return future;
+        notifier.addCallback((unused, throwable) -> pendingTopologies.remove(epoch));
+        return notifier;
     }
 
     public int pendingTopologies()

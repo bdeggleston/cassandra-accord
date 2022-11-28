@@ -31,11 +31,9 @@ import accord.primitives.Keys;
 import accord.primitives.Txn;
 import accord.topology.Topologies.Single;
 import accord.primitives.Timestamp;
+import accord.utils.async.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
-import org.apache.cassandra.utils.concurrent.Future;
-import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 
 import java.util.*;
 
@@ -56,7 +54,7 @@ import static accord.coordinate.tracking.RequestStatus.Success;
  */
 public class TopologyManager implements ConfigurationService.Listener
 {
-    private static final Future<Void> SUCCESS = ImmediateFuture.success(null);
+    private static final AsyncNotifier<Void> SUCCESS = AsyncNotifiers.success(null);
     static class EpochState
     {
         private final Topology global;
@@ -140,9 +138,9 @@ public class TopologyManager implements ConfigurationService.Listener
         // list of promises to be completed as newer epochs become active. This is to support processes that
         // are waiting on future epochs to begin (ie: txn requests from futures epochs). Index 0 is for
         // currentEpoch + 1
-        private final List<AsyncPromise<Void>> futureEpochFutures;
+        private final List<AsyncNotifier.Settable<Void>> futureEpochFutures;
 
-        private Epochs(EpochState[] epochs, List<Set<Id>> pendingSyncComplete, List<AsyncPromise<Void>> futureEpochFutures)
+        private Epochs(EpochState[] epochs, List<Set<Id>> pendingSyncComplete, List<AsyncNotifier.Settable<Void>> futureEpochFutures)
         {
             this.currentEpoch = epochs.length > 0 ? epochs[0].epoch() : 0;
             this.pendingSyncComplete = pendingSyncComplete;
@@ -157,14 +155,14 @@ public class TopologyManager implements ConfigurationService.Listener
             this(epochs, new ArrayList<>(), new ArrayList<>());
         }
 
-        public Future<Void> awaitEpoch(long epoch)
+        public AsyncNotifier<Void> awaitEpoch(long epoch)
         {
             if (epoch <= currentEpoch)
                 return SUCCESS;
 
             int diff = (int) (epoch - currentEpoch);
             while (futureEpochFutures.size() < diff)
-                futureEpochFutures.add(new AsyncPromise<>());
+                futureEpochFutures.add(AsyncNotifiers.settable());
 
             return futureEpochFutures.get(diff - 1);
         }
@@ -253,14 +251,14 @@ public class TopologyManager implements ConfigurationService.Listener
         boolean prevSynced = current.epochs.length == 0 || current.epochs[0].syncComplete();
         nextEpochs[0] = new EpochState(node, topology, sorter.get(topology), prevSynced);
 
-        List<AsyncPromise<Void>> futureEpochFutures = new ArrayList<>(current.futureEpochFutures);
-        AsyncPromise<Void> toComplete = !futureEpochFutures.isEmpty() ? futureEpochFutures.remove(0) : null;
+        List<AsyncNotifier.Settable<Void>> futureEpochFutures = new ArrayList<>(current.futureEpochFutures);
+        AsyncNotifier.Settable<Void> toComplete = !futureEpochFutures.isEmpty() ? futureEpochFutures.remove(0) : null;
         epochs = new Epochs(nextEpochs, pendingSync, futureEpochFutures);
         if (toComplete != null)
             toComplete.trySuccess(null);
     }
 
-    public synchronized Future<Void> awaitEpoch(long epoch)
+    public synchronized AsyncNotifier<Void> awaitEpoch(long epoch)
     {
         return epochs.awaitEpoch(epoch);
     }

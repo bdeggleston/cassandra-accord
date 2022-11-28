@@ -24,9 +24,9 @@ import accord.api.TestableConfigurationService;
 import accord.local.Node;
 import accord.messages.*;
 import accord.topology.Topology;
+import accord.utils.async.AsyncNotifier;
+import accord.utils.async.AsyncNotifiers;
 import com.google.common.base.Preconditions;
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
-import org.apache.cassandra.utils.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +51,9 @@ public class BurnTestConfigurationService implements TestableConfigurationServic
     private static class EpochState
     {
         private final long epoch;
-        private final AsyncPromise<Topology> received = new AsyncPromise<>();
-        private final AsyncPromise<Void> acknowledged = new AsyncPromise<>();
-        private final AsyncPromise<Void> synced = new AsyncPromise<>();
+        private final AsyncNotifier.Settable<Topology> received = AsyncNotifiers.settable();
+        private final AsyncNotifier.Settable<Void> acknowledged = AsyncNotifiers.settable();
+        private final AsyncNotifier.Settable<Void> synced = AsyncNotifiers.settable();
 
         private Topology topology = null;
 
@@ -90,7 +90,7 @@ public class BurnTestConfigurationService implements TestableConfigurationServic
             return this;
         }
 
-        Future<Topology> receiveFuture(long epoch)
+        AsyncNotifier<Topology> receiveFuture(long epoch)
         {
             return get(epoch).received;
         }
@@ -108,7 +108,7 @@ public class BurnTestConfigurationService implements TestableConfigurationServic
             return this;
         }
 
-        Future<Void> acknowledgeFuture(long epoch)
+        AsyncNotifier<Void> acknowledgeFuture(long epoch)
         {
             return get(epoch).acknowledged;
         }
@@ -206,7 +206,7 @@ public class BurnTestConfigurationService implements TestableConfigurationServic
         }
     }
 
-    private class FetchTopology extends AsyncPromise<Void> implements Callback<FetchTopologyReply>
+    private class FetchTopology extends AsyncNotifiers.Settable<Void> implements Callback<FetchTopologyReply>
     {
         private final FetchTopologyRequest request;
         private final List<Node.Id> candidates;

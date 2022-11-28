@@ -28,8 +28,7 @@ import accord.primitives.TxnId;
 import accord.topology.Topologies.Single;
 import accord.topology.Topology;
 
-import org.apache.cassandra.utils.concurrent.AsyncPromise;
-
+import accord.utils.async.AsyncNotifiers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +94,7 @@ public class EpochSync implements Runnable
         }
     }
 
-    private static class CommandSync extends AsyncPromise<Void> implements Callback<SimpleReply>
+    private static class CommandSync extends AsyncNotifiers.Settable<Void> implements Callback<SimpleReply>
     {
         private final QuorumTracker tracker;
 
@@ -129,14 +128,7 @@ public class EpochSync implements Runnable
 
         public static void sync(Node node, AbstractRoute route, SyncCommitted message, Topology topology)
         {
-            try
-            {
-                new CommandSync(node, route, message, topology).get();
-            }
-            catch (InterruptedException | ExecutionException e)
-            {
-                throw new RuntimeException(e);
-            }
+            AsyncNotifiers.getUninterruptibly(new CommandSync(node, route, message, topology));
         }
     }
 

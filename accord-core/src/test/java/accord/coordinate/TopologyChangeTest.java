@@ -44,6 +44,7 @@ import static accord.impl.IntKey.keys;
 import static accord.impl.IntKey.range;
 import static accord.local.PreLoadContext.empty;
 import static accord.utils.async.AsyncChains.awaitUninterruptibly;
+import static accord.utils.async.AsyncNotifiers.awaitUninterruptibly;
 
 public class TopologyChangeTest
 {
@@ -51,7 +52,7 @@ public class TopologyChangeTest
     {
         TxnId txnId = node.nextTxnId();
         Txn txn = writeTxn(keys);
-        node.coordinate(txnId, txn).get();
+        awaitUninterruptibly(node.coordinate(txnId, txn));
         return txnId;
     }
 
@@ -75,7 +76,7 @@ public class TopologyChangeTest
             Node node1 = cluster.get(1);
             TxnId txnId1 = node1.nextTxnId();
             Txn txn1 = writeTxn(keys);
-            node1.coordinate(txnId1, txn1).get();
+            awaitUninterruptibly(node1.coordinate(txnId1, txn1));
             awaitUninterruptibly(node1.commandStores().forEach(empty(), keys, 1, 1, commands -> {
                 Command command = commands.command(txnId1);
                 Assertions.assertTrue(command.partialDeps().isEmpty());
@@ -86,7 +87,7 @@ public class TopologyChangeTest
             Node node4 = cluster.get(4);
             TxnId txnId2 = node4.nextTxnId();
             Txn txn2 = writeTxn(keys);
-            node4.coordinate(txnId2, txn2).get();
+            awaitUninterruptibly(node4.coordinate(txnId2, txn2));
 
             // new nodes should have the previous epochs operation as a dependency
             cluster.nodes(4, 5, 6).forEach(node -> {
