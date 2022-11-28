@@ -43,7 +43,6 @@ import accord.messages.BeginRecovery.RecoverReply;
 import accord.messages.WaitOnCommit;
 import accord.messages.WaitOnCommit.WaitOnCommitOk;
 import accord.topology.Topology;
-import org.apache.cassandra.utils.concurrent.AsyncFuture;
 
 import static accord.coordinate.Propose.Invalidate.proposeInvalidate;
 import static accord.coordinate.tracking.RequestStatus.Failed;
@@ -53,7 +52,7 @@ import static accord.messages.BeginRecovery.RecoverOk.maxAcceptedOrLater;
 // TODO: rename to Recover (verb); rename Recover message to not clash
 public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throwable>
 {
-    class AwaitCommit extends AsyncFuture<Timestamp> implements Callback<WaitOnCommitOk>
+    class AwaitCommit extends AsyncNotifiers.Settable<Timestamp> implements Callback<WaitOnCommitOk>
     {
         // TODO: this should collect the executeAt of any commit, and terminate as soon as one is found
         //       that is earlier than TxnId for the Txn we are recovering; if all commits we wait for
