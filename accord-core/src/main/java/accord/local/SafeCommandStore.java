@@ -25,7 +25,7 @@ import accord.api.ProgressLog;
 import accord.primitives.Keys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
-import org.apache.cassandra.utils.concurrent.Future;
+import accord.utils.async.AsyncChain;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -66,6 +66,6 @@ public interface SafeCommandStore
     long latestEpoch();
     Timestamp preaccept(TxnId txnId, Keys keys);
 
-    Future<Void> execute(PreLoadContext context, Consumer<? super SafeCommandStore> consumer);
-    <T> Future<T> submit(PreLoadContext context, Function<? super SafeCommandStore, T> function);
+    AsyncChain<Void> execute(PreLoadContext context, Consumer<? super SafeCommandStore> consumer);
+    <T> AsyncChain<T> submit(PreLoadContext context, Function<? super SafeCommandStore, T> function);
 }

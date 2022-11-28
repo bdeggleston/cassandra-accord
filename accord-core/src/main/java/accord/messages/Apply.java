@@ -19,7 +19,6 @@
 package accord.messages;
 
 import accord.api.Key;
-import accord.local.CommandStore;
 import accord.local.PreLoadContext;
 import accord.local.SafeCommandStore;
 import accord.primitives.*;
@@ -27,7 +26,6 @@ import accord.local.Command;
 import accord.local.Node.Id;
 import accord.api.Result;
 import accord.topology.Topologies;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 import java.util.Collections;
@@ -107,7 +105,7 @@ public class Apply extends TxnRequest<ApplyReply>
         {
             node.ifLocal(PreLoadContext.empty(), scope.homeKey, txnId.epoch, instance -> {
                 node.withEpoch(executeAt.epoch, () -> instance.progressLog().durableLocal(txnId));
-            }).addCallback(node.agent());
+            }).begin(node.agent());
         }
         node.reply(replyTo, replyContext, reply);
     }

@@ -109,7 +109,7 @@ public class Invalidate implements Callback<InvalidateReply>
             {
                 node.ifLocalSince(contextFor(txnId), invalidateWithKey, txnId, safeStore -> {
                     safeStore.command(txnId).updateHomeKey(safeStore, nack.homeKey);
-                }).addCallback(node.agent());
+                }).begin(node.agent());
             }
 
             isDone = true;
@@ -177,7 +177,7 @@ public class Invalidate implements Callback<InvalidateReply>
                     isDone = true;
                     node.forEachLocalSince(contextFor(txnId), informKeys, txnId, safeStore -> {
                         safeStore.command(txnId).commitInvalidate(safeStore);
-                    }).addCallback((success, fail) -> {
+                    }).begin((success, fail) -> {
                         callback.accept(INVALIDATED, null);
                     });
                     return;
