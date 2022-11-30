@@ -2,6 +2,7 @@ package accord.utils.async;
 
 import com.google.common.base.Preconditions;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -10,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public class AsyncResults
 {
@@ -121,51 +121,6 @@ public class AsyncResults
             Object current = state;
             return current instanceof Result && ((Result) current).failure == null;
         }
-
-        @Override
-        public <T> AsyncResult<T> map(Function<V, T> map)
-        {
-            return new Map<>(this, map);
-        }
-
-        @Override
-        public <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper)
-        {
-            return new FlatMap<V, T>(this, mapper);
-        }
-    }
-
-    static class Map<I, O> extends AbstractResult<O>
-    {
-        Function<I, O> map;
-
-        public Map(AsyncResult<I> notifier, Function<I, O> map)
-        {
-            this.map = map;
-            notifier.listen(this::mapResult);
-        }
-
-        private void mapResult(I result, Throwable throwable)
-        {
-            setResult(map.apply(result), throwable);
-        }
-    }
-
-    static class FlatMap<I, O> extends AbstractResult<O>
-    {
-        Function<? super I, ? extends AsyncResult<O>> map;
-
-        public FlatMap(AbstractResult<I> notifier, Function<? super I, ? extends AsyncResult<O>> map)
-        {
-            this.map = map;
-            notifier.listen(this::mapResult);
-        }
-
-        private void mapResult(I result, Throwable failure)
-        {
-            if (failure != null) setResult(null, failure);
-            else map.apply(result).listen(this::setResult);
-        }
     }
 
     static class Chain<V> extends AbstractResult<V>
@@ -213,20 +168,6 @@ public class AsyncResults
         public void listen(BiConsumer<? super V, Throwable> callback)
         {
             callback.accept(value, failure);
-        }
-
-        @Override
-        public <T> AsyncResult<T> map(Function<V, T> map)
-        {
-            return new Map<>(this, map);
-        }
-
-        @Override
-        public <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper)
-        {
-            if (failure != null)
-                return (AsyncResult<T>) this;
-            return mapper.apply(value);
         }
 
         @Override
@@ -298,18 +239,26 @@ public class AsyncResults
         return new Settable<>();
     }
 
-    public static <V> AsyncResult<List<V>> all(List<? extends AsyncResult<? extends V>> notifiers)
+    private static <V> List<AsyncChain<V>> toChains(List<AsyncResult<V>> results)
     {
-        Preconditions.checkArgument(!notifiers.isEmpty());
-        return new AsyncResultCombiner.All<>(notifiers);
+        List<AsyncChain<V>> chains = new ArrayList<>(results.size());
+        for (int i=0,mi=results.size(); i<mi; i++)
+            chains.add(results.get(i).toChain());
+        return chains;
     }
 
-    public static <V> AsyncResult<? extends V> reduce(List<? extends AsyncResult<? extends V>> notifiers, BiFunction<V, V, V> reducer)
+    public static <V> AsyncChain<List<V>> all(List<AsyncResult<V>> results)
+    {
+        Preconditions.checkArgument(!results.isEmpty());
+        return new AsyncChainCombiner.All<>(toChains(results));
+    }
+
+    public static <V> AsyncChain<V> reduce(List<AsyncResult<V>> notifiers, BiFunction<V, V, V> reducer)
     {
         Preconditions.checkArgument(!notifiers.isEmpty());
         if (notifiers.size() == 1)
-            return notifiers.get(0);
-        return new AsyncResultCombiner.Reduce<>(notifiers, reducer);
+            return notifiers.get(0).toChain();
+        return new AsyncChainCombiner.Reduce<>(toChains(notifiers), reducer);
     }
 
     public static <V> V getBlocking(AsyncResult<V> notifier) throws InterruptedException

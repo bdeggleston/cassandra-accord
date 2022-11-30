@@ -2,7 +2,6 @@ package accord.utils.async;
 
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 /**
  * Handle for async computations that supports multiple listeners and registering
@@ -10,9 +9,6 @@ import java.util.function.Function;
  */
 public interface AsyncResult<V>
 {
-    <T> AsyncResult<T> map(Function<V, T> map);
-    <T> AsyncResult<T> flatMap(Function<? super V, ? extends AsyncResult<T>> mapper);
-
     void listen(BiConsumer<? super V, Throwable> callback);
 
     default void listen(BiConsumer<? super V, Throwable> callback, Executor executor)
@@ -33,7 +29,7 @@ public interface AsyncResult<V>
         listen(AsyncCallbacks.inExecutor(runnable, executor));
     }
 
-    default AsyncChain<V> asChain()
+    default AsyncChain<V> toChain()
     {
         return new AsyncChains.Head<V>()
         {
