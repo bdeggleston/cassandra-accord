@@ -21,10 +21,6 @@ package accord.local;
 import accord.api.ProgressLog;
 import accord.api.RoutingKey;
 import accord.api.TestableConfigurationService;
-import accord.impl.InMemoryCommandStores;
-import accord.impl.IntKey;
-import accord.impl.TestAgent;
-import accord.impl.TopologyFactory;
 import accord.impl.*;
 import accord.impl.mock.MockCluster;
 import accord.impl.mock.MockConfigurationService;
@@ -56,7 +52,7 @@ import static accord.Utils.writeTxn;
 import static accord.impl.InMemoryCommandStore.inMemory;
 import static accord.utils.async.AsyncChains.getUninterruptibly;
 
-public class CommandTest
+public class ImmutableCommandTest
 {
     private static final Node.Id ID1 = id(1);
     private static final Node.Id ID2 = id(2);
@@ -157,13 +153,20 @@ public class CommandTest
         CommandStore commands = createStore(support);
         MockCluster.Clock clock = new MockCluster.Clock(100);
         TxnId txnId = clock.idForNode(1, 1);
-        Txn txn = writeTxn(Keys.of(KEY));
+        Keys keys = Keys.of(KEY);
+        Txn txn = writeTxn(keys);
 
-        Command command = new InMemoryCommand(commands, txnId);
-        Assertions.assertEquals(Status.NotWitnessed, command.status());
-        Assertions.assertNull(command.executeAt());
+        {
+            Command command = Command.NotWitnessed.create(txnId);
+            Assertions.assertNull(inMemory(commands).command(txnId));
+            Assertions.assertEquals(Status.NotWitnessed, command.status());
+            Assertions.assertNull(command.executeAt());
+        }
+        PreLoadContext context = PreLoadContext.contextFor(txnId, keys);
 
-        command.preaccept(inMemory(commands), txn.slice(FULL_RANGES, true), ROUTE, HOME_KEY);
+        SafeCommandStore safeStore = commands.beginOperation(context);
+        Commands.preaccept(safeStore, txnId, txn.slice(FULL_RANGES, true), ROUTE, HOME_KEY);
+        Command command = safeStore.command(txnId);
         Assertions.assertEquals(Status.PreAccepted, command.status());
         Assertions.assertEquals(txnId, command.executeAt());
     }
@@ -176,16 +179,22 @@ public class CommandTest
         CommandStore commands = node.unsafeByIndex(0);
         TxnId txnId = node.nextTxnId();
         ((MockCluster.Clock)node.unsafeGetNowSupplier()).increment(10);
-        Txn txn = writeTxn(Keys.of(KEY));
+        Keys keys = Keys.of(KEY);
+        Txn txn = writeTxn(keys);
 
-        Command command = new InMemoryCommand(commands, txnId);
-        Assertions.assertEquals(Status.NotWitnessed, command.status());
-        Assertions.assertNull(command.executeAt());
+        {
+            Command command = Command.NotWitnessed.create(txnId);
+            Assertions.assertNull(inMemory(commands).command(txnId));
+            Assertions.assertEquals(Status.NotWitnessed, command.status());
+            Assertions.assertNull(command.executeAt());
+        }
+        PreLoadContext context = PreLoadContext.contextFor(txnId, keys);
 
         setTopologyEpoch(support.local, 2);
         ((TestableConfigurationService)node.configService()).reportTopology(support.local.get().withEpoch(2));
         Timestamp expectedTimestamp = new Timestamp(2, 110, 0, ID1);
-        getUninterruptibly(commands.execute(null, (Consumer<? super SafeCommandStore>) store -> command.preaccept(store, txn.slice(FULL_RANGES, true), ROUTE, HOME_KEY)));
+        getUninterruptibly(commands.execute(context, (Consumer<? super SafeCommandStore>) store -> Commands.preaccept(store, txnId, txn.slice(FULL_RANGES, true), ROUTE, HOME_KEY)));
+        Command command = inMemory(commands).command(txnId);
         Assertions.assertEquals(Status.PreAccepted, command.status());
         Assertions.assertEquals(expectedTimestamp, command.executeAt());
     }

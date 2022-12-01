@@ -21,13 +21,13 @@ package accord.coordinate;
 import java.util.function.BiConsumer;
 
 import accord.local.*;
+import accord.local.Commands.ApplyOutcome;
+import accord.local.Commands.CommitOutcome;
 import accord.primitives.*;
 import accord.utils.MapReduceConsume;
 import com.google.common.base.Preconditions;
 
 import accord.api.RoutingKey;
-import accord.local.Command.ApplyOutcome;
-import accord.local.Command.CommitOutcome;
 import accord.local.Node.Id;
 import accord.messages.CheckStatus.CheckStatusOk;
 import accord.messages.CheckStatus.CheckStatusOkFull;
@@ -171,25 +171,24 @@ public class CheckOn extends CheckShards
         @Override
         public Void apply(SafeCommandStore safeStore)
         {
-            Command command = safeStore.command(txnId);
             switch (sufficientTo)
             {
                 default: throw new IllegalStateException();
                 case Invalidation:
-                    command.commitInvalidate(safeStore);
+                    Commands.commitInvalidate(safeStore, txnId);
                     break;
                 case Outcome:
                     if (untilLocalEpoch >= full.executeAt.epoch)
                     {
-                        confirm(command.commit(safeStore, maxRoute, progressKey, partialTxn, full.executeAt, partialDeps));
-                        confirm(command.apply(safeStore, untilLocalEpoch, maxRoute, full.executeAt, partialDeps, full.writes, full.result));
+                        confirm(Commands.commit(safeStore, txnId, maxRoute, progressKey, partialTxn, full.executeAt, partialDeps).status);
+                        confirm(Commands.apply(safeStore, txnId, untilLocalEpoch, maxRoute, full.executeAt, partialDeps, full.writes, full.result).status);
                         break;
                     }
                 case ExecutionOrder:
-                    confirm(command.commit(safeStore, maxRoute, progressKey, partialTxn, full.executeAt, partialDeps));
+                    confirm(Commands.commit(safeStore, txnId, maxRoute, progressKey, partialTxn, full.executeAt, partialDeps).status);
                     break;
                 case Definition:
-                    command.preaccept(safeStore, partialTxn, maxRoute, progressKey);
+                    Commands.preaccept(safeStore, txnId, partialTxn, maxRoute, progressKey);
                 case Nothing:
                     break;
             }
@@ -205,8 +204,8 @@ public class CheckOn extends CheckShards
                 return null;
 
             Timestamp executeAt = merged.saveStatus.isAtLeast(Phase.Commit) ? merged.executeAt : null;
-            command.setDurability(safeStore, merged.durability, homeKey, executeAt);
-            safeStore.progressLog().durable(command, null);
+            Command updated = Commands.setDurability(safeStore, txnId, merged.durability, homeKey, executeAt);
+            safeStore.progressLog().durable(updated, null);
             return null;
         }
 

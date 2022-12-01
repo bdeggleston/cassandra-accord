@@ -87,7 +87,7 @@ public class WaitOnCommit implements EpochRequest, MapReduceConsume<SafeCommandS
             case Accepted:
             case AcceptedInvalidate:
                 waitingOnUpdater.incrementAndGet(this);
-                command.addListener(this);
+                Command.addListener(instance, command, this);
                 instance.progressLog().waiting(txnId, Known.ExecutionOrder, scope);
                 break;
 
@@ -101,8 +101,9 @@ public class WaitOnCommit implements EpochRequest, MapReduceConsume<SafeCommandS
     }
 
     @Override
-    public void onChange(SafeCommandStore safeStore, Command command)
+    public void onChange(SafeCommandStore safeStore, TxnId txnId)
     {
+        Command command = safeStore.command(txnId);
         logger.trace("{}: updating as listener in response to change on {} with status {} ({})",
                 this, command.txnId(), command.status(), command);
         switch (command.status())
@@ -121,7 +122,7 @@ public class WaitOnCommit implements EpochRequest, MapReduceConsume<SafeCommandS
             case Invalidated:
         }
 
-        command.removeListener(this);
+        Command.removeListener(safeStore, command, this);
         ack();
     }
 

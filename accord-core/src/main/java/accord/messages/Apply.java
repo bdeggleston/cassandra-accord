@@ -19,10 +19,10 @@
 package accord.messages;
 
 import accord.api.Key;
-import accord.local.PreLoadContext;
-import accord.local.SafeCommandStore;
+import accord.local.*;
+import accord.local.Commands.ApplyOutcome;
+import accord.local.Commands.Outcome;
 import accord.primitives.*;
-import accord.local.Command;
 import accord.local.Node.Id;
 import accord.api.Result;
 import accord.topology.Topologies;
@@ -80,8 +80,8 @@ public class Apply extends TxnRequest<ApplyReply>
 
     public ApplyReply apply(SafeCommandStore safeStore)
     {
-        Command command = safeStore.command(txnId);
-        switch (command.apply(safeStore, untilEpoch, scope, executeAt, deps, writes, result))
+        Outcome<ApplyOutcome> outcome = Commands.apply(safeStore, txnId, untilEpoch, scope, executeAt, deps, writes, result);
+        switch (outcome.status)
         {
             default:
             case Insufficient:

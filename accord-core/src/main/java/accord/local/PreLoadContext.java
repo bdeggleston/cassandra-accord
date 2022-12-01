@@ -19,10 +19,13 @@
 package accord.local;
 
 import accord.api.Key;
-import accord.api.RoutingKey;
 import accord.primitives.TxnId;
+import accord.utils.Utils;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * Lists txnids and keys of commands and commands for key that will be needed for an operation. Used
@@ -40,6 +43,13 @@ public interface PreLoadContext
      */
     Iterable<Key> keys();
 
+    default boolean isSubsetOf(PreLoadContext superset)
+    {
+        Set<TxnId> superIds = Sets.newHashSet(superset.txnIds());
+        Set<TxnId> superKeys = Sets.newHashSet(superset.txnIds());
+        return Iterables.all(txnIds(), superIds::contains) && Iterables.all(keys(), superKeys::contains);
+    }
+
     static PreLoadContext contextFor(Iterable<TxnId> txnIds, Iterable<Key> keys)
     {
         return new PreLoadContext()
@@ -55,6 +65,11 @@ public interface PreLoadContext
     static PreLoadContext contextFor(TxnId txnId, Iterable<Key> keys)
     {
         return contextFor(Collections.singleton(txnId), keys);
+    }
+
+    static PreLoadContext contextFor(TxnId... txnIds)
+    {
+        return contextFor(Utils.listOf(txnIds), Collections.emptyList());
     }
 
     static PreLoadContext contextFor(TxnId txnId)

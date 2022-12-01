@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import accord.api.Key;
 import accord.api.RoutingKey;
 import accord.local.*;
+import accord.local.Commands.Outcome;
 import accord.primitives.AbstractRoute;
 import accord.primitives.Ballot;
 import accord.primitives.Route;
@@ -35,12 +36,11 @@ public class BeginInvalidation extends AbstractEpochRequest<BeginInvalidation.In
     @Override
     public InvalidateReply apply(SafeCommandStore instance)
     {
-        Command command = instance.command(txnId);
+        Outcome<Boolean> outcome = Commands.preacceptInvalidate(instance, txnId, ballot);
+        if (!outcome.status)
+            return new InvalidateNack(outcome.command.promised(), outcome.command.homeKey());
 
-        if (!command.preacceptInvalidate(ballot))
-            return new InvalidateNack(command.promised(), command.homeKey());
-
-        return new InvalidateOk(command.saveStatus(), command.route(), command.homeKey());
+        return new InvalidateOk(outcome.command.saveStatus(), outcome.command.route(), outcome.command.homeKey());
     }
 
     @Override

@@ -22,43 +22,51 @@ import accord.api.*;
 import accord.local.*;
 import accord.primitives.AbstractKeys;
 import accord.utils.MapReduce;
+import accord.utils.MapReduceConsume;
+import accord.utils.async.AsyncChain;
+import accord.utils.async.AsyncChains;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
-public class InMemoryCommandStores
+public abstract class InMemoryCommandStores<S extends InMemoryCommandStore> extends CommandStores<S>
 {
-    public static class Synchronized extends SyncCommandStores
+    public InMemoryCommandStores(int num, NodeTimeService time, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory, CommandStore.Factory shardFactory)
+    {
+        super(num, time, agent, store, progressLogFactory, shardFactory);
+    }
+
+    @Override
+    public  <T> T mapReduceDirectUnsafe(Predicate<S> predicate, Function<S, T> map, BiFunction<T, T, T> reduce)
+    {
+        return super.mapReduceDirectUnsafe(predicate, map, reduce);
+    }
+
+    @Override
+    public <O> void mapReduceConsume(PreLoadContext context, AbstractKeys<?, ?> keys, long minEpoch, long maxEpoch, MapReduceConsume<? super SafeCommandStore, O> mapReduceConsume)
+    {
+        mapReduceConsume(context, keys, minEpoch, maxEpoch, mapReduceConsume, CommandStores.AsyncMapReduceAdapter.instance());
+    }
+
+    @Override
+    public <O> void mapReduceConsume(PreLoadContext context, IntStream commandStoreIds, MapReduceConsume<? super SafeCommandStore, O> mapReduceConsume)
+    {
+        mapReduceConsume(context, commandStoreIds, mapReduceConsume, CommandStores.AsyncMapReduceAdapter.instance());
+    }
+
+    public static class Synchronized extends InMemoryCommandStores<InMemoryCommandStore.Synchronized>
     {
         public Synchronized(int num, Node node, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
         {
             super(num, node, agent, store, progressLogFactory, InMemoryCommandStore.Synchronized::new);
         }
-
-        public <T> T mapReduce(PreLoadContext context, AbstractKeys<?, ?> keys, long minEpoch, long maxEpoch, MapReduce<? super SafeCommandStore, T> map)
-        {
-            return super.mapReduce(context, keys, minEpoch, maxEpoch, map, SyncMapReduceAdapter.instance());
-        }
-
-        public <T> T mapReduce(PreLoadContext context, AbstractKeys<?, ?> keys, long minEpoch, long maxEpoch, Function<? super SafeCommandStore, T> map, BiFunction<T, T, T> reduce)
-        {
-            return mapReduce(context, keys, minEpoch, maxEpoch, new MapReduce<SafeCommandStore, T>() {
-                @Override
-                public T apply(SafeCommandStore in)
-                {
-                    return map.apply(in);
-                }
-
-                @Override
-                public T reduce(T o1, T o2)
-                {
-                    return reduce.apply(o1, o2);
-                }
-            });
-        }
     }
 
-    public static class SingleThread extends AsyncCommandStores
+    public static class SingleThread extends InMemoryCommandStores<InMemoryCommandStore.SingleThread>
     {
         public SingleThread(int num, NodeTimeService time, Agent agent, DataStore store, ProgressLog.Factory progressLogFactory)
         {

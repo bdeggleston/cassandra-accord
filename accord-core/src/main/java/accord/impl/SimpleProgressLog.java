@@ -153,7 +153,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
             }
         }
 
-        void update(Node node, CommandStore commandStore, TxnId txnId, Command command)
+        void update(Node node, SafeCommandStore safeStore, TxnId txnId)
         {
             if (progress != NoProgress)
             {
@@ -161,6 +161,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                 return;
             }
 
+            Command command = safeStore.command(txnId);
             progress = Investigating;
             switch (status)
             {
@@ -202,11 +203,10 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                                     // TODO: avoid returning null (need to change semantics here in this case, though, as Recover doesn't return CheckStatusOk)
                                     if (token.durability.isDurable())
                                     {
-                                        commandStore.execute(contextFor(txnId), safeStore -> {
-                                            Command cmd = safeStore.command(txnId);
-                                            cmd.setDurability(safeStore, token.durability, homeKey, null);
-                                            safeStore.progressLog().durable(txnId, cmd.maxRoutingKeys(), null);
-                                        }).begin(commandStore.agent());
+                                        safeStore.commandStore().execute(contextFor(txnId), ss -> {
+                                            Command cmd = Commands.setDurability(ss, txnId, token.durability, homeKey, null);
+                                            ss.progressLog().durable(txnId, cmd.maxRoutingKeys(), null);
+                                        }).begin(safeStore.commandStore().agent());
                                     }
 
                                     updateMax(token);
@@ -355,7 +355,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
             });
         }
 
-        void update(Node node, TxnId txnId, Command command)
+        void update(Node node, SafeCommandStore safeStore, TxnId txnId)
         {
             switch (status)
             {
@@ -366,6 +366,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                 case Durable:
             }
 
+            Command command = safeStore.command(txnId);
             if (notAwareOfDurability == null && !maybeReady(node, command))
                 return;
 
@@ -430,7 +431,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
             progress = Done;
         }
 
-        void update(Node node, TxnId txnId, Command command)
+        void update(Node node, SafeCommandStore safeStore, TxnId txnId)
         {
             if (progress != NoProgress)
             {
@@ -438,6 +439,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                 return;
             }
 
+            Command command = safeStore.command(txnId) ;
             if (command.hasBeen(blockedUntil))
             {
                 if (command.hasBeen(Known.Outcome)) recordApply();
@@ -576,7 +578,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
             local().ensureAtLeast(newStatus, newProgress);
         }
 
-        void updateNonHome(Node node, Command command)
+        void updateNonHome(Node node, SafeCommandStore safeStore, TxnId txnId)
         {
             switch (nonHomeState)
             {
@@ -589,7 +591,7 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
                     break;
                 case StillUnsafe:
                     // make sure a quorum of the home shard is aware of the transaction, so we can rely on it to ensure progress
-                    AsyncResult<Void> inform = inform(node, txnId, command.homeKey());
+                    AsyncResult<Void> inform = inform(node, txnId, safeStore.command(txnId).homeKey());
                     inform.addCallback((success, fail) -> {
                         if (nonHomeState == Safe)
                             return;
@@ -605,18 +607,17 @@ public class SimpleProgressLog implements Runnable, ProgressLog.Factory
         {
             PreLoadContext context = contextFor(txnId);
             commandStore.execute(context, safeStore -> {
-                Command command = safeStore.command(txnId);
                 if (blockingState != null)
-                    blockingState.update(node, txnId, command);
+                    blockingState.update(node, safeStore, txnId);
 
                 if (coordinateState != null)
-                    coordinateState.update(node, safeStore.commandStore(), txnId, command);
+                    coordinateState.update(node, safeStore, txnId);
 
                 if (disseminateState != null)
-                    disseminateState.update(node, txnId, command);
+                    disseminateState.update(node, safeStore, txnId);
 
                 if (nonHomeState != null)
-                    updateNonHome(node, command);
+                    updateNonHome(node, safeStore, txnId);
             }).begin(commandStore.agent());
         }
 

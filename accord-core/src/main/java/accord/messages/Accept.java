@@ -19,29 +19,29 @@
 package accord.messages;
 
 import accord.api.Key;
+import accord.local.Commands;
+import accord.local.Commands.AcceptOutcome;
 import accord.local.SafeCommandStore;
 import accord.primitives.*;
 import accord.local.Node.Id;
 import accord.topology.Topologies;
 
 import accord.api.RoutingKey;
-import accord.local.Command.AcceptOutcome;
 import accord.primitives.PartialDeps;
 import accord.primitives.Route;
 import accord.primitives.Txn;
 import accord.primitives.Ballot;
-import accord.local.Command;
 
 import java.util.Collections;
 import accord.primitives.Deps;
 import accord.primitives.TxnId;
 
-import static accord.local.Command.AcceptOutcome.RejectedBallot;
-import static accord.local.Command.AcceptOutcome.Success;
 
 import javax.annotation.Nullable;
 
 import static accord.messages.PreAccept.calculatePartialDeps;
+import static accord.local.Commands.AcceptOutcome.RejectedBallot;
+import static accord.local.Commands.AcceptOutcome.Success;
 
 // TODO: use different objects for send and receive, so can be more efficient (e.g. serialize without slicing, and without unnecessary fields)
 public class Accept extends TxnRequest.WithUnsynced<Accept.AcceptReply>
@@ -83,14 +83,14 @@ public class Accept extends TxnRequest.WithUnsynced<Accept.AcceptReply>
     @Override
     public synchronized AcceptReply apply(SafeCommandStore safeStore)
     {
-        Command command = safeStore.command(txnId);
-        switch (command.accept(safeStore, ballot, scope, keys, progressKey, executeAt, partialDeps))
+        Commands.Outcome<AcceptOutcome> outcome = Commands.accept(safeStore, txnId, ballot, scope, keys, progressKey, executeAt, partialDeps);
+        switch (outcome.status)
         {
             default: throw new IllegalStateException();
             case Redundant:
                 return AcceptNack.REDUNDANT;
             case RejectedBallot:
-                return new AcceptNack(RejectedBallot, command.promised());
+                return new AcceptNack(RejectedBallot, outcome.command.promised());
             case Success:
                 // TODO: we don't need to calculate deps if executeAt == txnId
                 return new AcceptOk(calculatePartialDeps(safeStore, txnId, keys, kind, executeAt, safeStore.ranges().between(minEpoch, executeAt.epoch)));
@@ -160,8 +160,8 @@ public class Accept extends TxnRequest.WithUnsynced<Accept.AcceptReply>
         @Override
         public AcceptReply apply(SafeCommandStore safeStore)
         {
-            Command command = safeStore.command(txnId);
-            switch (command.acceptInvalidate(safeStore, ballot))
+            Commands.Outcome<AcceptOutcome> outcome = Commands.acceptInvalidate(safeStore, txnId, ballot);
+            switch (outcome.status)
             {
                 default:
                 case Redundant:
@@ -169,7 +169,7 @@ public class Accept extends TxnRequest.WithUnsynced<Accept.AcceptReply>
                 case Success:
                     return new AcceptOk(null);
                 case RejectedBallot:
-                    return new AcceptNack(RejectedBallot, command.promised());
+                    return new AcceptNack(RejectedBallot, outcome.command.promised());
             }
         }
 

@@ -22,7 +22,6 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import accord.coordinate.CheckOn;
 import accord.coordinate.InformHomeOfTxn;
 import accord.local.Command;
 import accord.local.CommandStore;

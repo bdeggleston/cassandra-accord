@@ -21,6 +21,8 @@ package accord.messages;
 import accord.api.Key;
 import accord.local.*;
 import accord.api.Result;
+import accord.local.Commands.AcceptOutcome;
+import accord.local.Commands.Outcome;
 import accord.local.CommandsForKey.TxnIdWithExecuteAt;
 import accord.local.Status.Phase;
 import accord.primitives.*;
@@ -87,9 +89,8 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
 
     public RecoverReply apply(SafeCommandStore safeStore)
     {
-        Command command = safeStore.command(txnId);
-
-        switch (command.recover(safeStore, partialTxn, route != null ? route : scope, progressKey, ballot))
+        Outcome<AcceptOutcome> outcome = Commands.recover(safeStore, txnId, partialTxn, route != null ? route : scope, progressKey, ballot);
+        switch (outcome.status)
         {
             default:
                 throw new IllegalStateException("Unhandled Outcome");
@@ -98,13 +99,13 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
                 throw new IllegalStateException("Invalid Outcome");
 
             case RejectedBallot:
-                return new RecoverNack(command.promised());
+                return new RecoverNack(outcome.command.promised());
 
             case Success:
         }
 
-        PartialDeps deps = command.partialDeps();
-        if (!command.hasBeen(Accepted))
+        PartialDeps deps = outcome.command.partialDeps();
+        if (!outcome.command.hasBeen(Accepted))
         {
             deps = calculatePartialDeps(safeStore, txnId, partialTxn.keys(), partialTxn.kind(), txnId, safeStore.ranges().at(txnId.epoch));
         }
@@ -112,7 +113,7 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
         boolean rejectsFastPath;
         Deps earlierCommittedWitness, earlierAcceptedNoWitness;
 
-        if (command.hasBeen(Committed))
+        if (outcome.command.hasBeen(Committed))
         {
             rejectsFastPath = false;
             earlierCommittedWitness = earlierAcceptedNoWitness = Deps.NONE;
@@ -130,7 +131,12 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
             // accepted txns with an earlier txnid that don't have our txnid as a dependency
             earlierAcceptedNoWitness = acceptedStartedBeforeAndDidNotWitness(safeStore, txnId, partialTxn.keys());
         }
-        return new RecoverOk(txnId, command.status(), command.accepted(), command.executeAt(), deps, earlierCommittedWitness, earlierAcceptedNoWitness, rejectsFastPath, command.writes(), command.result());
+
+        Command command = outcome.command;
+        Writes writes = command.isExecuted() ? command.asExecuted().writes() : null;
+        Result result = command.isExecuted() ? command.asExecuted().result() : null;
+        return new RecoverOk(txnId, outcome.command.status(), outcome.command.accepted(), outcome.command.executeAt(), deps,
+                             earlierCommittedWitness, earlierAcceptedNoWitness, rejectsFastPath, writes, result);
     }
 
     @Override
@@ -323,8 +329,8 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
                 // TODO (now): think carefully about AcceptedInvalidate here: it may not succeed. But, if not, its
                 //             winning competitor must(?) be visible to us or a quorum has not yet been reached
                 forKey.uncommitted().before(txnId, RorWs, WITHOUT, txnId, IS, Accepted).forEach((command) -> {
-                    if (command.executeAt.compareTo(txnId) > 0)
-                        builder.add(command.txnId);
+                    if (command.executeAt().compareTo(txnId) > 0)
+                        builder.add(command.txnId());
                 });
             });
             return builder.build();

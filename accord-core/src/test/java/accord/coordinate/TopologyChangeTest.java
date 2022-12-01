@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import static accord.Utils.*;
 import static accord.impl.IntKey.keys;
 import static accord.impl.IntKey.range;
-import static accord.local.PreLoadContext.empty;
+import static accord.local.PreLoadContext.contextFor;
 import static accord.utils.async.AsyncChains.awaitUninterruptibly;
 import static accord.utils.async.AsyncResults.awaitUninterruptibly;
 
@@ -67,10 +67,10 @@ public class TopologyChangeTest
                                               .build())
         {
             Node node1 = cluster.get(1);
-            TxnId txnId1 = node1.nextTxnId();
+            TxnId txnId1 = new TxnId(1, 1, 1, new Node.Id(1));
             Txn txn1 = writeTxn(keys);
             awaitUninterruptibly(node1.coordinate(txnId1, txn1));
-            awaitUninterruptibly(node1.commandStores().forEach(empty(), keys, 1, 1, commands -> {
+            awaitUninterruptibly(node1.commandStores().forEach(contextFor(txnId1), keys, 1, 1, commands -> {
                 Command command = commands.command(txnId1);
                 Assertions.assertTrue(command.partialDeps().isEmpty());
             }));
@@ -78,13 +78,13 @@ public class TopologyChangeTest
             cluster.configServices(4, 5, 6).forEach(config -> config.reportTopology(topology2));
 
             Node node4 = cluster.get(4);
-            TxnId txnId2 = node4.nextTxnId();
+            TxnId txnId2 = new TxnId(2, 2, 2, new Node.Id(4));
             Txn txn2 = writeTxn(keys);
             awaitUninterruptibly(node4.coordinate(txnId2, txn2));
 
             // new nodes should have the previous epochs operation as a dependency
             cluster.nodes(4, 5, 6).forEach(node -> {
-                awaitUninterruptibly(node.commandStores().forEach(empty(), keys, 2, 2, commands -> {
+                awaitUninterruptibly(node.commandStores().forEach(contextFor(txnId1, txnId2), keys, 2, 2, commands -> {
                     Command command = commands.command(txnId2);
                     Assertions.assertTrue(command.partialDeps().contains(txnId1));
                 }));
@@ -92,7 +92,7 @@ public class TopologyChangeTest
 
             // ...and participated in consensus
             cluster.nodes(1, 2, 3).forEach(node -> {
-                awaitUninterruptibly(node.commandStores().forEach(empty(), keys, 1, 1, commands -> {
+                awaitUninterruptibly(node.commandStores().forEach(contextFor(txnId2), keys, 1, 1, commands -> {
                     Command command = commands.command(txnId2);
                     Assertions.assertTrue(command.hasBeen(Status.Accepted));
                 }));

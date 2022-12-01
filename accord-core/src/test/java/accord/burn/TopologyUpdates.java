@@ -35,6 +35,7 @@ import accord.primitives.KeyRanges;
 import accord.topology.Shard;
 import accord.topology.Topology;
 import accord.utils.MessageTask;
+import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncResult;
 import accord.utils.async.AsyncResults;
 import com.google.common.base.Preconditions;
@@ -89,8 +90,10 @@ public class TopologyUpdates
             }
 
             // first check if already applied locally, and respond immediately
-            Status minStatus = ((InMemoryCommandStores.Synchronized)node.commandStores()).mapReduce(contextFor(txnId), route, toEpoch, toEpoch,
-                    instance -> instance.command(txnId).status(), (a, b) -> a.compareTo(b) <= 0 ? a : b);
+            Status minStatus = ((InMemoryCommandStores<InMemoryCommandStore>) node.commandStores()).mapReduceDirectUnsafe(
+                    instance -> instance.containsCommand(txnId),
+                    instance -> instance.command(txnId).status(),
+                    (a, b) -> a.compareTo(b) <= 0 ? a : b);
 
             if (minStatus == null || minStatus.phase.compareTo(status.phase) >= 0)
             {
@@ -280,11 +283,11 @@ public class TopologyUpdates
 
     public AsyncResult<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
     {
-        AsyncResult<Void> notifier = dieExceptionally(sync(originator, epoch)
+        AsyncResult<Void> notifier = dieExceptionally(sync(originator, epoch).toChain()
                 .flatMap(v -> MessageTask.apply(originator, cluster, "SyncComplete:" + epoch, (node, from, onDone) -> {
                     node.onEpochSyncComplete(originator.id(), epoch);
                     onDone.accept(true);
-                })));
+                }).toChain()).beginAsResult());
         notifier.addCallback((unused, throwable) -> pendingTopologies.remove(epoch));
         return notifier;
     }

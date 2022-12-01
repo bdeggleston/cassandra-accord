@@ -110,8 +110,9 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
     }
 
     @Override
-    public synchronized void onChange(SafeCommandStore safeStore, Command command)
+    public synchronized void onChange(SafeCommandStore safeStore, TxnId txnId)
     {
+        Command command = safeStore.command(txnId);
         logger.trace("{}: updating as listener in response to change on {} with status {} ({})",
                 this, command.txnId(), command.status(), command);
         switch (command.status())
@@ -131,9 +132,10 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
             case ReadyToExecute:
         }
 
-        command.removeListener(this);
+        Command updated = Command.removeListener(safeStore, command, this);
+
         if (!isObsolete)
-            read(safeStore, command);
+            read(safeStore, updated.asCommitted());
     }
 
     @Override
@@ -154,7 +156,8 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
             case AcceptedInvalidate:
                 waitingOn.set(safeStore.commandStore().id());
                 ++waitingOnCount;
-                command.addListener(this);
+
+                Command.addListener(safeStore, command, this);
 
                 if (status == Committed)
                     return null;
@@ -166,7 +169,7 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
                 waitingOn.set(safeStore.commandStore().id());
                 ++waitingOnCount;
                 if (!isObsolete)
-                    read(safeStore, command);
+                    read(safeStore, command.asCommitted());
                 return null;
 
             case PreApplied:
@@ -185,6 +188,11 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
                 : r1.compareTo(r2) >= 0 ? r1 : r2;
     }
 
+    private void removeListener(SafeCommandStore safeStore, TxnId txnId)
+    {
+        Command.removeListener(safeStore, safeStore.command(txnId), this);
+    }
+
     @Override
     public synchronized void accept(ReadNack reply, Throwable failure)
     {
@@ -198,7 +206,7 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
             node.reply(replyTo, replyContext, ReadNack.Error);
             data = null;
             node.agent().onUncaughtException(failure); // TODO: probably a better way to handle this, as might not be uncaught
-            node.commandStores().mapReduceConsume(this, waitingOn.stream(), forEach(in -> in.command(txnId).removeListener(this), node.agent()));
+            node.commandStores().mapReduceConsume(this, waitingOn.stream(), forEach(in -> removeListener(in, txnId), node.agent()));
         }
         else
         {
@@ -223,7 +231,7 @@ public class ReadData extends AbstractEpochRequest<ReadData.ReadNack> implements
         ack();
     }
 
-    private void read(SafeCommandStore safeStore, Command command)
+    private void read(SafeCommandStore safeStore, Command.Committed command)
     {
         logger.trace("{}: executing read", command.txnId());
         CommandStore unsafeStore = safeStore.commandStore();

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -30,11 +29,15 @@ import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static accord.utils.async.AsyncChainCombiner.Reduce;
 
 public abstract class AsyncChains<V> implements AsyncChain<V>
 {
+    private static final Logger logger = LoggerFactory.getLogger(AsyncChains.class);
+
     static class Immediate<V> implements AsyncChain<V>
     {
         static class FailureHolder
@@ -274,6 +277,7 @@ public abstract class AsyncChains<V> implements AsyncChain<V>
             }
             catch (Throwable t)
             {
+                logger.debug("AsyncChain Callable threw an Exception", t);
                 receiver.accept(null, t);
             }
         };
@@ -289,6 +293,7 @@ public abstract class AsyncChains<V> implements AsyncChain<V>
             }
             catch (Throwable t)
             {
+                logger.debug("AsyncChain Runnable threw an Exception", t);
                 receiver.accept(null, t);
             }
         };

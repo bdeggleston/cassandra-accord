@@ -1,48 +1,38 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package accord.local;
-
-import java.util.stream.Stream;
 
 import accord.api.Key;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedMap;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.NavigableMap;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
+import static accord.local.CommandsForKey.CommandTimeseries.TestDep.ANY_DEPS;
+import static accord.local.CommandsForKey.CommandTimeseries.TestDep.WITHOUT;
+import static accord.local.CommandsForKey.CommandTimeseries.TestKind.RorWs;
+import static accord.primitives.Txn.Kind.WRITE;
 import static accord.utils.Utils.*;
 
-public abstract class CommandsForKey implements CommandListener
+public class CommandsForKey extends Invalidatable
 {
-    private static final Logger logger = LoggerFactory.getLogger(CommandsForKey.class);
-
-    public interface CommandTimeseries<T>
+    public interface CommandLoader<D>
     {
-        void add(Timestamp timestamp, Command command);
-        void remove(Timestamp timestamp);
+        Command loadForCFK(D data);
+        D saveForCFK(Command command);
+    }
 
-        boolean isEmpty();
-
-        enum TestDep { WITH, WITHOUT, ANY_DEPS }
-        enum TestStatus
+    public static class CommandTimeseries<T, D>
+    {
+        public enum Kind { UNCOMMITTED, COMMITTED_BY_ID, COMMITTED_BY_EXECUTE_AT }
+        public enum TestDep { WITH, WITHOUT, ANY_DEPS }
+        public enum TestStatus
         {
             IS, HAS_BEEN, ANY_STATUS;
             public static boolean test(Status test, TestStatus predicate, Status param)
@@ -50,76 +40,332 @@ public abstract class CommandsForKey implements CommandListener
                 return predicate == ANY_STATUS || (predicate == IS ? test == param : test.hasBeen(param));
             }
         }
-        enum TestKind { Ws, RorWs}
+        public enum TestKind { Ws, RorWs}
 
-        /**
-         * All commands before (exclusive of) the given timestamp
-         *
-         * TODO (soon): TestDep should be asynchronous; data should not be kept memory-resident as only used for recovery
-         */
-        Stream<T> before(Timestamp timestamp, TestKind testKind, TestDep testDep, @Nullable TxnId depId, TestStatus testStatus, @Nullable Status status);
-
-        /**
-         * All commands after (exclusive of) the given timestamp
-         */
-        Stream<T> after(Timestamp timestamp, TestKind testKind, TestDep testDep, @Nullable TxnId depId, TestStatus testStatus, @Nullable Status status);
-    }
-
-    public static class TxnIdWithExecuteAt
-    {
-        public final TxnId txnId;
-        public final Timestamp executeAt;
-
-        public TxnIdWithExecuteAt(TxnId txnId, Timestamp executeAt)
+        private static <T, D> Stream<T> before(Function<Command, T> map, Function<D, Command> loader, NavigableMap<Timestamp, D> commands, @Nonnull Timestamp timestamp, @Nonnull TestKind testKind, @Nonnull TestDep testDep, @Nullable TxnId depId, @Nonnull TestStatus testStatus, @Nullable Status status)
         {
-            this.txnId = txnId;
-            this.executeAt = executeAt;
+            return commands.headMap(timestamp, false).values().stream()
+                    .map(loader)
+                    .filter(cmd -> testKind == RorWs || cmd.partialTxn().kind() == WRITE)
+                    .filter(cmd -> testDep == ANY_DEPS || (cmd.partialDeps().contains(depId) ^ (testDep == WITHOUT)))
+                    .filter(cmd -> TestStatus.test(cmd.status(), testStatus, status))
+                    .map(map);
+        }
+
+        private static <T, D> Stream<T> after(Function<Command, T> map, Function<D, Command> loader, NavigableMap<Timestamp, D> commands, @Nonnull Timestamp timestamp, @Nonnull TestKind testKind, @Nonnull TestDep testDep, @Nullable TxnId depId, @Nonnull TestStatus testStatus, @Nullable Status status)
+        {
+            return commands.tailMap(timestamp, false).values().stream()
+                    .map(loader)
+                    .filter(cmd -> testKind == RorWs || cmd.partialTxn().kind() == WRITE)
+                    .filter(cmd -> testDep == ANY_DEPS || (cmd.partialDeps().contains(depId) ^ (testDep == WITHOUT)))
+                    .filter(cmd -> TestStatus.test(cmd.status(), testStatus, status))
+                    .map(map);
+        }
+
+        protected final Function<Command, T> map;
+        protected final CommandLoader<D> loader;
+        protected final ImmutableSortedMap<Timestamp, D> commands;
+
+        public CommandTimeseries(Update<T, D> builder)
+        {
+            this.map = builder.map;
+            this.loader = builder.loader;
+            this.commands = ensureSortedImmutable(builder.commands);
+        }
+
+        public CommandTimeseries(Function<Command, T> map, CommandLoader<D> loader)
+        {
+            this.map = map;
+            this.loader = loader;
+            this.commands = ImmutableSortedMap.of();
+        }
+
+        public D get(Timestamp key)
+        {
+            return commands.get(key);
+        }
+
+        public boolean isEmpty()
+        {
+            return commands.isEmpty();
+        }
+
+        public Stream<T> before(@Nonnull Timestamp timestamp, @Nonnull TestKind testKind, @Nonnull TestDep testDep, @Nullable TxnId depId, @Nonnull TestStatus testStatus, @Nullable Status status)
+        {
+            return before(map, loader::loadForCFK, commands, timestamp, testKind, testDep, depId, testStatus, status);
+        }
+
+        public Stream<T> after(@Nonnull Timestamp timestamp, @Nonnull TestKind testKind, @Nonnull TestDep testDep, @Nullable TxnId depId, @Nonnull TestStatus testStatus, @Nullable Status status)
+        {
+            return after(map, loader::loadForCFK, commands, timestamp, testKind, testDep, depId, testStatus, status);
+        }
+
+        public Stream<T> between(Timestamp min, Timestamp max)
+        {
+            return commands.subMap(min, true, max, true).values().stream().map(loader::loadForCFK).map(map);
+        }
+
+        public Stream<T> all()
+        {
+            return commands.values().stream().map(loader::loadForCFK).map(map);
+        }
+
+        public static class Update<T, D>
+        {
+            protected Function<Command, T> map;
+            protected CommandLoader<D> loader;
+            protected NavigableMap<Timestamp, D> commands;
+
+            public Update(Function<Command, T> map, CommandLoader<D> loader)
+            {
+                this.map = map;
+                this.loader = loader;
+                this.commands = new TreeMap<>();
+            }
+
+            public Update(CommandTimeseries<T, D> timeseries)
+            {
+                this.map = timeseries.map;
+                this.loader = timeseries.loader;
+                this.commands = timeseries.commands;
+            }
+
+            public void add(Timestamp timestamp, Command command)
+            {
+                if (commands.containsKey(timestamp) && !commands.get(timestamp).equals(command))
+                    throw new IllegalStateException(String.format("Attempting to overwrite command at timestamp %s %s with %s.",
+                                                                  timestamp, commands.get(timestamp), command));
+                commands = ensureSortedMutable(commands);
+                commands.put(timestamp, loader.saveForCFK(command));
+            }
+
+            public void remove(Timestamp timestamp)
+            {
+                commands = ensureSortedMutable(commands);
+                commands.remove(timestamp);
+            }
+
+            CommandTimeseries<T, D> build()
+            {
+                return new CommandTimeseries<>(this);
+            }
         }
     }
 
-    public abstract Key key();
-    public abstract CommandTimeseries<? extends TxnIdWithExecuteAt> uncommitted();
-    public abstract CommandTimeseries<TxnId> committedById();
-    public abstract CommandTimeseries<TxnId> committedByExecuteAt();
-
-    public abstract Timestamp max();
-    protected abstract void updateMax(Timestamp timestamp);
-
-    @Override
-    public PreLoadContext listenerPreLoadContext(TxnId caller)
+    private static class Listener implements CommandListener
     {
-        return PreLoadContext.contextFor(caller, listOf(key()));
-    }
+        protected final Key listenerKey;
 
-    @Override
-    public void onChange(SafeCommandStore safeStore, Command command)
-    {
-        logger.trace("[{}]: updating as listener in response to change on {} with status {} ({})",
-                     key(), command.txnId(), command.status(), command);
-        updateMax(command.executeAt());
-        switch (command.status())
+        public Listener(Key listenerKey)
         {
-            case Applied:
-            case PreApplied:
-            case Committed:
-                committedById().add(command.txnId(), command);
-                committedByExecuteAt().add(command.executeAt(), command);
-            case Invalidated:
-                uncommitted().remove(command.txnId());
-                command.removeListener(this);
-                break;
+            Preconditions.checkArgument(listenerKey != null);
+            this.listenerKey = listenerKey;
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Listener that = (Listener) o;
+            return listenerKey.equals(that.listenerKey);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(listenerKey);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ListenerProxy{" + listenerKey + '}';
+        }
+
+        @Override
+        public void onChange(SafeCommandStore safeStore, TxnId txnId)
+        {
+            CommandsForKeys.listenerUpdate(safeStore, safeStore.commandsForKey(listenerKey), safeStore.command(txnId));
+        }
+
+        @Override
+        public PreLoadContext listenerPreLoadContext(TxnId caller)
+        {
+            return PreLoadContext.contextFor(caller, listOf(listenerKey));
         }
     }
 
-    public void register(Command command)
+    public static CommandListener listener(Key key)
     {
-        updateMax(command.executeAt());
-        uncommitted().add(command.txnId(), command);
-        command.addListener(this);
+        return new Listener(key);
     }
 
-    public boolean isEmpty()
+
+    public interface TxnIdWithExecuteAt
     {
-        return uncommitted().isEmpty() && committedById().isEmpty();
+        TxnId txnId();
+        Timestamp executeAt();
+
+        class Immutable implements TxnIdWithExecuteAt
+        {
+            private final TxnId txnId;
+            private final Timestamp executeAt;
+
+            public Immutable(TxnId txnId, Timestamp executeAt)
+            {
+                this.txnId = txnId;
+                this.executeAt = executeAt;
+            }
+
+            @Override
+            public TxnId txnId()
+            {
+                return txnId;
+            }
+
+            @Override
+            public Timestamp executeAt()
+            {
+                return executeAt;
+            }
+        }
+
+        static TxnIdWithExecuteAt from(Command command)
+        {
+            return new TxnIdWithExecuteAt.Immutable(command.txnId(), command.executeAt());
+        }
+    }
+
+    private final Key key;
+    private final Timestamp max;
+    private final CommandTimeseries<TxnIdWithExecuteAt, ?> uncommitted;
+    private final CommandTimeseries<TxnId, ?> committedById;
+    private final CommandTimeseries<TxnId, ?> committedByExecuteAt;
+
+    public CommandsForKey(Key key, CommandLoader<?> loader)
+    {
+        this.key = key;
+        this.max = Timestamp.NONE;
+        this.uncommitted = new CommandTimeseries<>(TxnIdWithExecuteAt::from, loader);
+        this.committedById = new CommandTimeseries<>(Command::txnId, loader);
+        this.committedByExecuteAt = new CommandTimeseries<>(Command::txnId, loader);
+    }
+
+    public CommandsForKey(Update builder)
+    {
+        this.key = builder.key;
+        this.max = builder.max;
+        this.uncommitted = builder.uncommitted.build();
+        this.committedById = builder.committedById.build();
+        this.committedByExecuteAt = builder.committedByExecuteAt.build();
+    }
+
+    public Key key()
+    {
+        checkNotInvalidated();
+        return key;
+    }
+
+    public Timestamp max()
+    {
+        checkNotInvalidated();
+        return max;
+    }
+
+    public CommandTimeseries<? extends TxnIdWithExecuteAt, ?> uncommitted()
+    {
+        checkNotInvalidated();
+        return uncommitted;
+    }
+
+    public CommandTimeseries<TxnId, ?> committedById()
+    {
+        checkNotInvalidated();
+        return committedById;
+    }
+
+    public CommandTimeseries<TxnId, ?> committedByExecuteAt()
+    {
+        checkNotInvalidated();
+        return committedByExecuteAt;
+    }
+
+    public static class Update
+    {
+        private final SafeCommandStore safeStore;
+        private boolean completed = false;
+        private final Key key;
+        private final CommandsForKey original;
+        private Timestamp max;
+        private final CommandTimeseries.Update<TxnIdWithExecuteAt, ?> uncommitted;
+        private final CommandTimeseries.Update<TxnId, ?> committedById;
+        private final CommandTimeseries.Update<TxnId, ?> committedByExecuteAt;
+
+        protected  <T, D> CommandTimeseries.Update<T, D> seriesBuilder(Function<Command, T> map, CommandLoader<D> loader, CommandTimeseries.Kind kind)
+        {
+            return new CommandTimeseries.Update<>(map, loader);
+        }
+
+        protected  <T, D> CommandTimeseries.Update<T, D> seriesBuilder(CommandTimeseries<T, D> series, CommandTimeseries.Kind kind)
+        {
+            return new CommandTimeseries.Update<>(series);
+        }
+
+        public Update(SafeCommandStore safeStore, CommandsForKey original)
+        {
+            this.safeStore = safeStore;
+            this.original = original;
+            this.key = original.key;
+            this.max = original.max;
+            this.uncommitted = seriesBuilder(original.uncommitted, CommandTimeseries.Kind.UNCOMMITTED);
+            this.committedById = seriesBuilder(original.committedById, CommandTimeseries.Kind.COMMITTED_BY_ID);
+            this.committedByExecuteAt = seriesBuilder(original.committedByExecuteAt, CommandTimeseries.Kind.COMMITTED_BY_EXECUTE_AT);
+        }
+
+        private void checkNotCompleted()
+        {
+            if (completed)
+                throw new IllegalStateException(this + " has been completed");
+        }
+
+        public Key key()
+        {
+            return key;
+        }
+
+        public void updateMax(Timestamp timestamp)
+        {
+            checkNotCompleted();
+            max = Timestamp.max(max, timestamp);
+        }
+
+        void addUncommitted(Command command)
+        {
+            checkNotCompleted();
+            uncommitted.add(command.txnId(), command);
+        }
+
+        void removeUncommitted(Command command)
+        {
+            checkNotCompleted();
+            uncommitted.remove(command.txnId());
+        }
+
+        void addCommitted(Command command)
+        {
+            checkNotCompleted();
+            committedById.add(command.txnId(), command);
+            committedByExecuteAt.add(command.executeAt(), command);
+        }
+
+        public CommandsForKey complete()
+        {
+            checkNotCompleted();
+            CommandsForKey updated = new CommandsForKey(this);
+            safeStore.completeUpdate(this, original, updated);
+            completed = true;
+            return updated;
+        }
     }
 }

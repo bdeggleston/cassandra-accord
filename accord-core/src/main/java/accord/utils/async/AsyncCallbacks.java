@@ -1,13 +1,21 @@
 package accord.utils.async;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 
 public class AsyncCallbacks
 {
+    private static final Logger logger = LoggerFactory.getLogger(AsyncCallbacks.class);
+
     private static final BiConsumer<Object, Throwable> THROW_ON_FAILURE = (unused, failure) -> {
         if (failure != null)
+        {
+            logger.error("Uncaught exception", failure);
             throw new RuntimeException(failure);
+        }
     };
 
     public static <T> BiConsumer<? super T, Throwable> throwOnFailure()

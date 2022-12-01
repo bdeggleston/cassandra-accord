@@ -26,7 +26,10 @@ import accord.primitives.Keys;
 import accord.utils.async.AsyncChain;
 
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -35,6 +38,8 @@ import java.util.function.Function;
  */
 public abstract class CommandStore
 {
+    private static final Logger logger = LoggerFactory.getLogger(CommandStore.class);
+
     public interface Factory
     {
         CommandStore create(int id,
@@ -46,6 +51,45 @@ public abstract class CommandStore
                             DataStore store,
                             ProgressLog.Factory progressLogFactory,
                             RangesForEpoch rangesForEpoch);
+    }
+
+    private static <T> T executeInContext(CommandStore commandStore, PreLoadContext context, Function<? super SafeCommandStore, T> function, boolean isDirectCall)
+    {
+
+        SafeCommandStore safeStore = commandStore.beginOperation(context);
+        try
+        {
+            return function.apply(safeStore);
+        }
+        catch (Throwable t)
+        {
+            if (isDirectCall) logger.error("Uncaught exception", t);
+            throw t;
+        }
+        finally
+        {
+            commandStore.completeOperation(safeStore);
+        }
+    }
+
+    protected static <T> T executeInContext(CommandStore commandStore, PreLoadContext context, Function<? super SafeCommandStore, T> function)
+    {
+        return executeInContext(commandStore, context, function, true);
+
+    }
+
+    protected static <T> void executeInContext(CommandStore commandStore, PreLoadContext context, Function<? super SafeCommandStore, T> function, BiConsumer<? super T, Throwable> callback)
+    {
+        try
+        {
+            T result = executeInContext(commandStore, context, function, false);
+            callback.accept(result, null);
+        }
+        catch (Throwable t)
+        {
+            logger.error("Uncaught exception", t);
+            callback.accept(null, t);
+        }
     }
 
     public interface RangesForEpoch
@@ -102,6 +146,8 @@ public abstract class CommandStore
     }
 
     public abstract Agent agent();
+    public abstract SafeCommandStore beginOperation(PreLoadContext context);
+    public abstract void completeOperation(SafeCommandStore store);
     public abstract AsyncChain<Void> execute(PreLoadContext context, Consumer<? super SafeCommandStore> consumer);
     public abstract <T> AsyncChain<T> submit(PreLoadContext context, Function<? super SafeCommandStore, T> apply);
     public abstract void shutdown();

@@ -24,13 +24,13 @@ import java.util.function.BiConsumer;
 
 import accord.coordinate.tracking.QuorumTracker;
 import accord.local.SaveStatus;
+import accord.local.*;
 import accord.primitives.*;
 import com.google.common.base.Preconditions;
 
 import accord.api.RoutingKey;
 import accord.local.Node;
 import accord.local.Node.Id;
-import accord.local.Status;
 import accord.messages.BeginInvalidation;
 import accord.messages.BeginInvalidation.InvalidateNack;
 import accord.messages.BeginInvalidation.InvalidateOk;
@@ -108,7 +108,7 @@ public class Invalidate implements Callback<InvalidateReply>
             if (nack.homeKey != null)
             {
                 node.ifLocalSince(contextFor(txnId), invalidateWithKey, txnId, safeStore -> {
-                    safeStore.command(txnId).updateHomeKey(safeStore, nack.homeKey);
+                    Commands.updateHomeKey(safeStore, safeStore.command(txnId), nack.homeKey);
                 }).begin(node.agent());
             }
 
@@ -176,7 +176,7 @@ public class Invalidate implements Callback<InvalidateReply>
                 case Invalidated:
                     isDone = true;
                     node.forEachLocalSince(contextFor(txnId), informKeys, txnId, safeStore -> {
-                        safeStore.command(txnId).commitInvalidate(safeStore);
+                        Commands.commitInvalidate(safeStore, txnId);
                     }).begin((success, fail) -> {
                         callback.accept(INVALIDATED, null);
                     });
@@ -207,7 +207,7 @@ public class Invalidate implements Callback<InvalidateReply>
                 commitInvalidate(node, txnId, route != null ? route : informKeys, txnId);
                 // TODO: pick a reasonable upper bound, so we don't invalidate into an epoch/commandStore that no longer cares about this command
                 node.forEachLocalSince(contextFor(txnId), informKeys, txnId, safeStore -> {
-                    safeStore.command(txnId).commitInvalidate(safeStore);
+                    Commands.commitInvalidate(safeStore, txnId);
                 }).addCallback((s, f) -> {
                     callback.accept(INVALIDATED, null);
                     if (f != null) // TODO: consider exception handling more carefully: should we catch these prior to passing to callbacks?

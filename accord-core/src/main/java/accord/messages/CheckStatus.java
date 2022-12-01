@@ -80,18 +80,6 @@ public class CheckStatus extends AbstractEpochRequest<CheckStatus.CheckStatusOk>
         this.includeInfo = includeInfo;
     }
 
-    @Override
-    public Iterable<TxnId> txnIds()
-    {
-        return Collections.singleton(txnId);
-    }
-
-    @Override
-    public Iterable<Key> keys()
-    {
-        return Collections.emptyList();
-    }
-
     public CheckStatus(Id to, Topologies topologies, TxnId txnId, RoutingKeys someKeys, IncludeInfo includeInfo)
     {
         super(txnId);
@@ -103,6 +91,18 @@ public class CheckStatus extends AbstractEpochRequest<CheckStatus.CheckStatusOk>
         this.startEpoch = topologies.oldestEpoch();
         this.endEpoch = topologies.currentEpoch();
         this.includeInfo = includeInfo;
+    }
+
+    @Override
+    public Iterable<TxnId> txnIds()
+    {
+        return Collections.singleton(txnId);
+    }
+
+    @Override
+    public Iterable<Key> keys()
+    {
+        return Collections.emptyList();
     }
 
     public void process()
@@ -257,8 +257,8 @@ public class CheckStatus extends AbstractEpochRequest<CheckStatus.CheckStatusOk>
             super(node, command);
             this.partialTxn = command.partialTxn();
             this.committedDeps = command.status().compareTo(Committed) >= 0 ? command.partialDeps() : null;
-            this.writes = command.writes();
-            this.result = command.result();
+            this.writes = command.isExecuted() ? command.asExecuted().writes() : null;
+            this.result = command.isExecuted() ? command.asExecuted().result() : null;
         }
 
         protected CheckStatusOkFull(SaveStatus status, Ballot promised, Ballot accepted, Timestamp executeAt,

@@ -22,9 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import accord.local.Command;
-
 import accord.api.*;
+import accord.local.Command;
 import accord.local.SafeCommandStore;
 import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncChains;
@@ -171,7 +170,7 @@ public interface Txn
         return new Writes(executeAt, update.keys(), update.apply(data));
     }
 
-    default AsyncChain<Data> read(SafeCommandStore safeStore, Command command)
+    default AsyncChain<Data> read(SafeCommandStore safeStore, Command.Committed command)
     {
         KeyRanges ranges = safeStore.ranges().at(command.executeAt().epoch);
         List<AsyncChain<Data>> futures = read().keys().foldl(ranges, (index, key, accumulate) -> {

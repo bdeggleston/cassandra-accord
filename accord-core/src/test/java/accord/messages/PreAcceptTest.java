@@ -20,7 +20,6 @@ package accord.messages;
 
 import accord.api.RoutingKey;
 import accord.impl.*;
-import accord.impl.InMemoryCommandsForKey.InMemoryCommandTimeseries;
 import accord.impl.mock.*;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -100,7 +99,8 @@ public class PreAcceptTest
             clock.increment(10);
             preAccept.process(node, ID2, REPLY_CONTEXT);
 
-            Command command = ((InMemoryCommandTimeseries<?>)inMemory(commandStore).commandsForKey(key).uncommitted()).all().findFirst().get();
+            CommandsForKey.TxnIdWithExecuteAt commandId = inMemory(commandStore).commandsForKey(key).uncommitted().all().findFirst().get();
+            Command command = inMemory(commandStore).command(commandId.txnId());
             Assertions.assertEquals(Status.PreAccepted, command.status());
 
             messageSink.assertHistorySizes(0, 1);
@@ -228,7 +228,9 @@ public class PreAcceptTest
             clock.increment(10);
             preAccept.process(node, ID2, REPLY_CONTEXT);
 
-            Command command = ((InMemoryCommandTimeseries<?>)inMemory(commandStore).commandsForKey(key).uncommitted()).all().findFirst().get();
+            CommandsForKey.TxnIdWithExecuteAt commandId = inMemory(commandStore).commandsForKey(key).uncommitted().all().findFirst().get();
+            Command command = inMemory(commandStore).command(commandId.txnId());
+
             Assertions.assertEquals(Status.PreAccepted, command.status());
 
             messageSink.assertHistorySizes(0, 1);

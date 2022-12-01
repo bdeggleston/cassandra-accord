@@ -23,6 +23,8 @@ import java.util.Set;
 
 import accord.api.Key;
 import accord.local.*;
+import accord.local.Commands.CommitOutcome;
+import accord.local.Commands.Outcome;
 import accord.messages.ReadData.ReadNack;
 import accord.messages.ReadData.ReadReply;
 import accord.primitives.*;
@@ -33,12 +35,16 @@ import javax.annotation.Nullable;
 import com.google.common.base.Preconditions;
 
 import accord.topology.Topology;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static accord.local.Status.Known.Definition;
 
 // TODO: CommitOk responses, so we can send again if no reply received? Or leave to recovery?
 public class Commit extends TxnRequest<ReadNack>
 {
+    private static final Logger logger = LoggerFactory.getLogger(Commit.class);
+
     public static class SerializerSupport
     {
         public static Commit create(TxnId txnId, PartialRoute scope, long waitForEpoch, Timestamp executeAt, @Nullable PartialTxn partialTxn, PartialDeps partialDeps, @Nullable Route fullRoute, @Nullable ReadData read)
@@ -147,8 +153,8 @@ public class Commit extends TxnRequest<ReadNack>
     @Override
     public synchronized ReadNack apply(SafeCommandStore safeStore)
     {
-        Command command = safeStore.command(txnId);
-        switch (command.commit(safeStore, route != null ? route : scope, progressKey, partialTxn, executeAt, partialDeps))
+        Outcome<CommitOutcome> outcome = Commands.commit(safeStore, txnId, route != null ? route : scope, progressKey, partialTxn, executeAt, partialDeps);
+        switch (outcome.status)
         {
             default:
             case Success:
@@ -156,10 +162,10 @@ public class Commit extends TxnRequest<ReadNack>
                 return null;
 
             case Insufficient:
-                Preconditions.checkState(!command.hasBeenWitnessed());
+                Preconditions.checkState(!outcome.command.hasBeenWitnessed());
                 if (defer == null)
                     defer = new Defer(Definition, Commit.this);
-                defer.add(command, safeStore.commandStore());
+                defer.add(safeStore, outcome.command, safeStore.commandStore());
                 return ReadNack.NotCommitted;
         }
     }
@@ -173,6 +179,11 @@ public class Commit extends TxnRequest<ReadNack>
     @Override
     public void accept(ReadNack reply, Throwable failure)
     {
+        if (failure != null)
+        {
+            logger.error("Unhandled exception during commit", failure);
+            return;
+        }
         if (reply != null)
             node.reply(replyTo, replyContext, reply);
         else if (read != null)
@@ -271,7 +282,7 @@ public class Commit extends TxnRequest<ReadNack>
         public void process(Node node, Id from, ReplyContext replyContext)
         {
             node.forEachLocal(this, scope, txnId.epoch, invalidateUntilEpoch,
-                            safeStore -> safeStore.command(txnId).commitInvalidate(safeStore))
+                            safeStore -> Commands.commitInvalidate(safeStore, txnId))
                     .begin(node.agent());
         }
 

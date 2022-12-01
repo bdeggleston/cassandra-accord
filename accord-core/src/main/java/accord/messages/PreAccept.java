@@ -23,6 +23,8 @@ import java.util.Objects;
 
 import accord.api.Key;
 import accord.local.*;
+import accord.local.Commands.AcceptOutcome;
+import accord.local.Commands.Outcome;
 import accord.local.CommandsForKey.CommandTimeseries.TestKind;
 
 import accord.local.Node.Id;
@@ -95,13 +97,13 @@ public class PreAccept extends WithUnsynced<PreAccept.PreAcceptReply>
         // note: this diverges from the paper, in that instead of waiting for JoinShard,
         //       we PreAccept to both old and new topologies and require quorums in both.
         //       This necessitates sending to ALL replicas of old topology, not only electorate (as fast path may be unreachable).
-        Command command = safeStore.command(txnId);
-        switch (command.preaccept(safeStore, partialTxn, route != null ? route : scope, progressKey))
+        Outcome<AcceptOutcome> outcome = Commands.preaccept(safeStore, txnId, partialTxn, route != null ? route : scope, progressKey);
+        switch (outcome.status)
         {
             default:
             case Success:
             case Redundant:
-                return new PreAcceptOk(txnId, command.executeAt(), calculatePartialDeps(safeStore, txnId, partialTxn.keys(), partialTxn.kind(), txnId, safeStore.ranges().between(minEpoch, txnId.epoch)));
+                return new PreAcceptOk(txnId, outcome.command.executeAt(), calculatePartialDeps(safeStore, txnId, partialTxn.keys(), partialTxn.kind(), txnId, safeStore.ranges().between(minEpoch, txnId.epoch)));
 
             case RejectedBallot:
                 return PreAcceptNack.INSTANCE;
@@ -229,7 +231,7 @@ public class PreAccept extends WithUnsynced<PreAccept.PreAcceptReply>
             TestKind testKind = kindOfTxn.isWrite() ? RorWs : Ws;
             forKey.uncommitted().before(executeAt, testKind, ANY_DEPS, null, ANY_STATUS, null)
                     .forEach(info -> {
-                        if (!info.txnId.equals(txnId)) builder.add(info.txnId);
+                        if (!info.txnId().equals(txnId)) builder.add(info.txnId());
                     });
             forKey.committedByExecuteAt().before(executeAt, testKind, ANY_DEPS, null, ANY_STATUS, null)
                     .forEach(id -> {
