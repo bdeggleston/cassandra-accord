@@ -789,7 +789,7 @@ public interface InMemoryCommandStore extends CommandStore
             return new AsyncChains.Head<T>()
             {
                 @Override
-                public void begin(BiConsumer<? super T, Throwable> callback)
+                protected void start(BiConsumer<? super T, Throwable> callback)
                 {
                     enqueueAndRun(() -> executeSync(context, function, callback));
                 }
@@ -819,7 +819,7 @@ public interface InMemoryCommandStore extends CommandStore
 
             try
             {
-                return AsyncResults.getBlocking(result);
+                return AsyncChains.getBlocking(result);
             }
             catch (InterruptedException e)
             {
