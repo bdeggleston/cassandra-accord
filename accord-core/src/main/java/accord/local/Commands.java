@@ -327,8 +327,8 @@ public class Commands
                         //                             only the write needs to be postponed until other in-progress reads complete
                     case ReadyToExecute:
                     case PreApplied:
-                    case Applied:
                         command = safeCommand.addListener(new Command.Listener(txnId));
+                    case Applied:
                         insertPredecessor(txnId, executeAt, update, command);
                     case Invalidated:
                         break;

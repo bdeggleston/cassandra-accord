@@ -57,6 +57,12 @@ public interface SafeCommandStore
         PreLoadContext context = PreLoadContext.contextFor(listOf(txnId, listenerId), Keys.EMPTY);
         commandStore().execute(context, safeStore -> {
             SafeCommand safeCommand = safeStore.command(txnId);
+            switch (safeCommand.current().status())
+            {
+                case Applied:
+                case Invalidated:
+                    return;
+            }
             CommandListener listener = new Command.Listener(listenerId);
             safeCommand.addListener(listener);
             listener.onChange(safeStore, safeCommand);
