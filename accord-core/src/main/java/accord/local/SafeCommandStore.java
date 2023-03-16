@@ -57,14 +57,16 @@ public interface SafeCommandStore
         PreLoadContext context = PreLoadContext.contextFor(listOf(txnId, listenerId), Keys.EMPTY);
         commandStore().execute(context, safeStore -> {
             SafeCommand safeCommand = safeStore.command(txnId);
+            CommandListener listener = new Command.Listener(listenerId);
             switch (safeCommand.current().status())
             {
                 case Applied:
                 case Invalidated:
-                    return;
+                    break;
+                default:
+                    safeCommand.addListener(listener);
             }
-            CommandListener listener = new Command.Listener(listenerId);
-            safeCommand.addListener(listener);
+            // need to call on change even if not adding listener so updatePredecessor is called
             listener.onChange(safeStore, safeCommand);
         }).begin(agent());
     }
