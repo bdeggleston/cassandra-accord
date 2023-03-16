@@ -59,6 +59,7 @@ class Defer implements CommandListener
 
     void add(SafeCommandStore safeStore, SafeCommand safeCommand, CommandStore commandStore)
     {
+        // FIXME: this is getting thrown a lot during benchmarks
         if (isDone)
             throw new IllegalStateException("Recurrent retry of " + request);
 
