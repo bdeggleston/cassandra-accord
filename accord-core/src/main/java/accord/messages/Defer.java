@@ -57,7 +57,7 @@ class Defer implements CommandListener
         this.request = request;
     }
 
-    void add(SafeCommandStore safeStore, SafeCommand safeCommand, CommandStore commandStore)
+    synchronized void add(SafeCommandStore safeStore, SafeCommand safeCommand, CommandStore commandStore)
     {
         // FIXME: this is getting thrown a lot during benchmarks
         if (isDone)
@@ -69,7 +69,7 @@ class Defer implements CommandListener
     }
 
     @Override
-    public void onChange(SafeCommandStore safeStore, SafeCommand safeCommand)
+    public synchronized void onChange(SafeCommandStore safeStore, SafeCommand safeCommand)
     {
         Command command = safeCommand.current();
         Ready ready = waitUntil.apply(command);
