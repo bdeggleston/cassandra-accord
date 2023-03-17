@@ -21,6 +21,8 @@ package accord.coordinate;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
+
 import accord.api.Result;
 import accord.coordinate.tracking.QuorumTracker;
 import accord.local.Node;
@@ -36,7 +38,6 @@ import accord.primitives.Txn;
 import accord.primitives.*;
 import accord.topology.Shard;
 import accord.topology.Topologies;
-import org.apache.mina.util.ConcurrentHashSet;
 
 import static accord.coordinate.tracking.RequestStatus.Success;
 import static accord.local.Status.Durability.Durable;
@@ -77,7 +78,7 @@ public class Persist implements Callback<ApplyReply>
         this.route = route;
         this.tracker = new QuorumTracker(topologies);
         this.executeAt = executeAt;
-        this.persistedOn = new ConcurrentHashSet<>();
+        this.persistedOn = Sets.newConcurrentHashSet();
     }
 
     @Override
