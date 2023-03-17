@@ -106,7 +106,7 @@ public class Invalidate implements Callback<InvalidateReply>
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (isDone || isPrepareDone)
             return;
@@ -277,7 +277,7 @@ public class Invalidate implements Callback<InvalidateReply>
     }
 
     @Override
-    public void onCallbackFailure(Id from, Throwable failure)
+    public synchronized void onCallbackFailure(Id from, Throwable failure)
     {
         if (isDone)
             return;

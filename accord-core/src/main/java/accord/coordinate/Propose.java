@@ -38,7 +38,6 @@ import accord.local.Node;
 import accord.local.Node.Id;
 import accord.messages.Accept;
 import accord.messages.Accept.AcceptReply;
-import accord.utils.Invariants;
 
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
 import static accord.coordinate.tracking.RequestStatus.Failed;
@@ -89,7 +88,7 @@ class Propose implements Callback<AcceptReply>
     }
 
     @Override
-    public void onSuccess(Id from, AcceptReply reply)
+    public synchronized void onSuccess(Id from, AcceptReply reply)
     {
         if (isDone)
             return;
@@ -112,7 +111,7 @@ class Propose implements Callback<AcceptReply>
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (acceptTracker.recordFailure(from) == Failed)
         {
@@ -122,13 +121,13 @@ class Propose implements Callback<AcceptReply>
     }
 
     @Override
-    public void onCallbackFailure(Id from, Throwable failure)
+    public synchronized void onCallbackFailure(Id from, Throwable failure)
     {
         isDone = true;
         callback.accept(null, failure);
     }
 
-    private void onAccepted()
+    private synchronized void onAccepted()
     {
         isDone = true;
         Deps deps = Deps.merge(acceptOks, ok -> ok.deps);
@@ -166,7 +165,7 @@ class Propose implements Callback<AcceptReply>
         }
 
         @Override
-        public void onSuccess(Id from, AcceptReply reply)
+        public synchronized void onSuccess(Id from, AcceptReply reply)
         {
             if (isDone)
                 return;
@@ -186,7 +185,7 @@ class Propose implements Callback<AcceptReply>
         }
 
         @Override
-        public void onFailure(Id from, Throwable failure)
+        public synchronized void onFailure(Id from, Throwable failure)
         {
             if (acceptTracker.onFailure(from) == Fail)
             {
@@ -196,7 +195,7 @@ class Propose implements Callback<AcceptReply>
         }
 
         @Override
-        public void onCallbackFailure(Id from, Throwable failure)
+        public synchronized void onCallbackFailure(Id from, Throwable failure)
         {
             if (isDone)
                 return;

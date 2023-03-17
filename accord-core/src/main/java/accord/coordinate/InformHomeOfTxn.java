@@ -18,6 +18,8 @@
 
 package accord.coordinate;
 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import accord.api.RoutingKey;
 import accord.coordinate.tracking.QuorumTracker.QuorumShardTracker;
 import accord.local.Node;
@@ -75,7 +77,7 @@ public class InformHomeOfTxn extends AsyncResults.SettableResult<Void> implement
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (this.failure == null) this.failure = failure;
         else this.failure.addSuppressed(failure);

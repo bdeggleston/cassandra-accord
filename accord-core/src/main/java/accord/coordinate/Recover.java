@@ -321,7 +321,7 @@ public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throw
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (isDone)
             return;
@@ -331,7 +331,7 @@ public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throw
     }
 
     @Override
-    public void onCallbackFailure(Id from, Throwable failure)
+    public synchronized void onCallbackFailure(Id from, Throwable failure)
     {
         accept(null, failure);
         node.agent().onUncaughtException(failure);

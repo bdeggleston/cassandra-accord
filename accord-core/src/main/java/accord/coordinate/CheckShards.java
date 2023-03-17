@@ -18,6 +18,8 @@
 
 package accord.coordinate;
 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.messages.CheckStatus;
@@ -33,6 +35,7 @@ import accord.topology.Topologies;
  */
 public abstract class CheckShards extends ReadCoordinator<CheckStatusReply>
 {
+    private static final AtomicReferenceFieldUpdater<CheckShards, CheckStatusOk> MERGED = AtomicReferenceFieldUpdater.newUpdater(CheckShards.class, CheckStatusOk.class, "merged");
     final Unseekables<?, ?> contact;
 
     /**
@@ -42,7 +45,7 @@ public abstract class CheckShards extends ReadCoordinator<CheckStatusReply>
     final long untilRemoteEpoch;
     final IncludeInfo includeInfo;
 
-    protected CheckStatusOk merged;
+    protected volatile CheckStatusOk merged;
 
     protected CheckShards(Node node, TxnId txnId, Unseekables<?, ?> contact, long srcEpoch, IncludeInfo includeInfo)
     {
@@ -84,9 +87,16 @@ public abstract class CheckShards extends ReadCoordinator<CheckStatusReply>
         if (reply.isOk())
         {
             CheckStatusOk ok = (CheckStatusOk) reply;
-            if (merged == null) merged = ok;
-            else merged = merged.merge(ok);
+            CheckStatusOk prev, next;
+            do
+            {
+                prev = merged;
+                if (prev == null)
+                    next = ok;
+                else
+                    next = prev.merge(ok);
 
+            } while (!MERGED.compareAndSet(this, prev, next));
             return checkSufficient(from, ok);
         }
         else

@@ -87,7 +87,7 @@ abstract class ReadCoordinator<Reply extends accord.messages.Reply> extends Read
     protected abstract void contact(Id to);
 
     @Override
-    public void onSuccess(Id from, Reply reply)
+    public synchronized void onSuccess(Id from, Reply reply)
     {
         if (debug != null)
             debug.put(from, reply);
@@ -121,13 +121,13 @@ abstract class ReadCoordinator<Reply extends accord.messages.Reply> extends Read
     }
 
     @Override
-    public void onSlowResponse(Id from)
+    public synchronized void onSlowResponse(Id from)
     {
         handle(recordSlowResponse(from));
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (debug != null)
             debug.put(from, null);
@@ -142,7 +142,7 @@ abstract class ReadCoordinator<Reply extends accord.messages.Reply> extends Read
     }
 
     @Override
-    public void onCallbackFailure(Id from, Throwable failure)
+    public synchronized void onCallbackFailure(Id from, Throwable failure)
     {
         if (isDone)
         {

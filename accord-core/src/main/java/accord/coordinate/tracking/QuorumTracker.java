@@ -18,6 +18,8 @@
 
 package accord.coordinate.tracking;
 
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
 import accord.local.Node;
 import accord.topology.Shard;
 import accord.topology.Topologies;
@@ -28,8 +30,10 @@ public class QuorumTracker extends AbstractTracker<QuorumTracker.QuorumShardTrac
 {
     public static class QuorumShardTracker extends ShardTracker
     {
-        protected int successes;
-        protected int failures;
+        protected static final AtomicIntegerFieldUpdater<QuorumShardTracker> SUCCESSES = AtomicIntegerFieldUpdater.newUpdater(QuorumShardTracker.class, "successes");
+        protected static final AtomicIntegerFieldUpdater<QuorumShardTracker> FAILURES = AtomicIntegerFieldUpdater.newUpdater(QuorumShardTracker.class, "failures");
+        protected volatile int successes;
+        protected volatile int failures;
 
         public QuorumShardTracker(Shard shard)
         {
@@ -38,13 +42,13 @@ public class QuorumTracker extends AbstractTracker<QuorumTracker.QuorumShardTrac
 
         public ShardOutcomes onSuccess(Object ignore)
         {
-            return ++successes == shard.slowPathQuorumSize ? Success : NoChange;
+            return SUCCESSES.incrementAndGet(this) == shard.slowPathQuorumSize ? Success : NoChange;
         }
 
         // return true iff hasFailed()
         public ShardOutcomes onFailure(Object ignore)
         {
-            return ++failures > shard.maxFailures ? Fail : NoChange;
+            return FAILURES.incrementAndGet(this) > shard.maxFailures ? Fail : NoChange;
         }
 
         public boolean hasReachedQuorum()

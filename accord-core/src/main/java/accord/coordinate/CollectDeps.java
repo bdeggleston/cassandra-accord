@@ -68,7 +68,7 @@ class CollectDeps implements Callback<GetDepsOk>
     }
 
     @Override
-    public void onSuccess(Id from, GetDepsOk ok)
+    public synchronized void onSuccess(Id from, GetDepsOk ok)
     {
         if (isDone)
             return;
@@ -79,7 +79,7 @@ class CollectDeps implements Callback<GetDepsOk>
     }
 
     @Override
-    public void onFailure(Id from, Throwable failure)
+    public synchronized void onFailure(Id from, Throwable failure)
     {
         if (tracker.recordFailure(from) == Failed)
         {
@@ -89,7 +89,7 @@ class CollectDeps implements Callback<GetDepsOk>
     }
 
     @Override
-    public void onCallbackFailure(Id from, Throwable failure)
+    public synchronized void onCallbackFailure(Id from, Throwable failure)
     {
         isDone = true;
         callback.accept(null, failure);
