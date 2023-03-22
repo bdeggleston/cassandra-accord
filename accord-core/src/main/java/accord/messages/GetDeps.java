@@ -18,6 +18,7 @@
 
 package accord.messages;
 
+import accord.local.SafeCommand;
 import accord.local.SafeCommandStore;
 import accord.primitives.*;
 import accord.utils.Invariants;
@@ -67,10 +68,14 @@ public class GetDeps extends TxnRequest.WithUnsynced<PartialDeps>
     }
 
     @Override
-    public PartialDeps apply(SafeCommandStore instance)
+    public PartialDeps apply(SafeCommandStore safeStore)
     {
-        Ranges ranges = instance.ranges().between(minUnsyncedEpoch, executeAt.epoch());
-        return calculatePartialDeps(instance, txnId, keys, executeAt, ranges);
+        SafeCommand command = safeStore.ifPresent(txnId);
+        if (command != null && command.current().known().deps.hasProposedOrDecidedDeps())
+            return command.current().partialDeps();
+        // TODO (now): can we calculate deps if we're removing them from CFK, or do we need to nack?
+        Ranges ranges = safeStore.ranges().between(minUnsyncedEpoch, executeAt.epoch());
+        return calculatePartialDeps(safeStore, txnId, keys, executeAt, ranges);
     }
 
     @Override

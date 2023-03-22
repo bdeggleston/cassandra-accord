@@ -23,6 +23,7 @@ import accord.api.VisibleForImplementation;
 import accord.impl.CommandsForKey.CommandLoader;
 import accord.impl.CommandsForKey.CommandTimeseries;
 import accord.local.Command;
+import accord.local.Status;
 import accord.primitives.Timestamp;
 import accord.utils.Invariants;
 import com.google.common.annotations.VisibleForTesting;
@@ -133,6 +134,26 @@ public abstract class SafeCommandsForKey implements SafeState<CommandsForKey>
                 byId.remove(command.txnId());
                 byExecuteAt.remove(command.txnId());
                 break;
+        }
+
+        // TODO (now): or Invalidated?
+        if (command.status() == Status.Applied)
+        {
+            command.partialDeps().txnIds().forEach(txnId -> {
+                D data = byId.commands.get(txnId);
+                if (data == null)
+                    return;
+                if (!byId.loader.saveStatus(data).status.hasBeen(Status.Applied))
+                    return;
+                if (txnId.compareTo(command.txnId()) >= 0)
+                    return;
+                Timestamp executeAt = byId.loader.executeAt(data);
+                if (executeAt.compareTo(command.executeAt()) >= 0)
+                    return;
+
+                logger.trace("Removing txnId:{} from CFK {}", txnId, key());
+                byId.remove(txnId);
+            });
         }
 
         return update(new CommandsForKey(current.key(),
