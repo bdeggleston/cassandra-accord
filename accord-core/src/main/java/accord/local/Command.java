@@ -137,7 +137,7 @@ public abstract class Command implements CommonAttributes
         @Override
         public int hashCode()
         {
-            return Objects.hash(listenerId);
+            return Objects.hashCode(listenerId);
         }
 
         @Override

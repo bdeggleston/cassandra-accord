@@ -250,7 +250,7 @@ public class CommandsForKey
         @Override
         public int hashCode()
         {
-            return Objects.hash(listenerKey);
+            return Objects.hashCode(listenerKey);
         }
 
         @Override
