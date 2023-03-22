@@ -164,8 +164,6 @@ public class SimpleProgressLog implements ProgressLog.Factory
                 CoordinateStatus status = CoordinateStatus.NotWitnessed;
                 ProgressToken token = ProgressToken.NONE;
 
-                Object debugInvestigating;
-
                 void ensureAtLeast(Command command, CoordinateStatus newStatus, Progress newProgress)
                 {
                     ensureAtLeast(newStatus, newProgress);
@@ -228,7 +226,7 @@ public class SimpleProgressLog implements ProgressLog.Factory
                                 // records to the home shard, so we only know the executeAt shards will have witnessed this
                                 // if the home shard is at an earlier phase, it must run recovery
                                 long epoch = command.executeAt().epoch();
-                                node.withEpoch(epoch, () -> debugInvestigating = FetchData.fetch(PreApplied.minKnown, node, txnId, command.route(), epoch, (success, fail) -> {
+                                node.withEpoch(epoch, () -> FetchData.fetch(PreApplied.minKnown, node, txnId, command.route(), epoch, (success, fail) -> {
                                     commandStore.execute(PreLoadContext.empty(), ignore -> {
                                         // should have found enough information to apply the result, but in case we did not reset progress
                                         if (progress() == Investigating)
@@ -263,8 +261,6 @@ public class SimpleProgressLog implements ProgressLog.Factory
                                             }
                                         }).begin(commandStore.agent());
                                     });
-
-                                    debugInvestigating = recover;
                                 });
                             }
                         }
@@ -457,8 +453,6 @@ public class SimpleProgressLog implements ProgressLog.Factory
 
                 Unseekables<?, ?> blockedOn;
 
-                Object debugInvestigating;
-
                 void recordBlocking(Known blockedUntil, Unseekables<?, ?> blockedOn)
                 {
                     Invariants.checkState(!blockedOn.isEmpty());
@@ -514,7 +508,7 @@ public class SimpleProgressLog implements ProgressLog.Factory
                     };
 
                     node.withEpoch(toEpoch, () -> {
-                        debugInvestigating = FetchData.fetch(blockedUntil, node, txnId, someKeys, executeAt, toEpoch, callback);
+                        FetchData.fetch(blockedUntil, node, txnId, someKeys, executeAt, toEpoch, callback);
                     });
                 }
 
@@ -528,7 +522,7 @@ public class SimpleProgressLog implements ProgressLog.Factory
                     setProgress(Investigating);
                     RoutingKey someKey = Route.isRoute(someKeys) ? (Route.castToRoute(someKeys)).homeKey() : someKeys.get(0).someIntersectingRoutingKey(null);
                     someKeys = someKeys.with(someKey);
-                    debugInvestigating = Invalidate.invalidate(node, txnId, someKeys, (success, fail) -> {
+                    Invalidate.invalidate(node, txnId, someKeys, (success, fail) -> {
                         commandStore.execute(PreLoadContext.empty(), ignore -> {
                             if (progress() != Investigating)
                                 return;
