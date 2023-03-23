@@ -131,6 +131,7 @@ public class RecoverTest
         Topologies topologies = cluster.get(5).topology().forEpoch(route, 1);
         cluster.send(5, 5, 1, new PreAccept(new Id(5), topologies, txnId1, txn1, route));
         cluster.send(5, 4, 2, new PreAccept(new Id(4), topologies, txnId1, txn1, route));
+
         cluster.send(1, 1, 3, new PreAccept(new Id(1), topologies, txnId2, txn2, route));
         cluster.send(1, 2, 4, new PreAccept(new Id(2), topologies, txnId2, txn2, route));
         cluster.send(1, 3, 5, new PreAccept(new Id(3), topologies, txnId2, txn2, route));

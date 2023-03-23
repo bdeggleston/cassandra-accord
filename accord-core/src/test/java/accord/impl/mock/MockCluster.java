@@ -67,6 +67,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
     private long nextMessageId = 0;
     Map<Long, Callback> callbacks = new ConcurrentHashMap<>();
     private final EpochFunction<MockConfigurationService> onFetchTopology;
+    private final Function<Node, ProgressLog.Factory> progressLogFactory;
 
     private MockCluster(Builder builder)
     {
@@ -75,6 +76,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
         this.nowSupplier = builder.nowSupplier;
         this.messageSinkFactory = builder.messageSinkFactory;
         this.onFetchTopology = builder.onFetchTopology;
+        this.progressLogFactory = builder.progressLogFactory;
 
         init(builder.topology);
     }
@@ -101,7 +103,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
         return nextMessageId++;
     }
 
-    private Node createNode(Id id, Topology topology, Function<Node, ProgressLog.Factory> progressLogFactory)
+    private Node createNode(Id id, Topology topology)
     {
         MockStore store = new MockStore();
         MessageSink messageSink = messageSinkFactory.apply(id, this);
@@ -118,10 +120,6 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
                         SizeOfIntersectionSorter.SUPPLIER,
                         progressLogFactory,
                         InMemoryCommandStores.SingleThread::new);
-    }
-    private Node createNode(Id id, Topology topology)
-    {
-        return createNode(id, topology, SimpleProgressLog::new);
     }
 
     private void init(Topology topology)
