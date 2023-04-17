@@ -37,15 +37,14 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
 
     protected final Node.Id node;
 
-    private final EpochHistory epochs = new EpochHistory();
+    protected final EpochHistory epochs = new EpochHistory();
     private final List<Listener> listeners = new ArrayList<>();
 
-    private static class EpochState
+    protected static class EpochState
     {
         private final long epoch;
         private final AsyncResult.Settable<Topology> received = AsyncResults.settable();
         private final AsyncResult.Settable<Void> acknowledged = AsyncResults.settable();
-        private final AsyncResult.Settable<Void> synced = AsyncResults.settable();
 
         private Topology topology = null;
 
@@ -55,7 +54,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         }
     }
 
-    private static class EpochHistory
+    protected static class EpochHistory
     {
         // TODO (low priority): move pendingEpochs / FetchTopology into here?
         private final List<EpochState> epochs = new ArrayList<>();
@@ -71,7 +70,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
             return epochs.get((int) epoch);
         }
 
-        EpochHistory receive(Topology topology)
+        public EpochHistory receive(Topology topology)
         {
             long epoch = topology.epoch();
             Invariants.checkState(epoch == 0 || lastReceived == epoch - 1);
@@ -92,7 +91,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
             return get(epoch).topology;
         }
 
-        EpochHistory acknowledge(long epoch)
+        public EpochHistory acknowledge(long epoch)
         {
             Invariants.checkState(epoch == 0 || lastAcknowledged == epoch - 1);
             lastAcknowledged = epoch;
@@ -104,17 +103,6 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         {
             return get(epoch).acknowledged;
         }
-
-        EpochHistory syncComplete(long epoch)
-        {
-            Invariants.checkState(epoch == 0 || lastSyncd == epoch - 1);
-            EpochState state = get(epoch);
-            Invariants.checkState(state.received.isDone());
-            Invariants.checkState(state.acknowledged.isDone());
-            lastSyncd = epoch;
-            get(epoch).synced.setSuccess(null);
-            return this;
-        }
     }
 
     public AbstractConfigurationService(Node.Id node)
@@ -125,7 +113,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
     protected void loadTopologySyncComplete(Topology topology)
     {
         long epoch = topology.epoch();
-        epochs.receive(topology).acknowledge(epoch).syncComplete(epoch);
+        epochs.receive(topology).acknowledge(epoch);
     }
 
     @Override

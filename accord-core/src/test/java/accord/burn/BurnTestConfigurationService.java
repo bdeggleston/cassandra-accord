@@ -26,8 +26,6 @@ import accord.local.Node;
 import accord.messages.*;
 import accord.topology.Topology;
 import accord.utils.async.AsyncResults;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,8 +36,6 @@ import java.util.function.Supplier;
 
 public class BurnTestConfigurationService extends AbstractConfigurationService implements TestableConfigurationService
 {
-    private static final Logger logger = LoggerFactory.getLogger(BurnTestConfigurationService.class);
-
     private final MessageSink messageSink;
     private final Function<Node.Id, Node> lookup;
     private final Supplier<RandomSource> randomSupplier;
@@ -53,8 +49,8 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
         this.randomSupplier = randomSupplier;
         this.lookup = lookup;
         this.topologyUpdates = topologyUpdates;
-        loadTopologySyncComplete(Topology.EMPTY);
-        loadTopologySyncComplete(topology);
+        epochs.receive(Topology.EMPTY).acknowledge(0);
+        epochs.receive(topology).acknowledge(1);
     }
 
     private static class FetchTopologyRequest implements Request
