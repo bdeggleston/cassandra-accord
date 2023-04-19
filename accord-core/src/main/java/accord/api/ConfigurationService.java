@@ -68,6 +68,12 @@ public interface ConfigurationService
          * replicated ranges.
          */
         void onEpochSyncComplete(Node.Id node, long epoch);
+
+        /**
+         * Called when the configuration service is meant to truncate it's topology data up to (but not including)
+         * the given epoch
+         */
+        void truncateTopologyUntil(long epoch);
     }
 
     void registerListener(Listener listener);

@@ -244,7 +244,7 @@ public class TopologyManagerTest
         Assertions.assertTrue(service.hasEpoch(3));
         Assertions.assertTrue(service.hasEpoch(4));
 
-        service.truncateHistoryUntil(3);
+        service.truncateTopologyUntil(3);
         Assertions.assertFalse(service.hasEpoch(1));
         Assertions.assertFalse(service.hasEpoch(2));
         Assertions.assertTrue(service.hasEpoch(3));

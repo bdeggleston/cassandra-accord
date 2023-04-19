@@ -41,6 +41,7 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
     private final Supplier<RandomSource> randomSupplier;
     private final TopologyUpdates topologyUpdates;
     private final Map<Long, FetchTopology> pendingEpochs = new HashMap<>();
+    private final Listener postListener;
 
     public BurnTestConfigurationService(Node.Id node, MessageSink messageSink, Supplier<RandomSource> randomSupplier, Topology topology, Function<Node.Id, Node> lookup, TopologyUpdates topologyUpdates)
     {
@@ -49,6 +50,26 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
         this.randomSupplier = randomSupplier;
         this.lookup = lookup;
         this.topologyUpdates = topologyUpdates;
+        this.postListener = new Listener()
+        {
+            @Override
+            public void onTopologyUpdate(Topology topology)
+            {
+                FetchTopology fetch = pendingEpochs.remove(topology.epoch());
+                if (fetch == null)
+                    return;
+
+                fetch.setSuccess(null);
+            }
+
+            @Override
+            public void onEpochSyncComplete(Node.Id node, long epoch) {}
+
+            @Override
+            public void truncateTopologyUntil(long epoch) {}
+        };
+
+
         epochs.receive(Topology.EMPTY).acknowledge(0);
         epochs.receive(topology).acknowledge(1);
     }
@@ -152,6 +173,18 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
     }
 
     @Override
+    protected Listener preListener()
+    {
+        return null;
+    }
+
+    @Override
+    protected Listener postListener()
+    {
+        return postListener;
+    }
+
+    @Override
     protected void fetchTopologyInternal(long epoch)
     {
         pendingEpochs.computeIfAbsent(epoch, FetchTopology::new);
@@ -163,33 +196,5 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
         Topology topology = getTopologyForEpoch(epoch);
         Node originator = lookup.apply(node);
         topologyUpdates.syncEpoch(originator, epoch - 1, topology.nodes());
-    }
-
-    @Override
-    protected void topologyReportedPreListenerUpdate(Topology topology)
-    {
-
-    }
-
-    @Override
-    protected void topologyReportedPostListenerUpdate(Topology topology)
-    {
-        FetchTopology fetch = pendingEpochs.remove(topology.epoch());
-        if (fetch == null)
-            return;
-
-        fetch.setSuccess(null);
-    }
-
-    @Override
-    protected void epochSyncCompletePreListenerUpdate(Node.Id node, long epoch)
-    {
-
-    }
-
-    @Override
-    protected void epochSyncCompletePostListenerUpdate(Node.Id node, long epoch)
-    {
-
     }
 }

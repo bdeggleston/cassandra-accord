@@ -194,6 +194,12 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         topology.onEpochSyncComplete(node, epoch);
     }
 
+    @Override
+    public void truncateTopologyUntil(long epoch)
+    {
+        topology.truncateTopologyUntil(epoch);
+    }
+
     public void withEpoch(long epoch, Runnable runnable)
     {
         if (topology.hasEpoch(epoch))

@@ -273,10 +273,19 @@ public class TopologyManager implements ConfigurationService.Listener
             toComplete.trySuccess(null);
     }
 
-    /**
-     * removes all topology data for epochs before the given epoch
-     */
-    public synchronized void truncateHistoryUntil(long epoch)
+    public synchronized AsyncResult<Void> awaitEpoch(long epoch)
+    {
+        return epochs.awaitEpoch(epoch);
+    }
+
+    @Override
+    public void onEpochSyncComplete(Id node, long epoch)
+    {
+        epochs.syncComplete(node, epoch);
+    }
+
+    @Override
+    public synchronized void truncateTopologyUntil(long epoch)
     {
         Epochs current = epochs;
         checkArgument(current.epoch() >= epoch);
@@ -290,17 +299,6 @@ public class TopologyManager implements ConfigurationService.Listener
         EpochState[] nextEpochs = new EpochState[newLen];
         System.arraycopy(current.epochs, 0, nextEpochs, 0, newLen);
         epochs = new Epochs(nextEpochs, current.pendingSyncComplete, current.futureEpochFutures);
-    }
-
-    public synchronized AsyncResult<Void> awaitEpoch(long epoch)
-    {
-        return epochs.awaitEpoch(epoch);
-    }
-
-    @Override
-    public void onEpochSyncComplete(Id node, long epoch)
-    {
-        epochs.syncComplete(node, epoch);
     }
 
     public TopologySorter.Supplier sorter()
