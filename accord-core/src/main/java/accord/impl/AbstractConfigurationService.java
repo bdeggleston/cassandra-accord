@@ -23,7 +23,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +109,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
 
     protected final Listeners listeners = new Listeners(this::preListener, this::postListener);
 
-    protected static class EpochState
+    static class EpochState
     {
         private final long epoch;
         private final AsyncResult.Settable<Topology> received = AsyncResults.settable();
@@ -119,22 +121,81 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         {
             this.epoch = epoch;
         }
+
+        public long epoch()
+        {
+            return epoch;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "EpochState{" + epoch + '}';
+        }
     }
 
+    @VisibleForTesting
     protected static class EpochHistory
     {
         // TODO (low priority): move pendingEpochs / FetchTopology into here?
-        private final List<EpochState> epochs = new ArrayList<>();
+        private List<EpochState> epochs = new ArrayList<>();
 
         private long lastReceived = 0;
         private long lastAcknowledged = 0;
-        private long lastSyncd = 0;
 
-        private EpochState get(long epoch)
+        long minEpoch()
         {
-            for (long addEpoch = epochs.size() - 1; addEpoch <= epoch; addEpoch++)
+            return epochs.isEmpty() ? 0L : epochs.get(0).epoch;
+        }
+
+        long maxEpoch()
+        {
+            int size = epochs.size();
+            return size == 0 ? 0L : epochs.get(size - 1).epoch;
+        }
+
+        @VisibleForTesting
+        EpochState atIndex(int idx)
+        {
+            return epochs.get(idx);
+        }
+
+        @VisibleForTesting
+        int size()
+        {
+            return epochs.size();
+        }
+
+        EpochState getOrCreate(long epoch)
+        {
+            Invariants.checkArgument(epoch > 0);
+            if (epochs.isEmpty())
+            {
+                EpochState state = new EpochState(epoch);
+                epochs.add(state);
+                return state;
+            }
+
+            long minEpoch = minEpoch();
+            if (epoch < minEpoch)
+            {
+                int prepend = Ints.checkedCast(minEpoch - epoch);
+                List<EpochState> next = new ArrayList<>(epochs.size() + prepend);
+                for (long addEpoch=epoch; addEpoch<minEpoch; addEpoch++)
+                    next.add(new EpochState(addEpoch));
+                next.addAll(epochs);
+                epochs = next;
+                minEpoch = minEpoch();
+                Invariants.checkState(minEpoch == epoch);
+            }
+            long maxEpoch = maxEpoch();
+            int idx = Ints.checkedCast(epoch - minEpoch);
+
+            // add any missing epochs
+            for (long addEpoch = maxEpoch + 1; addEpoch <= epoch; addEpoch++)
                 epochs.add(new EpochState(addEpoch));
-            return epochs.get((int) epoch);
+
+            return epochs.get(idx);
         }
 
         public EpochHistory receive(Topology topology)
@@ -142,45 +203,53 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
             long epoch = topology.epoch();
             Invariants.checkState(epoch == 0 || lastReceived == epoch - 1);
             lastReceived = epoch;
-            EpochState state = get(epoch);
-            state.topology = topology;
-            state.received.setSuccess(topology);
+            EpochState state = getOrCreate(epoch);
+            if (state != null)
+            {
+                state.topology = topology;
+                state.received.setSuccess(topology);
+            }
             return this;
         }
 
         AsyncResult<Topology> receiveFuture(long epoch)
         {
-            return get(epoch).received;
+            return getOrCreate(epoch).received;
         }
 
         Topology topologyFor(long epoch)
         {
-            return get(epoch).topology;
+            return getOrCreate(epoch).topology;
         }
 
         public EpochHistory acknowledge(long epoch)
         {
             Invariants.checkState(epoch == 0 || lastAcknowledged == epoch - 1);
             lastAcknowledged = epoch;
-            get(epoch).acknowledged.setSuccess(null);
+            getOrCreate(epoch).acknowledged.setSuccess(null);
             return this;
         }
 
         AsyncResult<Void> acknowledgeFuture(long epoch)
         {
-            return get(epoch).acknowledged;
+            return getOrCreate(epoch).acknowledged;
+        }
+
+        void truncateUntil(long epoch)
+        {
+            Invariants.checkArgument(epoch < maxEpoch());
+            long minEpoch = minEpoch();
+            int toTrim = Ints.checkedCast(epoch - minEpoch);
+            if (toTrim <=0)
+                return;
+
+            epochs = new ArrayList<>(epochs.subList(toTrim, epochs.size()));
         }
     }
 
     public AbstractConfigurationService(Node.Id node)
     {
         this.node = node;
-    }
-
-    protected void loadTopologySyncComplete(Topology topology)
-    {
-        long epoch = topology.epoch();
-        epochs.receive(topology).acknowledge(epoch);
     }
 
     /**
@@ -264,9 +333,8 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
 
     public synchronized void truncateTopologiesUntil(long epoch)
     {
-        if (true)
-            throw new UnsupportedOperationException("truncate epoch states");
         for (Listener listener : listeners)
             listener.truncateTopologyUntil(epoch);
+        epochs.truncateUntil(epoch);
     }
 }
