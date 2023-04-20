@@ -201,7 +201,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         public EpochHistory receive(Topology topology)
         {
             long epoch = topology.epoch();
-            Invariants.checkState(epoch == 0 || lastReceived == epoch - 1);
+            Invariants.checkState(lastReceived == epoch - 1 || epoch == 0 || lastReceived == 0);
             lastReceived = epoch;
             EpochState state = getOrCreate(epoch);
             if (state != null)
@@ -224,7 +224,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
 
         public EpochHistory acknowledge(long epoch)
         {
-            Invariants.checkState(epoch == 0 || lastAcknowledged == epoch - 1);
+            Invariants.checkState(lastAcknowledged == epoch - 1 || epoch == 0 || lastAcknowledged == 0);
             lastAcknowledged = epoch;
             getOrCreate(epoch).acknowledged.setSuccess(null);
             return this;
@@ -237,7 +237,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
 
         void truncateUntil(long epoch)
         {
-            Invariants.checkArgument(epoch < maxEpoch());
+            Invariants.checkArgument(epoch <= maxEpoch());
             long minEpoch = minEpoch();
             int toTrim = Ints.checkedCast(epoch - minEpoch);
             if (toTrim <=0)
@@ -305,7 +305,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         if (topology.epoch() <= lastReceived)
             return;
 
-        if (topology.epoch() > lastReceived + 1)
+        if (lastReceived > 0 && topology.epoch() > lastReceived + 1)
         {
             fetchTopologyForEpoch(lastReceived + 1);
             epochs.receiveFuture(lastReceived + 1).addCallback(() -> reportTopology(topology));
@@ -313,7 +313,7 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         }
 
         long lastAcked = epochs.lastAcknowledged;
-        if (topology.epoch() > lastAcked + 1)
+        if (lastAcked > 0 && topology.epoch() > lastAcked + 1)
         {
             epochs.acknowledgeFuture(lastAcked + 1).addCallback(() -> reportTopology(topology));
             return;

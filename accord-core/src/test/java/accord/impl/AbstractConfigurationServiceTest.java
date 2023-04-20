@@ -201,6 +201,25 @@ public class AbstractConfigurationServiceTest
     }
 
     /**
+     * check everything works properly if we start loading after epoch 1 has
+     * been removed
+     */
+    @Test
+    public void loadAfterTruncate()
+    {
+        TestableConfigurationService service = new TestableConfigurationService(ID1);
+        TestListener listener = new TestListener(service, false);
+        service.registerListener(listener);
+        service.reportTopology(TOPOLOGY3);
+        service.reportTopology(TOPOLOGY4);
+
+        listener.assertNoTruncates();
+        listener.assertTopologiesFor(3L, 4L);
+        Assert.assertSame(TOPOLOGY3, service.getTopologyForEpoch(3));
+        Assert.assertSame(TOPOLOGY4, service.getTopologyForEpoch(4));
+    }
+
+    /**
      * If we receive topology epochs out of order for some reason, we should
      * reorder with callbacks
      */
