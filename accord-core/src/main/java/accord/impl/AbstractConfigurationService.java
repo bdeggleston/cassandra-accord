@@ -19,12 +19,9 @@
 package accord.impl;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.AbstractIterator;
 import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,71 +40,8 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
     protected final Node.Id node;
 
     protected final EpochHistory epochs = new EpochHistory();
-    private static class Listeners implements Iterable<Listener>
-    {
-        private static class Iter extends AbstractIterator<Listener>
-        {
-            private enum State {PRE, REGISTERED, POST, COMPLETE}
-            private State state = State.PRE;
-            private final Listener preListener;
-            private final Iterator<Listener> registered;
-            private final Listener postListener;
 
-            public Iter(Listener preListener, Iterator<Listener> registered, Listener postListener)
-            {
-                this.preListener = preListener;
-                this.registered = registered;
-                this.postListener = postListener;
-            }
-
-            @Override
-            protected Listener computeNext()
-            {
-                switch (state)
-                {
-                    case PRE:
-                        state = State.REGISTERED;
-                        if (preListener != null)
-                            return preListener;
-                    case REGISTERED:
-                        if (registered.hasNext())
-                            return registered.next();
-                        state = State.POST;
-                    case POST:
-                        state = State.COMPLETE;
-                        if (postListener != null)
-                            return postListener;
-                    default:
-                        throw new IllegalStateException();
-                    case COMPLETE:
-                        return endOfData();
-                }
-            }
-        }
-
-        private final Supplier<Listener> preListener;
-        private final Supplier<Listener> postListener;
-        private final List<Listener> registered = new ArrayList<>();
-
-        public Listeners(Supplier<Listener> preListener, Supplier<Listener> postListener)
-        {
-            this.preListener = preListener;
-            this.postListener = postListener;
-        }
-
-        public void add(Listener listener)
-        {
-            registered.add(listener);
-        }
-
-        @Override
-        public Iterator<Listener> iterator()
-        {
-            return new Iter(preListener.get(), registered.iterator(), postListener.get());
-        }
-    }
-
-    protected final Listeners listeners = new Listeners(this::preListener, this::postListener);
+    protected final List<Listener> listeners = new ArrayList<>();
 
     static class EpochState
     {
@@ -252,15 +186,6 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         this.node = node;
     }
 
-    /**
-     * Return a listener to be called before any normally registered listeners
-     */
-    protected abstract Listener preListener();
-    /**
-     * Return a listener to be called after any normally registered listeners
-     */
-    protected abstract Listener postListener();
-
     @Override
     public synchronized void registerListener(Listener listener)
     {
@@ -299,6 +224,9 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         beginEpochSync(epoch);
     }
 
+    protected void topologyUpdatePreListenerNotify(Topology topology) {}
+    protected void topologyUpdatePostListenerNotify(Topology topology) {}
+
     public synchronized void reportTopology(Topology topology)
     {
         long lastReceived = epochs.lastReceived;
@@ -320,21 +248,31 @@ public abstract class AbstractConfigurationService implements ConfigurationServi
         }
         logger.trace("Epoch {} received by {}", topology.epoch(), node);
 
+        epochs.receive(topology);
+        topologyUpdatePreListenerNotify(topology);
         for (Listener listener : listeners)
             listener.onTopologyUpdate(topology);
-        epochs.receive(topology);
+        topologyUpdatePostListenerNotify(topology);
     }
+
+    protected void epochSyncCompletePreListenerNotify(Node.Id node, long epoch) {}
 
     public synchronized void epochSyncComplete(Node.Id node, long epoch)
     {
+        epochSyncCompletePreListenerNotify(node, epoch);
         for (Listener listener : listeners)
             listener.onEpochSyncComplete(node, epoch);
     }
 
+    protected void truncateTopologiesPreListenerNotify(long epoch) {}
+    protected void truncateTopologiesPostListenerNotify(long epoch) {}
+
     public synchronized void truncateTopologiesUntil(long epoch)
     {
+        truncateTopologiesPreListenerNotify(epoch);
         for (Listener listener : listeners)
             listener.truncateTopologyUntil(epoch);
+        truncateTopologiesPostListenerNotify(epoch);
         epochs.truncateUntil(epoch);
     }
 }

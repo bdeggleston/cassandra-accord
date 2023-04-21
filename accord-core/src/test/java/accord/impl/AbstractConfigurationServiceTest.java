@@ -111,28 +111,12 @@ public class AbstractConfigurationServiceTest
 
     private static class TestableConfigurationService extends AbstractConfigurationService
     {
-        final TestListener preListener;
-        final TestListener postListener;
         final Set<Long> syncStarted = new HashSet<>();
         final Set<Long> epochsFetched = new HashSet<>();
 
         public TestableConfigurationService(Id node)
         {
             super(node);
-            this.preListener = new TestListener(this, false);
-            this.postListener = new TestListener(this, true);
-        }
-
-        @Override
-        protected Listener preListener()
-        {
-            return preListener;
-        }
-
-        @Override
-        protected Listener postListener()
-        {
-            return postListener;
         }
 
         @Override
@@ -146,6 +130,12 @@ public class AbstractConfigurationServiceTest
         {
             if (!syncStarted.add(epoch))
                 Assert.fail("Sync started multiple times for " + epoch);
+        }
+
+        @Override
+        protected void topologyUpdatePostListenerNotify(Topology topology)
+        {
+            acknowledgeEpoch(topology.epoch());
         }
     }
 
@@ -231,12 +221,13 @@ public class AbstractConfigurationServiceTest
         TestListener listener = new TestListener(service, false);
         service.registerListener(listener);
 
-        service.reportTopology(TOPOLOGY2);
-        listener.assertTopologiesFor();
-        Assert.assertEquals(ImmutableSet.of(1L), service.epochsFetched);
-
         service.reportTopology(TOPOLOGY1);
-        listener.assertTopologiesFor(1L, 2L);
+        service.reportTopology(TOPOLOGY3);
+        listener.assertTopologiesFor(1L);
+        Assert.assertEquals(ImmutableSet.of(2L), service.epochsFetched);
+
+        service.reportTopology(TOPOLOGY2);
+        listener.assertTopologiesFor(1L, 2L, 3L);
 
     }
 
