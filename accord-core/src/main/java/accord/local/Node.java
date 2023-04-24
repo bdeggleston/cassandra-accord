@@ -140,7 +140,6 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         this.configService = configService;
         this.topology = new TopologyManager(topologySorter, id);
         this.nowSupplier = nowSupplier;
-        Topology topology = configService.currentTopology();
         this.now = new AtomicReference<>(Timestamp.fromValues(topology.epoch(), nowSupplier.getAsLong(), id));
         this.agent = agent;
         this.random = random;
@@ -148,7 +147,6 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
         this.commandStores = factory.create(this, agent, dataSupplier.get(), shardDistributor, progressLogFactory.apply(this));
 
         configService.registerListener(this);
-        onTopologyUpdate(topology, false);
     }
 
     public CommandStores<?> commandStores()
