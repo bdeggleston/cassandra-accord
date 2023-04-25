@@ -212,6 +212,7 @@ public class TopologyManagerTest
 
         Assertions.assertSame(topology6, service.getEpochStateUnsafe(6).global());
         Assertions.assertSame(topology5, service.getEpochStateUnsafe(5).global());
+        for (int i=1; i<=6; i++) service.onEpochSyncComplete(id(i), 5);
         Assertions.assertTrue(service.getEpochStateUnsafe(5).syncComplete());
         Assertions.assertNull(service.getEpochStateUnsafe(4));
 
