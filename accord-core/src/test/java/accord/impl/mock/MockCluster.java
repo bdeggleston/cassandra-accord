@@ -104,7 +104,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
         MockStore store = new MockStore();
         MessageSink messageSink = messageSinkFactory.apply(id, this);
         MockConfigurationService configurationService = new MockConfigurationService(messageSink, onFetchTopology, topology);
-        return new Node(id,
+        Node node = new Node(id,
                         messageSink,
                         configurationService,
                         nowSupplier,
@@ -116,6 +116,8 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
                         SizeOfIntersectionSorter.SUPPLIER,
                         SimpleProgressLog::new,
                         InMemoryCommandStores.SingleThread::new);
+        node.onTopologyUpdate(topology);
+        return node;
     }
 
     private void init(Topology topology)

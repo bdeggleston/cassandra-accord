@@ -28,8 +28,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import org.junit.Assert;
-import org.junit.Test;
 
 import accord.api.ConfigurationService;
 import accord.impl.AbstractConfigurationService.EpochHistory;
@@ -37,6 +35,8 @@ import accord.local.Node.Id;
 import accord.primitives.Range;
 import accord.topology.Shard;
 import accord.topology.Topology;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class AbstractConfigurationServiceTest
 {
@@ -58,7 +58,7 @@ public class AbstractConfigurationServiceTest
         public void onTopologyUpdate(Topology topology)
         {
             if (topologies.put(topology.epoch(), topology) != null)
-                Assert.fail("Received topology twice for epoch " + topology.epoch());
+                Assertions.fail("Received topology twice for epoch " + topology.epoch());
             if (ackTopologies)
                 parent.acknowledgeEpoch(topology.epoch());
         }
@@ -68,44 +68,44 @@ public class AbstractConfigurationServiceTest
         {
             Set<Id> synced = syncCompletes.computeIfAbsent(epoch, e -> new HashSet<>());
             if (!synced.add(node))
-                Assert.fail(String.format("Recieved multiple syncs for epoch %s from %s", epoch, node));
+                Assertions.fail(String.format("Recieved multiple syncs for epoch %s from %s", epoch, node));
         }
 
         @Override
         public void truncateTopologyUntil(long epoch)
         {
             if (!truncates.add(epoch))
-                Assert.fail(String.format("Recieved multiple truncates for epoch", epoch));
+                Assertions.fail(String.format("Recieved multiple truncates for epoch", epoch));
         }
 
         public void assertNoTruncates()
         {
-            Assert.assertTrue(truncates.isEmpty());
+            Assertions.assertTrue(truncates.isEmpty());
         }
 
         public void assertTruncates(Long... epochs)
         {
-            Assert.assertEquals(ImmutableSet.copyOf(epochs), truncates);
+            Assertions.assertEquals(ImmutableSet.copyOf(epochs), truncates);
         }
 
         public void assertSyncsFor(Long... epochs)
         {
-            Assert.assertEquals(ImmutableSet.copyOf(epochs), syncCompletes.keySet());
+            Assertions.assertEquals(ImmutableSet.copyOf(epochs), syncCompletes.keySet());
         }
 
         public void assertSyncsForEpoch(long epoch, Id... nodes)
         {
-            Assert.assertEquals(ImmutableSet.copyOf(nodes), syncCompletes.get(epoch));
+            Assertions.assertEquals(ImmutableSet.copyOf(nodes), syncCompletes.get(epoch));
         }
 
         public void assertTopologiesFor(Long... epochs)
         {
-            Assert.assertEquals(ImmutableSet.copyOf(epochs), topologies.keySet());
+            Assertions.assertEquals(ImmutableSet.copyOf(epochs), topologies.keySet());
         }
 
         public void assertTopologyForEpoch(long epoch, Topology topology)
         {
-            Assert.assertEquals(topology, topologies.get(epoch));
+            Assertions.assertEquals(topology, topologies.get(epoch));
         }
     }
 
@@ -129,7 +129,7 @@ public class AbstractConfigurationServiceTest
         protected void beginEpochSync(long epoch)
         {
             if (!syncStarted.add(epoch))
-                Assert.fail("Sync started multiple times for " + epoch);
+                Assertions.fail("Sync started multiple times for " + epoch);
         }
 
         @Override
@@ -184,10 +184,10 @@ public class AbstractConfigurationServiceTest
 
         listener.assertNoTruncates();
         listener.assertTopologiesFor(1L, 2L, 3L, 4L);
-        Assert.assertSame(TOPOLOGY1, service.getTopologyForEpoch(1));
-        Assert.assertSame(TOPOLOGY2, service.getTopologyForEpoch(2));
-        Assert.assertSame(TOPOLOGY3, service.getTopologyForEpoch(3));
-        Assert.assertSame(TOPOLOGY4, service.getTopologyForEpoch(4));
+        Assertions.assertSame(TOPOLOGY1, service.getTopologyForEpoch(1));
+        Assertions.assertSame(TOPOLOGY2, service.getTopologyForEpoch(2));
+        Assertions.assertSame(TOPOLOGY3, service.getTopologyForEpoch(3));
+        Assertions.assertSame(TOPOLOGY4, service.getTopologyForEpoch(4));
     }
 
     /**
@@ -205,8 +205,8 @@ public class AbstractConfigurationServiceTest
 
         listener.assertNoTruncates();
         listener.assertTopologiesFor(3L, 4L);
-        Assert.assertSame(TOPOLOGY3, service.getTopologyForEpoch(3));
-        Assert.assertSame(TOPOLOGY4, service.getTopologyForEpoch(4));
+        Assertions.assertSame(TOPOLOGY3, service.getTopologyForEpoch(3));
+        Assertions.assertSame(TOPOLOGY4, service.getTopologyForEpoch(4));
     }
 
     /**
@@ -224,7 +224,7 @@ public class AbstractConfigurationServiceTest
         service.reportTopology(TOPOLOGY1);
         service.reportTopology(TOPOLOGY3);
         listener.assertTopologiesFor(1L);
-        Assert.assertEquals(ImmutableSet.of(2L), service.epochsFetched);
+        Assertions.assertEquals(ImmutableSet.of(2L), service.epochsFetched);
 
         service.reportTopology(TOPOLOGY2);
         listener.assertTopologiesFor(1L, 2L, 3L);
@@ -233,22 +233,22 @@ public class AbstractConfigurationServiceTest
 
     private static void assertHistoryEpochs(EpochHistory history, long... expected)
     {
-        Assert.assertEquals(history.size(), expected.length);
+        Assertions.assertEquals(history.size(), expected.length);
         if (expected.length == 0)
             return;
 
-        Assert.assertEquals(expected[0], history.minEpoch());
-        Assert.assertEquals(expected[expected.length - 1], history.maxEpoch());
+        Assertions.assertEquals(expected[0], history.minEpoch());
+        Assertions.assertEquals(expected[expected.length - 1], history.maxEpoch());
 
         for (int i=0; i<expected.length; i++)
-            Assert.assertEquals(expected[i], history.atIndex(i).epoch());
+            Assertions.assertEquals(expected[i], history.atIndex(i).epoch());
     }
 
     @Test
     public void epochHistoryAppend()
     {
         EpochHistory history = new EpochHistory();
-        Assert.assertEquals(0, history.size());
+        Assertions.assertEquals(0, history.size());
 
         history.getOrCreate(5);
         assertHistoryEpochs(history, 5);
@@ -264,7 +264,7 @@ public class AbstractConfigurationServiceTest
     public void epochHistoryPrepend()
     {
         EpochHistory history = new EpochHistory();
-        Assert.assertEquals(0, history.size());
+        Assertions.assertEquals(0, history.size());
 
         history.getOrCreate(5);
         history.getOrCreate(6);
@@ -278,7 +278,7 @@ public class AbstractConfigurationServiceTest
     public void epochHistoryTruncate()
     {
         EpochHistory history = new EpochHistory();
-        Assert.assertEquals(0, history.size());
+        Assertions.assertEquals(0, history.size());
 
         history.getOrCreate(1);
         history.getOrCreate(2);
