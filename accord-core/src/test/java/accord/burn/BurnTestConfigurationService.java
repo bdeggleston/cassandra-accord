@@ -49,9 +49,6 @@ public class BurnTestConfigurationService extends AbstractConfigurationService i
         this.randomSupplier = randomSupplier;
         this.lookup = lookup;
         this.topologyUpdates = topologyUpdates;
-
-        epochs.receive(Topology.EMPTY).acknowledge(0);
-        epochs.receive(topology).acknowledge(1);
     }
 
     private static class FetchTopologyRequest implements Request

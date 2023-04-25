@@ -287,6 +287,8 @@ public class TopologyUpdates
 
     public AsyncResult<Void> syncEpoch(Node originator, long epoch, Collection<Node.Id> cluster)
     {
+        if (epoch <= 1)
+            return AsyncResults.success(null);
         AsyncResult<Void> result = dieExceptionally(sync(originator, epoch)
                 .flatMap(v -> MessageTask.apply(originator, cluster, "SyncComplete:" + epoch, (node, from, onDone) -> {
                     node.onEpochSyncComplete(originator.id(), epoch);

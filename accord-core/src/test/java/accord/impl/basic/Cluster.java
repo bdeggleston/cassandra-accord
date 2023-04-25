@@ -224,6 +224,7 @@ public class Cluster implements Scheduler
                                           new ListAgent(30L, onFailure),
                                           randomSupplier.get(), sinks, SizeOfIntersectionSorter.SUPPLIER,
                                           SimpleProgressLog::new, DelayedCommandStores.factory(sinks.pending, randomSupplier.get())));
+                configService.reportTopology(topology);
             }
 
             List<Id> nodesList = new ArrayList<>(Arrays.asList(nodes));
