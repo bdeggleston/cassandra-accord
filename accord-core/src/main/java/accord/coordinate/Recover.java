@@ -254,13 +254,13 @@ public class Recover implements Callback<RecoverReply>, BiConsumer<Result, Throw
                     node.withEpoch(executeAt.epoch(), () -> {
                         if (committedDeps != null)
                         {
-                            IExecute.execute(node, txnId, txn, route, executeAt, committedDeps, this);
+                            Execute.execute(node, txnId, txn, route, executeAt, committedDeps, this);
                         }
                         else
                         {
                             CollectDeps.withDeps(node, txnId, route, txn.keys(), executeAt, (deps, fail) -> {
                                 if (fail != null) accept(null, fail);
-                                else IExecute.execute(node, txnId, txn, route, acceptOrCommit.executeAt, deps, this);
+                                else Execute.execute(node, txnId, txn, route, acceptOrCommit.executeAt, deps, this);
                             });
                         }
                     });

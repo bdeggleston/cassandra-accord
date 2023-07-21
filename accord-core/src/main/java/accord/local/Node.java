@@ -49,7 +49,7 @@ import accord.api.Scheduler;
 import accord.api.TopologySorter;
 import accord.coordinate.Barrier;
 import accord.coordinate.CoordinateTransaction;
-import accord.coordinate.IExecute;
+import accord.coordinate.Execute;
 import accord.coordinate.MaybeRecover;
 import accord.coordinate.Outcome;
 import accord.coordinate.RecoverWithRoute;
@@ -134,7 +134,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     private final ConfigurationService configService;
     private final TopologyManager topology;
     private final CommandStores commandStores;
-    private final IExecute.Factory executionFactory;
+    private final Execute.Factory executionFactory;
 
     private final LongSupplier nowSupplier;
     private final AtomicReference<Timestamp> now;
@@ -149,7 +149,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
 
     public Node(Id id, MessageSink messageSink, ConfigurationService configService, LongSupplier nowSupplier,
                 Supplier<DataStore> dataSupplier, ShardDistributor shardDistributor, Agent agent, RandomSource random, Scheduler scheduler, TopologySorter.Supplier topologySorter,
-                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory, IExecute.Factory executionFactory)
+                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory, Execute.Factory executionFactory)
     {
         this.id = id;
         this.messageSink = messageSink;
@@ -637,7 +637,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
             scheduler.now(processMsg);
     }
 
-    public IExecute.Factory executionFactory()
+    public Execute.Factory executionFactory()
     {
         return executionFactory;
     }

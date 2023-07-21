@@ -55,6 +55,6 @@ class ProposeAndExecute extends Propose<Result>
     void onAccepted()
     {
         Deps deps = Deps.merge(acceptOks, ok -> ok.deps);
-        IExecute.execute(node, txnId, txn, route, executeAt, deps, callback);
+        Execute.execute(node, txnId, txn, route, executeAt, deps, callback);
     }
 }

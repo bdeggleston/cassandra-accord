@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import accord.NetworkFilter;
 import accord.api.MessageSink;
-import accord.coordinate.Execute;
+import accord.coordinate.TxnExecute;
 import accord.local.AgentExecutor;
 import accord.impl.InMemoryCommandStores;
 import accord.impl.IntKey;
@@ -138,7 +138,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
                              new ThreadPoolScheduler(),
                              SizeOfIntersectionSorter.SUPPLIER,
                              SimpleProgressLog::new,
-                             InMemoryCommandStores.SingleThread::new, Execute.FACTORY);
+                             InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY);
         awaitUninterruptibly(node.start());
         node.onTopologyUpdate(topology, true);
         return node;
