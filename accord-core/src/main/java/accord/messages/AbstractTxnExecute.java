@@ -36,14 +36,14 @@ import accord.utils.async.AsyncChain;
 /**
  * Message for executing arbitrary code during a txns ReadyToExecute phase
  */
-public abstract class TxnExecute extends ReadTxnData
+public abstract class AbstractTxnExecute extends ReadTxnData
 {
-    public TxnExecute(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    public AbstractTxnExecute(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
     {
         super(to, topologies, txnId, readScope, executeAt, dataReadKeys, followupRead);
     }
 
-    public TxnExecute(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    public AbstractTxnExecute(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
     {
         super(txnId, readScope, executeAtEpoch, waitForEpoch, dataReadKeys, followupRead);
     }
