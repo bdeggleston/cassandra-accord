@@ -18,6 +18,8 @@
 
 package accord.messages;
 
+import javax.annotation.Nullable;
+
 import accord.api.Read;
 import accord.api.UnresolvedData;
 import accord.local.Node;
@@ -30,7 +32,6 @@ import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.topology.Topologies;
 import accord.utils.async.AsyncChain;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Message for executing arbitrary code during a txns ReadyToExecute phase
