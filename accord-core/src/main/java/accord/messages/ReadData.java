@@ -39,6 +39,7 @@ import accord.primitives.Ranges;
 import accord.primitives.RoutingKeys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
+import accord.utils.async.AsyncChain;
 
 import static accord.messages.MessageType.READ_RSP;
 import static accord.messages.TxnRequest.computeWaitForEpoch;
@@ -201,12 +202,17 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
         ack(unavailable);
     }
 
+    protected AsyncChain<UnresolvedData> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable)
+    {
+        return txn.read(safeStore, executeAt, dataReadKeys, followupRead);
+    }
+
     void read(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn)
     {
         CommandStore unsafeStore = safeStore.commandStore();
         Ranges unavailable = safeStore.ranges().unsafeToReadAt(executeAt);
 
-        txn.read(safeStore, executeAt, dataReadKeys, followupRead).begin((next, throwable) -> {
+        execute(safeStore, executeAt, txn, unavailable).begin((next, throwable) -> {
             if (throwable != null)
             {
                 throwable.printStackTrace();

@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Assertions;
 import accord.api.MessageSink;
 import accord.burn.BurnTestConfigurationService;
 import accord.burn.TopologyUpdates;
+import accord.coordinate.Execute;
 import accord.impl.*;
 import accord.local.AgentExecutor;
 import accord.local.Node;
@@ -232,7 +233,7 @@ public class Cluster implements Scheduler
                                           () -> new ListStore(node), new ShardDistributor.EvenSplit<>(8, ignore -> new IntHashKey.Splitter()),
                                           executor.agent(),
                                           randomSupplier.get(), sinks, SizeOfIntersectionSorter.SUPPLIER,
-                                          SimpleProgressLog::new, DelayedCommandStores.factory(sinks.pending)));
+                                          SimpleProgressLog::new, DelayedCommandStores.factory(sinks.pending), Execute.FACTORY));
             }
 
             // startup

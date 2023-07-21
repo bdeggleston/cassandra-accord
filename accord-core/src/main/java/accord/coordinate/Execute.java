@@ -64,8 +64,10 @@ import static accord.coordinate.ReadCoordinator.Action.ApprovePartial;
 import static accord.messages.Commit.Kind.Maximal;
 import static accord.utils.Invariants.checkArgument;
 
-class Execute extends ReadCoordinator<ReadReply>
+public class Execute extends ReadCoordinator<ReadReply> implements IExecute
 {
+    public static final IExecute.Factory FACTORY = Execute::new;
+
     @SuppressWarnings("unused")
     private static final Logger logger = LoggerFactory.getLogger(Execute.class);
 

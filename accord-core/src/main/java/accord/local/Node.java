@@ -49,6 +49,7 @@ import accord.api.Scheduler;
 import accord.api.TopologySorter;
 import accord.coordinate.Barrier;
 import accord.coordinate.CoordinateTransaction;
+import accord.coordinate.IExecute;
 import accord.coordinate.MaybeRecover;
 import accord.coordinate.Outcome;
 import accord.coordinate.RecoverWithRoute;
@@ -133,6 +134,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     private final ConfigurationService configService;
     private final TopologyManager topology;
     private final CommandStores commandStores;
+    private final IExecute.Factory executionFactory;
 
     private final LongSupplier nowSupplier;
     private final AtomicReference<Timestamp> now;
@@ -147,11 +149,12 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
 
     public Node(Id id, MessageSink messageSink, ConfigurationService configService, LongSupplier nowSupplier,
                 Supplier<DataStore> dataSupplier, ShardDistributor shardDistributor, Agent agent, RandomSource random, Scheduler scheduler, TopologySorter.Supplier topologySorter,
-                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory)
+                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory, IExecute.Factory executionFactory)
     {
         this.id = id;
         this.messageSink = messageSink;
         this.configService = configService;
+        this.executionFactory = executionFactory;
         this.topology = new TopologyManager(topologySorter, id);
         this.nowSupplier = nowSupplier;
         this.now = new AtomicReference<>(Timestamp.fromValues(topology.epoch(), nowSupplier.getAsLong(), id));
@@ -632,6 +635,11 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
             scheduler.once(processMsg, delayNanos, TimeUnit.NANOSECONDS);
         else
             scheduler.now(processMsg);
+    }
+
+    public IExecute.Factory executionFactory()
+    {
+        return executionFactory;
     }
 
     public Scheduler scheduler()

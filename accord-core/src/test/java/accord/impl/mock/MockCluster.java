@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import accord.NetworkFilter;
 import accord.api.MessageSink;
+import accord.coordinate.Execute;
 import accord.local.AgentExecutor;
 import accord.impl.InMemoryCommandStores;
 import accord.impl.IntKey;
@@ -127,17 +128,17 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
         MessageSink messageSink = messageSinkFactory.apply(id, this);
         MockConfigurationService configurationService = new MockConfigurationService(messageSink, onFetchTopology, topology);
         Node node = new Node(id,
-                        messageSink,
-                        configurationService,
-                        nowSupplier,
-                        () -> store,
-                        new ShardDistributor.EvenSplit(8, ignore -> new IntKey.Splitter()),
-                        new TestAgent(),
-                        random.fork(),
-                        new ThreadPoolScheduler(),
-                        SizeOfIntersectionSorter.SUPPLIER,
-                        SimpleProgressLog::new,
-                        InMemoryCommandStores.SingleThread::new);
+                             messageSink,
+                             configurationService,
+                             nowSupplier,
+                             () -> store,
+                             new ShardDistributor.EvenSplit(8, ignore -> new IntKey.Splitter()),
+                             new TestAgent(),
+                             random.fork(),
+                             new ThreadPoolScheduler(),
+                             SizeOfIntersectionSorter.SUPPLIER,
+                             SimpleProgressLog::new,
+                             InMemoryCommandStores.SingleThread::new, Execute.FACTORY);
         awaitUninterruptibly(node.start());
         node.onTopologyUpdate(topology, true);
         return node;

@@ -29,6 +29,8 @@ import com.google.common.collect.Sets;
 import accord.api.ExternalTopology;
 import accord.api.MessageSink;
 import accord.api.Scheduler;
+import accord.coordinate.Execute;
+import accord.coordinate.IExecute;
 import accord.impl.InMemoryCommandStores;
 import accord.impl.IntKey;
 import accord.impl.SimpleProgressLog;
@@ -158,7 +160,7 @@ public class Utils
                              scheduler,
                              SizeOfIntersectionSorter.SUPPLIER,
                              SimpleProgressLog::new,
-                             InMemoryCommandStores.Synchronized::new);
+                             InMemoryCommandStores.Synchronized::new, Execute.FACTORY);
         awaitUninterruptibly(node.start());
         return node;
     }
