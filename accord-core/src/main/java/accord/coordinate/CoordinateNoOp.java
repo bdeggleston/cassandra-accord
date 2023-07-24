@@ -81,7 +81,7 @@ public class CoordinateNoOp extends CoordinatePreAccept<Timestamp>
                 @Override
                 void onAccepted()
                 {
-                    Writes writes = txn.execute(txnId, txnId, null, null);
+                    Writes writes = txn.execute(txnId, txnId, null);
                     Result result = txn.result(txnId, executeAt, null);
                     Apply.sendMaximal(node, txnId, route, txn, executeAt, deps, writes, result);
                     accept(executeAt, null);

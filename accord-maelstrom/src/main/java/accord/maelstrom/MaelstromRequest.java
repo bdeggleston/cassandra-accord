@@ -139,7 +139,7 @@ public class MaelstromRequest extends Body implements Request
         MaelstromRead read = new MaelstromRead(readKeys, keys);
         MaelstromQuery query = new MaelstromQuery(client, requestId);
 
-        return new Txn.InMemory(keys, read, MaelstromData.EMPTY, query, update);
+        return new Txn.InMemory(keys, read, query, update);
     }
 
 }

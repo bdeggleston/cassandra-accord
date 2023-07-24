@@ -23,13 +23,10 @@ import java.util.List;
 import java.util.Objects;
 
 import accord.api.Data;
-import accord.api.DataResolver;
 import accord.api.Key;
 import accord.api.Query;
 import accord.api.Read;
-import accord.api.RepairWrites;
 import accord.api.Result;
-import accord.api.UnresolvedData;
 import accord.api.Update;
 import accord.api.Write;
 import accord.local.SafeCommandStore;
@@ -40,7 +37,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static accord.utils.Invariants.checkArgument;
-import static accord.utils.Invariants.nonNull;
 
 public interface Txn
 {
@@ -149,39 +145,32 @@ public interface Txn
         private final Kind kind;
         private final Seekables<?, ?> keys;
         private final Read read;
-        private final DataResolver readResolver;
         private final Query query;
         private final Update update;
 
-        public InMemory(@Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nonnull DataResolver readResolver, @Nonnull Query query)
+        public InMemory(@Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nonnull Query query)
         {
-            nonNull(readResolver, "readResolver is null");
             this.kind = Kind.Read;
             this.keys = keys;
             this.read = read;
             this.query = query;
-            this.readResolver = readResolver;
             this.update = null;
         }
 
-        public InMemory(@Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nonnull DataResolver readResolver, @Nonnull Query query, @Nullable Update update)
+        public InMemory(@Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nonnull Query query, @Nullable Update update)
         {
-            nonNull(readResolver, "readResolver is null");
             this.kind = Kind.Write;
             this.keys = keys;
             this.read = read;
-            this.readResolver = readResolver;
             this.update = update;
             this.query = query;
         }
 
-        public InMemory(@Nonnull Kind kind, @Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nonnull DataResolver readResolver, @Nullable Query query, @Nullable Update update)
+        public InMemory(@Nonnull Kind kind, @Nonnull Seekables<?, ?> keys, @Nonnull Read read, @Nullable Query query, @Nullable Update update)
         {
-            nonNull(readResolver, "readResolver is null");
             this.kind = kind;
             this.keys = keys;
             this.read = read;
-            this.readResolver = readResolver;
             this.update = update;
             this.query = query;
         }
@@ -191,7 +180,7 @@ public interface Txn
         {
             return new PartialTxn.InMemory(
                     ranges, kind(), keys().slice(ranges),
-                    read().slice(ranges), readResolver(), includeQuery ? query() : null,
+                    read().slice(ranges), includeQuery ? query() : null,
                     update() == null ? null : update().slice(ranges)
             );
         }
@@ -224,12 +213,6 @@ public interface Txn
         public Update update()
         {
             return update;
-        }
-
-        @Override
-        public DataResolver readResolver()
-        {
-            return readResolver;
         }
 
         @Override
@@ -273,8 +256,6 @@ public interface Txn
     @Nonnull Kind kind();
     @Nonnull Seekables<?, ?> keys();
     @Nonnull Read read();
-    @Nonnull
-    DataResolver readResolver();
     @Nullable Query query(); // may be null only in PartialTxn
     @Nullable Update update();
 
@@ -300,32 +281,22 @@ public interface Txn
         return query().compute(txnId, executeAt, keys(), data, read(), update());
     }
 
-    default Writes execute(TxnId txnId, Timestamp executeAt, @Nullable Data data, @Nullable RepairWrites repairWrites)
+    default Writes execute(TxnId txnId, Timestamp executeAt, @Nullable Data data)
     {
-        checkArgument(repairWrites == null || !repairWrites.isEmpty());
 
         // Accord allows you to specify read CL separately from write CL
         // so if we want reads to be monotonic we may need to upgrade the CL when writing the repairs
         DataConsistencyLevel txnWriteDataCL = writeDataCL();
-        DataConsistencyLevel writeDataCL = repairWrites != null ?
-                DataConsistencyLevel.max(txnWriteDataCL, readDataCL()) :
-                txnWriteDataCL;
+        DataConsistencyLevel writeDataCL = DataConsistencyLevel.max(txnWriteDataCL, readDataCL());
 
         Update update = update();
         if (update == null)
-        {
-            if (repairWrites != null)
-                return new Writes(txnId, executeAt, repairWrites.keys(), repairWrites.toWrite(), writeDataCL);
-            else
-                return new Writes(txnId, executeAt, Keys.EMPTY, null, writeDataCL);
-        }
+            return new Writes(txnId, executeAt, Keys.EMPTY, null, writeDataCL);
 
         // Update keys might not include keys needing repair
         Seekables keys = update.keys();
-        if (repairWrites != null)
-            keys = keys.with(repairWrites.keys());
 
-        Write write = update.apply(executeAt, data, repairWrites);
+        Write write = update.apply(executeAt, data);
         // If there is nothing to write then writeDataCL doesn't matter and apply can be done async
         if (write.isEmpty())
             writeDataCL = DataConsistencyLevel.UNSPECIFIED;
@@ -333,16 +304,16 @@ public interface Txn
         return new Writes(txnId, executeAt, keys, write, writeDataCL);
     }
 
-    default AsyncChain<UnresolvedData> read(SafeCommandStore safeStore, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
     {
         Ranges ranges = safeStore.ranges().safeToReadAt(executeAt);
-        List<AsyncChain<UnresolvedData>> chains = Routables.foldlMinimal(read().keys(), ranges, (key, accumulate, index) -> {
+        List<AsyncChain<Data>> chains = Routables.foldlMinimal(read().keys(), ranges, (key, accumulate, index) -> {
             Read read = followupRead != null ? followupRead : read();
             checkArgument(dataReadKeys == null || key.domain() == Domain.Key || !readDataCL().requiresDigestReads, "Digest reads are unsupported for ranges");
             boolean digestRead = readDataCL().requiresDigestReads
                     && dataReadKeys != null
                     && !dataReadKeys.contains(((Key)key).toUnseekable());
-            AsyncChain<UnresolvedData> result = read.read(key, digestRead, kind(), safeStore, executeAt, safeStore.dataStore());
+            AsyncChain<Data> result = read.read(key, digestRead, kind(), safeStore, executeAt, safeStore.dataStore());
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());
@@ -350,6 +321,6 @@ public interface Txn
         if (chains.isEmpty())
             return AsyncChains.success(null);
 
-        return AsyncChains.reduce(chains, UnresolvedData::mergeForReduce);
+        return AsyncChains.reduce(chains, Data::merge);
     }
 }

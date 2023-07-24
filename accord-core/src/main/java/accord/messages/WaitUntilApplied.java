@@ -20,10 +20,10 @@ package accord.messages;
 
 import javax.annotation.Nullable;
 
+import accord.api.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import accord.api.UnresolvedData;
 import accord.local.Command;
 import accord.local.Node;
 import accord.local.PreLoadContext;
@@ -215,7 +215,7 @@ public class WaitUntilApplied extends ReadData implements Command.TransientListe
     }
 
     @Override
-    protected void reply(@Nullable Ranges unavailable, @Nullable UnresolvedData unresolvedData)
+    protected void reply(@Nullable Ranges unavailable, @Nullable Data unresolvedData)
     {
         if (isInvalid)
             return;

@@ -20,8 +20,8 @@ package accord.messages;
 
 import javax.annotation.Nullable;
 
+import accord.api.Data;
 import accord.api.Read;
-import accord.api.UnresolvedData;
 import accord.local.Node;
 import accord.local.SafeCommandStore;
 import accord.primitives.PartialTxn;
@@ -48,5 +48,5 @@ public abstract class AbstractTxnExecute extends ReadTxnData
         super(txnId, readScope, executeAtEpoch, waitForEpoch, dataReadKeys, followupRead);
     }
 
-    protected abstract AsyncChain<UnresolvedData> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable);
+    protected abstract AsyncChain<Data> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable);
 }

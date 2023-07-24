@@ -23,7 +23,6 @@ import java.util.TreeMap;
 
 import accord.api.Data;
 import accord.api.Key;
-import accord.api.RepairWrites;
 import accord.api.Update;
 import accord.primitives.Keys;
 import accord.primitives.Ranges;
@@ -38,12 +37,9 @@ public class MaelstromUpdate extends TreeMap<Key, Value> implements Update
     }
 
     @Override
-    public MaelstromWrite apply(Timestamp executeAt, Data read, RepairWrites repairWrites)
+    public MaelstromWrite apply(Timestamp executeAt, Data read)
     {
         MaelstromWrite write = new MaelstromWrite();
-
-        if (repairWrites != null)
-            ((MaelstromWrite)repairWrites).entrySet().forEach(e -> write.putIfAbsent(e.getKey(), e.getValue()));
 
         Map<Key, Value> data = (MaelstromData)read;
         for (Map.Entry<Key, Value> e : entrySet())

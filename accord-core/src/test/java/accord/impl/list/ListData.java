@@ -18,23 +18,15 @@
 
 package accord.impl.list;
 
+import accord.api.Data;
+import accord.api.Key;
+import accord.utils.Timestamped;
+
 import java.util.Arrays;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import accord.api.Data;
-import accord.api.DataResolver;
-import accord.api.ExternalTopology;
-import accord.api.Key;
-import accord.api.Read;
-import accord.api.ResolveResult;
-import accord.api.UnresolvedData;
-import accord.primitives.Timestamp;
-import accord.utils.Timestamped;
-import accord.utils.async.AsyncChain;
-import accord.utils.async.AsyncChains;
-
-public class ListData extends TreeMap<Key, Timestamped<int[]>> implements Data, UnresolvedData, DataResolver
+public class ListData extends TreeMap<Key, Timestamped<int[]>> implements Data
 {
     public static final ListData EMPTY = new ListData();
 
@@ -61,17 +53,5 @@ public class ListData extends TreeMap<Key, Timestamped<int[]>> implements Data, 
         return entrySet().stream()
                          .map(e -> e.getKey() + "=" + Arrays.toString(e.getValue().data))
                          .collect(Collectors.joining(", ", "{", "}"));
-    }
-
-    @Override
-    public UnresolvedData merge(UnresolvedData unresolvedData)
-    {
-        return merge((Data)unresolvedData);
-    }
-
-    @Override
-    public AsyncChain<ResolveResult> resolve(Timestamp executeAt, ExternalTopology externalTopology, Read read, UnresolvedData unresolvedData, FollowupReader followUpReader)
-    {
-        return AsyncChains.success(new ResolveResult((ListData)unresolvedData, null));
     }
 }

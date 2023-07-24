@@ -21,6 +21,7 @@ package accord.messages;
 import java.util.BitSet;
 import javax.annotation.Nullable;
 
+import accord.api.Data;
 import accord.primitives.Participants;
 import accord.topology.Topologies;
 import accord.utils.Invariants;
@@ -29,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import accord.api.Read;
-import accord.api.UnresolvedData;
 import accord.local.CommandStore;
 import accord.local.Node;
 import accord.local.SafeCommandStore;
@@ -93,7 +93,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
      */
     public @Nullable final RoutingKeys dataReadKeys;
 
-    private UnresolvedData unresolvedData;
+    private Data unresolvedData;
     transient BitSet waitingOn;
     transient int waitingOnCount;
     transient Ranges unavailable;
@@ -124,7 +124,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
 
     protected abstract void cancel();
     protected abstract long executeAtEpoch();
-    protected abstract void reply(@Nullable Ranges unavailable, @Nullable UnresolvedData data);
+    protected abstract void reply(@Nullable Ranges unavailable, @Nullable Data data);
 
     protected void onAllReadsComplete() {}
 
@@ -191,7 +191,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
         }
     }
 
-    protected synchronized void readComplete(CommandStore commandStore, @Nullable UnresolvedData result, @Nullable Ranges unavailable)
+    protected synchronized void readComplete(CommandStore commandStore, @Nullable Data result, @Nullable Ranges unavailable)
     {
         Invariants.checkState(waitingOn.get(commandStore.id()), "Txn %s's waiting on does not contain store %d; waitingOn=%s", txnId, commandStore.id(), waitingOn);
         logger.trace("{}: read completed on {}", txnId, commandStore);
@@ -202,7 +202,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
         ack(unavailable);
     }
 
-    protected AsyncChain<UnresolvedData> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable)
+    protected AsyncChain<Data> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable)
     {
         return txn.read(safeStore, executeAt, dataReadKeys, followupRead);
     }
@@ -275,18 +275,18 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
          */
         public final @Nullable Ranges unavailable;
 
-        public final @Nullable UnresolvedData unresolvedData;
+        public final @Nullable Data data;
 
-        public ReadOk(@Nullable Ranges unavailable, @Nullable UnresolvedData unresolvedData)
+        public ReadOk(@Nullable Ranges unavailable, @Nullable Data data)
         {
             this.unavailable = unavailable;
-            this.unresolvedData = unresolvedData;
+            this.data = data;
         }
 
         @Override
         public String toString()
         {
-            return "ReadOk{" + unresolvedData + (unavailable == null ? "" : ", unavailable:" + unavailable) + '}';
+            return "ReadOk{" + data + (unavailable == null ? "" : ", unavailable:" + unavailable) + '}';
         }
 
         @Override

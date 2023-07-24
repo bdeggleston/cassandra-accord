@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import accord.api.DataStore;
 import accord.api.Key;
-import accord.api.RepairWrites;
 import accord.api.Write;
 import accord.local.CommandStore;
 import accord.local.SafeCommandStore;
@@ -42,7 +41,7 @@ import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncChains;
 import accord.utils.async.AsyncExecutor;
 
-public class ListWrite extends TreeMap<Key, int[]> implements Write, RepairWrites
+public class ListWrite extends TreeMap<Key, int[]> implements Write
 {
     private static final Logger logger = LoggerFactory.getLogger(ListWrite.class);
 
@@ -69,12 +68,6 @@ public class ListWrite extends TreeMap<Key, int[]> implements Write, RepairWrite
     public Seekables<?, ?> keys()
     {
         return Keys.of(keySet());
-    }
-
-    @Override
-    public Write toWrite()
-    {
-        return this;
     }
 
     @Override

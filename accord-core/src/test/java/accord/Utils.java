@@ -112,16 +112,16 @@ public class Utils
 
     public static Txn writeTxn(Keys keys, DataConsistencyLevel writeDataCL)
     {
-        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.RESOLVER, MockStore.QUERY, MockStore.update(keys, writeDataCL));
+        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.QUERY, MockStore.update(keys, writeDataCL));
     }
     public static Txn writeTxn(Ranges ranges)
     {
-        return new Txn.InMemory(ranges, MockStore.read(ranges), MockStore.RESOLVER, MockStore.QUERY, MockStore.update(ranges));
+        return new Txn.InMemory(ranges, MockStore.read(ranges), MockStore.QUERY, MockStore.update(ranges));
     }
 
     public static Txn readTxn(Keys keys)
     {
-        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.RESOLVER, MockStore.QUERY);
+        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.QUERY);
     }
 
     public static Shard shard(Range range, List<Node.Id> nodes, Set<Node.Id> fastPath)

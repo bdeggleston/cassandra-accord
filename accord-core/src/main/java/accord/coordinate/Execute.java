@@ -65,7 +65,7 @@ public interface Execute
                 callback.accept(result, null);
             else
                 onAppliedToQuorum = (applyFailure) -> callback.accept(applyFailure == null ? result : null, applyFailure);
-            Persist.persist(node, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, null, null), result, onAppliedToQuorum);
+            Persist.persist(node, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, null), result, onAppliedToQuorum);
         }
         else
         {

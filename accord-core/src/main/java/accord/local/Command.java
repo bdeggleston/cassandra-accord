@@ -21,13 +21,9 @@ package accord.local;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
+import accord.api.*;
 import com.google.common.collect.ImmutableSortedSet;
 
-import accord.api.Read;
-import accord.api.Result;
-import accord.api.RoutingKey;
-import accord.api.UnresolvedData;
-import accord.api.VisibleForImplementation;
 import accord.primitives.Ballot;
 import accord.primitives.Deps;
 import accord.primitives.Keys;
@@ -839,7 +835,7 @@ public abstract class Command implements CommonAttributes
             return new Committed(common, status, executeAt, promised, accepted, waitingOn);
         }
 
-        public AsyncChain<UnresolvedData> read(SafeCommandStore safeStore, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+        public AsyncChain<Data> read(SafeCommandStore safeStore, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
         {
             return partialTxn().read(safeStore, executeAt(), dataReadKeys, followupRead);
         }

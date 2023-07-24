@@ -325,7 +325,7 @@ public class Json
             MaelstromRead read = new MaelstromRead(readKeys, keys);
             MaelstromQuery query = new MaelstromQuery(client, requestId);
 
-            return new Txn.InMemory(keys, read, MaelstromData.EMPTY, query, update);
+            return new Txn.InMemory(keys, read, query, update);
         }
     };
 
@@ -506,22 +506,15 @@ public class Json
         public void write(JsonWriter out, ReadOk value) throws IOException
         {
             out.beginArray();
-            try
+            if (value.data != null)
             {
-                if (value.unresolvedData != null)
+                for (Map.Entry<Key, Value> e : ((MaelstromData)value.data).entrySet())
                 {
-                    for (Map.Entry<Key, Value> e : ((MaelstromData) getUninterruptibly(MaelstromData.EMPTY.resolve(null, null, null, value.unresolvedData, null)).data).entrySet())
-                    {
-                        out.beginArray();
-                        ((MaelstromKey) e.getKey()).datum.write(out);
-                        e.getValue().write(out);
-                        out.endArray();
-                    }
+                    out.beginArray();
+                    ((MaelstromKey) e.getKey()).datum.write(out);
+                    e.getValue().write(out);
+                    out.endArray();
                 }
-            }
-            catch (ExecutionException e)
-            {
-                throw new IOException(e);
             }
             out.endArray();
         }

@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 
 import accord.api.Data;
 import accord.api.Key;
-import accord.api.RepairWrites;
 import accord.api.Update;
 import accord.local.CommandStore;
 import accord.primitives.Keys;
@@ -52,12 +51,9 @@ public class ListUpdate extends TreeMap<Key, Integer> implements Update
     }
 
     @Override
-    public ListWrite apply(Timestamp executeAt, Data read, RepairWrites repairWrites)
+    public ListWrite apply(Timestamp executeAt, Data read)
     {
         ListWrite write = new ListWrite(executor);
-
-        if (repairWrites != null)
-            ((ListWrite) repairWrites).entrySet().forEach(e -> write.put(e.getKey(), e.getValue()));
 
         Map<Key, Timestamped<int[]>> data = (ListData)read;
         for (Map.Entry<Key, Integer> e : entrySet())

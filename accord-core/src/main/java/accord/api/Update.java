@@ -35,7 +35,7 @@ public interface Update
 {
     Seekables<?, ?> keys();
     // null is provided only if nothing was read
-    Write apply(Timestamp executeAt, @Nullable Data data, @Nullable RepairWrites repairWrites);
+    Write apply(Timestamp executeAt, @Nullable Data data);
     Update slice(Ranges ranges);
     Update merge(Update other);
     default DataConsistencyLevel writeDataCl()

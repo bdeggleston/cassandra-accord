@@ -165,6 +165,6 @@ public class CoordinateSyncPoint<S extends Seekables<?, ?>> extends CoordinatePr
         Timestamp executeAt = txnId;
         Txn txn = node.agent().emptyTxn(txnId.rw(), syncPoint.keysOrRanges);
         Deps deps = syncPoint.waitFor;
-        Apply.sendMaximal(node, to, txnId, syncPoint.route(), txn, executeAt, deps, txn.execute(txnId, executeAt, null, null), txn.result(txnId, executeAt, null));
+        Apply.sendMaximal(node, to, txnId, syncPoint.route(), txn, executeAt, deps, txn.execute(txnId, executeAt, null), txn.result(txnId, executeAt, null));
     }
 }

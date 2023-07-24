@@ -21,13 +21,13 @@ package accord.impl.list;
 import java.util.Map;
 import java.util.function.Function;
 
+import accord.api.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import accord.api.DataStore;
 import accord.api.Key;
 import accord.api.Read;
-import accord.api.UnresolvedData;
 import accord.local.CommandStore;
 import accord.local.SafeCommandStore;
 import accord.primitives.Range;
@@ -64,7 +64,7 @@ public class ListRead implements Read
     }
 
     @Override
-    public AsyncChain<UnresolvedData> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
+    public AsyncChain<Data> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
     {
         checkArgument(!digestRead, "Digest reads are unsupported");
         ListStore s = (ListStore)store;

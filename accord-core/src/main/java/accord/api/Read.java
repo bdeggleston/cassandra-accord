@@ -40,7 +40,7 @@ public interface Read
     /**
      *  Perform a read for specific key, optionally executing the read as a digest read to increase performance
      */
-    AsyncChain<UnresolvedData> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store);
+    AsyncChain<Data> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store);
     Read slice(Ranges ranges);
     Read merge(Read other);
 

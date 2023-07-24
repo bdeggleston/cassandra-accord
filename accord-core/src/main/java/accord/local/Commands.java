@@ -413,7 +413,7 @@ public class Commands
 
         // NOTE: if this is ever made a non-empty txn this will introduce a potential bug where the txn is registered against CommandsForKeys
         Txn emptyTxn = safeStore.agent().emptyTxn(localSyncId.rw(), keys);
-        safeCommand.preapplied(command, command.executeAt(), command.waitingOn(), emptyTxn.execute(localSyncId, localSyncId, null, null), emptyTxn.result(localSyncId, localSyncId, null));
+        safeCommand.preapplied(command, command.executeAt(), command.waitingOn(), emptyTxn.execute(localSyncId, localSyncId, null), emptyTxn.result(localSyncId, localSyncId, null));
         maybeExecute(safeStore, safeCommand, true, false);
     }
 
