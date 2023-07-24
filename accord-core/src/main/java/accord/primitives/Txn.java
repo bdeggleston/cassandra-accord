@@ -310,10 +310,7 @@ public interface Txn
         List<AsyncChain<Data>> chains = Routables.foldlMinimal(read().keys(), ranges, (key, accumulate, index) -> {
             Read read = followupRead != null ? followupRead : read();
             checkArgument(dataReadKeys == null || key.domain() == Domain.Key || !readDataCL().requiresDigestReads, "Digest reads are unsupported for ranges");
-            boolean digestRead = readDataCL().requiresDigestReads
-                    && dataReadKeys != null
-                    && !dataReadKeys.contains(((Key)key).toUnseekable());
-            AsyncChain<Data> result = read.read(key, digestRead, kind(), safeStore, executeAt, safeStore.dataStore());
+            AsyncChain<Data> result = read.read(key, kind(), safeStore, executeAt, safeStore.dataStore());
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());
