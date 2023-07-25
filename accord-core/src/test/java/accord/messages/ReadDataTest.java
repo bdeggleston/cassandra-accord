@@ -100,7 +100,7 @@ class ReadDataTest
         Mockito.when(read.readDataCL()).thenReturn(DataConsistencyLevel.UNSPECIFIED);
         Mockito.when(read.keys()).thenReturn((Seekables)keys);
 
-        Mockito.when(read.read(any(), anyBoolean(), any(), any(), any(), any())).thenAnswer(new Answer<AsyncChain<Data>>()
+        Mockito.when(read.read(any(), any(), any(), any(), any())).thenAnswer(new Answer<AsyncChain<Data>>()
         {
             private final boolean called = false;
             @Override
