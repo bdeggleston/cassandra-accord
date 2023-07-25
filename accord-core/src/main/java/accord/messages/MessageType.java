@@ -54,7 +54,8 @@ public enum MessageType
     SET_GLOBALLY_DURABLE_REQ         (true ),
     QUERY_DURABLE_BEFORE_REQ         (false),
     QUERY_DURABLE_BEFORE_RSP         (false),
-    APPLY_AND_WAIT_UNTIL_APPLIED_REQ (true)
+    APPLY_AND_WAIT_UNTIL_APPLIED_REQ (true),
+    EXTENSION_REQ                    (true)
     ;
 
     /**
