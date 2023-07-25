@@ -64,9 +64,8 @@ public class ListRead implements Read
     }
 
     @Override
-    public AsyncChain<Data> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
+    public AsyncChain<Data> read(Seekable key, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
     {
-        checkArgument(!digestRead, "Digest reads are unsupported");
         ListStore s = (ListStore)store;
         return executor.apply(commandStore.commandStore()).submit(() -> {
             ListData result = new ListData();

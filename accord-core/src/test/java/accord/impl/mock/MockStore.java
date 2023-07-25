@@ -122,10 +122,11 @@ public class MockStore implements DataStore
         }
 
         @Override
-        public AsyncChain<Data> read(Seekable key, boolean digestRead, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
+        public AsyncChain<Data> read(Seekable key, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store)
         {
+            // FIXME: remove
             if (digestReadListener != null)
-                digestReadListener.accept(digestRead);
+                digestReadListener.accept(false);
             return AsyncChains.success(new MockData(((MockStore)store).nodeId, Seekables.of(key)));
         }
 
