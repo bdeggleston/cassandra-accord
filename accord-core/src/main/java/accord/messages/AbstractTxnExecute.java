@@ -48,5 +48,10 @@ public abstract class AbstractTxnExecute extends ReadTxnData
         super(txnId, readScope, executeAtEpoch, waitForEpoch, dataReadKeys, followupRead);
     }
 
+    public MessageType type()
+    {
+        return null;
+    }
+
     protected abstract AsyncChain<Data> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable);
 }
