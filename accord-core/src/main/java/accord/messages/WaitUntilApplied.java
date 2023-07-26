@@ -63,13 +63,13 @@ public class WaitUntilApplied extends ReadData implements Command.TransientListe
 
     public WaitUntilApplied(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt)
     {
-        super(to, topologies, txnId, readScope, null, null);
+        super(to, topologies, txnId, readScope, null);
         this.executeAt = executeAt;
     }
 
     protected WaitUntilApplied(TxnId txnId, Participants<?> readScope, Timestamp executeAt, long waitForEpoch)
     {
-        super(txnId, readScope, waitForEpoch, null, null);
+        super(txnId, readScope, waitForEpoch, null);
         this.executeAt = executeAt;
     }
 

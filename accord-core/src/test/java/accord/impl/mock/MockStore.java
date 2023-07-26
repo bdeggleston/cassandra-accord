@@ -157,18 +157,6 @@ public class MockStore implements DataStore
         }
     }
 
-    public static class MockFollowupRead
-    {
-        final Id node;
-        final Seekables keys;
-
-        public MockFollowupRead(Id node, Seekables keys)
-        {
-            this.node = node;
-            this.keys = keys;
-        }
-    }
-
     public static class MockWrite implements Write
     {
         public final List<Key> appliedKeys = synchronizedList(new ArrayList<>());

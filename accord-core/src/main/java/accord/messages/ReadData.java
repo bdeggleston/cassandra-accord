@@ -29,7 +29,6 @@ import accord.utils.Invariants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import accord.api.Read;
 import accord.local.CommandStore;
 import accord.local.Node;
 import accord.local.SafeCommandStore;
@@ -82,12 +81,6 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
     private final long waitForEpoch;
 
     /**
-     * A read generated during execution that isn't part of the original transaction description
-     * If not null then this is the read that should be performed instead of the one in the transaction
-     */
-    public final Read followupRead;
-
-    /**
      * The keys that should be read as data reads instead of digest reads
      * Empty collection means all digest reads, null means all data reads.
      */
@@ -98,22 +91,20 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
     transient int waitingOnCount;
     transient Ranges unavailable;
 
-    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, @Nullable RoutingKeys dataReadKeys)
     {
         super(txnId);
         int startIndex = latestRelevantEpochIndex(to, topologies, readScope);
         this.readScope = TxnRequest.computeScope(to, topologies, readScope, startIndex, Participants::slice, Participants::with);
         this.waitForEpoch = computeWaitForEpoch(to, topologies, startIndex);
-        this.followupRead = followupRead;
         this.dataReadKeys = dataReadKeys;
     }
 
-    protected ReadData(TxnId txnId, Participants<?> readScope, long waitForEpoch, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    protected ReadData(TxnId txnId, Participants<?> readScope, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
     {
         super(txnId);
         this.readScope = readScope;
         this.waitForEpoch = waitForEpoch;
-        this.followupRead = followupRead;
         this.dataReadKeys = dataReadKeys;
     }
 
@@ -204,7 +195,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
 
     protected AsyncChain<Data> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable)
     {
-        return txn.read(safeStore, executeAt, dataReadKeys, followupRead);
+        return txn.read(safeStore, executeAt, dataReadKeys);
     }
 
     void read(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn)

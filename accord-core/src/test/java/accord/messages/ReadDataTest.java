@@ -71,7 +71,6 @@ import static accord.Utils.id;
 import static accord.utils.Utils.listOf;
 import static accord.utils.async.AsyncChains.getUninterruptibly;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 
 class ReadDataTest
 {
@@ -297,7 +296,7 @@ class ReadDataTest
         ReplyContext process()
         {
             ReplyContext replyContext = Mockito.mock(ReplyContext.class);
-            ReadData readData = new ReadTxnData(node.id(), TOPOLOGIES, txnId, keys.toParticipants(), txnId, null, null);
+            ReadData readData = new ReadTxnData(node.id(), TOPOLOGIES, txnId, keys.toParticipants(), txnId, null);
             readData.process(node, node.id(), replyContext);
             return replyContext;
         }

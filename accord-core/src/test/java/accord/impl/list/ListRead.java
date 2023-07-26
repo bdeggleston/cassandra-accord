@@ -40,8 +40,6 @@ import accord.utils.Timestamped;
 import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncExecutor;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 public class ListRead implements Read
 {
     private static final Logger logger = LoggerFactory.getLogger(ListRead.class);

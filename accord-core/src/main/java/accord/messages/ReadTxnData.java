@@ -22,7 +22,6 @@ import accord.api.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import accord.api.Read;
 import accord.local.Command;
 import accord.local.CommandStore;
 import accord.local.Node;
@@ -52,9 +51,9 @@ public class ReadTxnData extends ReadData implements Command.TransientListener, 
 
     public static class SerializerSupport
     {
-        public static ReadTxnData create(TxnId txnId, Participants<?> scope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+        public static ReadTxnData create(TxnId txnId, Participants<?> scope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
         {
-            return new ReadTxnData(txnId, scope, executeAtEpoch, waitForEpoch, dataReadKeys, followupRead);
+            return new ReadTxnData(txnId, scope, executeAtEpoch, waitForEpoch, dataReadKeys);
         }
     }
 
@@ -87,15 +86,15 @@ public class ReadTxnData extends ReadData implements Command.TransientListener, 
     final ObsoleteTracker obsoleteTracker = new ObsoleteTracker();
     private transient State state = State.PENDING; // TODO (low priority, semantics): respond with the Executed result we have stored?
 
-    public ReadTxnData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    public ReadTxnData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys)
     {
-        super(to, topologies, txnId, readScope, dataReadKeys, followupRead);
+        super(to, topologies, txnId, readScope, dataReadKeys);
         this.executeAtEpoch = executeAt.epoch();
     }
 
-    protected ReadTxnData(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    protected ReadTxnData(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
     {
-        super(txnId, readScope, waitForEpoch, dataReadKeys, followupRead);
+        super(txnId, readScope, waitForEpoch, dataReadKeys);
         this.executeAtEpoch = executeAtEpoch;
     }
 

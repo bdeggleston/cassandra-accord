@@ -835,9 +835,9 @@ public abstract class Command implements CommonAttributes
             return new Committed(common, status, executeAt, promised, accepted, waitingOn);
         }
 
-        public AsyncChain<Data> read(SafeCommandStore safeStore, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+        public AsyncChain<Data> read(SafeCommandStore safeStore, @Nullable RoutingKeys dataReadKeys)
         {
-            return partialTxn().read(safeStore, executeAt(), dataReadKeys, followupRead);
+            return partialTxn().read(safeStore, executeAt(), dataReadKeys);
         }
 
         public WaitingOn waitingOn()

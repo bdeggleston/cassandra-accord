@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Objects;
 
 import accord.api.Data;
-import accord.api.Key;
 import accord.api.Query;
 import accord.api.Read;
 import accord.api.Result;
@@ -304,13 +303,12 @@ public interface Txn
         return new Writes(txnId, executeAt, keys, write, writeDataCL);
     }
 
-    default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys, @Nullable Read followupRead)
+    default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys)
     {
         Ranges ranges = safeStore.ranges().safeToReadAt(executeAt);
         List<AsyncChain<Data>> chains = Routables.foldlMinimal(read().keys(), ranges, (key, accumulate, index) -> {
-            Read read = followupRead != null ? followupRead : read();
             checkArgument(dataReadKeys == null || key.domain() == Domain.Key || !readDataCL().requiresDigestReads, "Digest reads are unsupported for ranges");
-            AsyncChain<Data> result = read.read(key, kind(), safeStore, executeAt, safeStore.dataStore());
+            AsyncChain<Data> result = read().read(key, kind(), safeStore, executeAt, safeStore.dataStore());
             accumulate.add(result);
             return accumulate;
         }, new ArrayList<>());

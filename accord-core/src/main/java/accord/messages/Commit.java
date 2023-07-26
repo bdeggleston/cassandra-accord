@@ -88,7 +88,7 @@ public class Commit extends TxnRequest<ReadNack>
 
     public Commit(Kind kind, Id to, Topology coordinateTopology, Topologies topologies, TxnId txnId, Txn txn, FullRoute<?> route, @Nullable Participants<?> readScope, Timestamp executeAt, Deps deps, @Nullable RoutingKeys dataReadKeys)
     {
-        this(kind, to, coordinateTopology, topologies, txnId, txn, route, executeAt, deps, dataReadKeys != null ? new ReadTxnData(to, topologies, txnId, readScope, executeAt, dataReadKeys, null) : null);
+        this(kind, to, coordinateTopology, topologies, txnId, txn, route, executeAt, deps, dataReadKeys != null ? new ReadTxnData(to, topologies, txnId, readScope, executeAt, dataReadKeys) : null);
     }
 
     public Commit(Kind kind, Id to, Topology coordinateTopology, Topologies topologies, TxnId txnId, Txn txn, FullRoute<?> route, Timestamp executeAt, Deps deps, TriFunction<Txn, PartialRoute<?>, PartialDeps, ReadData> toExecuteFactory)
