@@ -29,13 +29,10 @@ import accord.api.Result;
 import accord.api.Update;
 import accord.api.Write;
 import accord.local.SafeCommandStore;
-import accord.primitives.Routable.Domain;
 import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncChains;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import static accord.utils.Invariants.checkArgument;
 
 public interface Txn
 {
@@ -303,11 +300,10 @@ public interface Txn
         return new Writes(txnId, executeAt, keys, write, writeDataCL);
     }
 
-    default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys)
+    default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt)
     {
         Ranges ranges = safeStore.ranges().safeToReadAt(executeAt);
         List<AsyncChain<Data>> chains = Routables.foldlMinimal(read().keys(), ranges, (key, accumulate, index) -> {
-            checkArgument(dataReadKeys == null || key.domain() == Domain.Key || !readDataCL().requiresDigestReads, "Digest reads are unsupported for ranges");
             AsyncChain<Data> result = read().read(key, kind(), safeStore, executeAt, safeStore.dataStore());
             accumulate.add(result);
             return accumulate;

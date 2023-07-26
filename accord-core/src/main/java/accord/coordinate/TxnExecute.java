@@ -28,19 +28,17 @@ import accord.messages.ReadData.ReadOk;
 import accord.messages.ReadData.ReadReply;
 import accord.messages.ReadTxnData;
 import accord.primitives.*;
-import accord.primitives.Txn.Kind;
 import accord.topology.Topologies;
 import accord.topology.Topology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static accord.coordinate.ReadCoordinator.Action.*;
 import static accord.messages.Commit.Kind.Maximal;
-import static accord.utils.Invariants.checkArgument;
 
 public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
 {
@@ -70,38 +68,8 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
         this.callback = callback;
     }
 
-    public static void execute(Node node, TxnId txnId, Txn txn, FullRoute<?> route, Timestamp executeAt, Deps deps, BiConsumer<? super Result, Throwable> callback)
-    {
-        Seekables<?, ?> readKeys = txn.read().keys();
-        Participants<?> readScope = readKeys.toParticipants();
-        // Recovery calls execute and we would like execute to run BlockOnDeps because that will notify the agent
-        // of the local barrier
-        // TODO we don't really need to run BlockOnDeps, executing the empty txn would also be fine
-        if (txn.kind() == Kind.SyncPoint)
-        {
-            checkArgument(txnId.equals(executeAt));
-            BlockOnDeps.blockOnDeps(node, txnId, txn, route, deps, callback);
-        }
-        else if (readKeys.isEmpty())
-        {
-            Result result = txn.result(txnId, executeAt, null);
-            Consumer<Throwable> onAppliedToQuorum = null;
-            DataConsistencyLevel writeDataCL = txn.writeDataCL();
-            if (!writeDataCL.requiresSynchronousCommit)
-                callback.accept(result, null);
-            else
-                onAppliedToQuorum = (applyFailure) -> callback.accept(applyFailure == null ? result : null, applyFailure);
-            Persist.persist(node, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, null), result, onAppliedToQuorum);
-        }
-        else
-        {
-            TxnExecute execute = new TxnExecute(node, txnId, txn, route, readScope, executeAt, deps, callback);
-            execute.start(readScope);
-        }
-    }
-
     @Override
-    protected void sendInitialReads(Map<Id, RoutingKeys> readSet)
+    protected void start(Set<Id> readSet)
     {
         Commit.commitMinimalAndRead(node, executes, txnId, txn, route, readScope, executeAt, deps, readSet, this);
     }
@@ -109,7 +77,7 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
     @Override
     public void contact(Id to)
     {
-        node.send(to, new ReadTxnData(to, topologies(), txnId, readScope, executeAt, null), this);
+        node.send(to, new ReadTxnData(to, topologies(), txnId, readScope, executeAt), this);
     }
 
     @Override
@@ -150,7 +118,7 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
                 // the replica may be missing the original commit, or the additional commit, so send everything
                 Topologies topology = node.topology().preciseEpochs(route, txnId.epoch(), executeAt.epoch());
                 Topology coordinateTopology = topology.forEpoch(txnId.epoch());
-                node.send(from, new Commit(Maximal, from, coordinateTopology, topology, txnId, txn, route, readScope, executeAt, deps, null));
+                node.send(from, new Commit(Maximal, from, coordinateTopology, topology, txnId, txn, route, readScope, executeAt, deps));
                 // also try sending a read command to another replica, in case they're ready to serve a response
                 return Action.TryAlternative;
             case Invalid:

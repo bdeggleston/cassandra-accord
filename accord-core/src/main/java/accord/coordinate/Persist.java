@@ -124,7 +124,7 @@ public class Persist implements Callback<ApplyReply>
             case Insufficient:
                 Topologies topologies = node.topology().preciseEpochs(route, txnId.epoch(), executeAt.epoch());
                 // TODO (easy, cleanup): use static method in Commit
-                node.send(from, new Commit(Maximal, from, topologies.forEpoch(txnId.epoch()), topologies, txnId, txn, route, null, executeAt, deps, null));
+                node.send(from, new Commit(Maximal, from, topologies.forEpoch(txnId.epoch()), topologies, txnId, txn, route, null, executeAt, deps));
         }
     }
 

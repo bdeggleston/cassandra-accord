@@ -18,17 +18,6 @@
 
 package accord.coordinate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
-
-import accord.api.RoutingKey;
 import accord.coordinate.tracking.ReadTracker;
 import accord.coordinate.tracking.RequestStatus;
 import accord.local.Node;
@@ -37,21 +26,17 @@ import accord.messages.Callback;
 import accord.messages.CheckStatus.WithQuorum;
 import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
-import accord.primitives.RoutingKeys;
 import accord.primitives.TxnId;
-import accord.primitives.Unseekables;
-import accord.topology.Shard;
 import accord.topology.Topologies;
-import accord.topology.Topology;
 import accord.utils.Invariants;
-import javax.annotation.Nullable;
+import com.google.common.collect.Lists;
+
+import java.util.*;
 
 import static accord.messages.CheckStatus.WithQuorum.HasQuorum;
 import static accord.messages.CheckStatus.WithQuorum.NoQuorum;
-import static accord.utils.Invariants.checkArgument;
 import static accord.utils.Invariants.debug;
-import static accord.utils.Invariants.nonNull;
-import static com.google.common.collect.Maps.newHashMapWithExpectedSize;
+import static com.google.common.collect.Sets.newHashSetWithExpectedSize;
 
 public abstract class ReadCoordinator<Reply extends accord.messages.Reply> extends ReadTracker implements Callback<Reply>
 {
@@ -255,60 +240,17 @@ public abstract class ReadCoordinator<Reply extends accord.messages.Reply> exten
         }
     }
 
-    /**
-     * Send the reads of Accord metadata to the specified nodes.
-     *
-     * The override in Execute is used to send the initial reads for data (not Accord metadata).
-     *
-     * The value Keys is only for data reads and specifies which keys read from the node should be data reads.
-     * An empty Keys indicates all reads should be digest reads.
-     */
-    protected void sendInitialReads(Map<Id, RoutingKeys> to)
+    protected void start(Set<Id> to)
     {
-        to.forEach((id, dataReadKeys) -> {
-            checkArgument(dataReadKeys.isEmpty(), "Don't support data read keys here");
-            contact(id);
-        });
+        to.forEach(this::contact);
     }
 
     public void start()
     {
-        start(null);
-    }
-
-    /**
-     * Start the read process by calculating which nodes to contact.
-     * readDataKeys is only valid when reading actual data where digest vs data reads
-     * matter and the ReadCoordinator needs to make sure at least one data read is sent for each
-     * key.
-     */
-    public void start(@Nullable Unseekables<?> dataReadKeys)
-    {
-        Map<Id, RoutingKeys> contact = newHashMapWithExpectedSize(maxShardsPerEpoch());
-        if (trySendMore(Map::put, contact, getShardToKeys(dataReadKeys)) != RequestStatus.NoChange)
+        Set<Id> contact = newHashSetWithExpectedSize(maxShardsPerEpoch());
+        if (trySendMore(Set::add, contact) != RequestStatus.NoChange)
             throw new IllegalStateException();
-        sendInitialReads(contact);
-    }
-
-    /*
-     * Which nodes to send to reads to is based on contacting shards, but we also need to calculate
-     * for each node which reads will be digest reads so map from shard to keys so
-     * a data read is only sent once for each key.
-     */
-    private ListMultimap<Shard, RoutingKey> getShardToKeys(@Nullable Unseekables<?> dataReadKeys)
-    {
-        if (dataCL.requiresDigestReads)
-        {
-            nonNull(dataReadKeys, "dataReadKeys should not be null digest reads are required");
-            checkArgument(!dataReadKeys.isEmpty(), "dataReadKeys shouldn't be empty if digest reads are required");
-            ListMultimap<Shard, RoutingKey> shardToKeys = ArrayListMultimap.create();
-            // Reads of user data only ever have one topology
-            Topology topology = topologies().get(0);
-            for (RoutingKey k : (RoutingKeys)dataReadKeys)
-                shardToKeys.put(topology.forKey(k), k);
-            return shardToKeys;
-        }
-        return ImmutableListMultimap.of();
+        start(contact);
     }
 
     @Override
@@ -319,7 +261,7 @@ public abstract class ReadCoordinator<Reply extends accord.messages.Reply> exten
         //                      would be better to prevent reentrancy either by detecting this inside trySendMore or else
         //                      queueing callbacks externally, so two may not be in-flight at once
         List<Id> contacts = new ArrayList<>(1);
-        RequestStatus status = trySendMore((list, id, dataReadKeys) -> list.add(id), contacts);
+        RequestStatus status = trySendMore(List::add, contacts);
         contacts.forEach(this::contact);
         return status;
     }

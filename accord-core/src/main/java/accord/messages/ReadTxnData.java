@@ -33,7 +33,6 @@ import accord.local.Status;
 import accord.primitives.EpochSupplier;
 import accord.primitives.Participants;
 import accord.primitives.Ranges;
-import accord.primitives.RoutingKeys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.topology.Topologies;
@@ -51,9 +50,9 @@ public class ReadTxnData extends ReadData implements Command.TransientListener, 
 
     public static class SerializerSupport
     {
-        public static ReadTxnData create(TxnId txnId, Participants<?> scope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
+        public static ReadTxnData create(TxnId txnId, Participants<?> scope, long executeAtEpoch, long waitForEpoch)
         {
-            return new ReadTxnData(txnId, scope, executeAtEpoch, waitForEpoch, dataReadKeys);
+            return new ReadTxnData(txnId, scope, executeAtEpoch, waitForEpoch);
         }
     }
 
@@ -86,15 +85,15 @@ public class ReadTxnData extends ReadData implements Command.TransientListener, 
     final ObsoleteTracker obsoleteTracker = new ObsoleteTracker();
     private transient State state = State.PENDING; // TODO (low priority, semantics): respond with the Executed result we have stored?
 
-    public ReadTxnData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys)
+    public ReadTxnData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt)
     {
-        super(to, topologies, txnId, readScope, dataReadKeys);
+        super(to, topologies, txnId, readScope);
         this.executeAtEpoch = executeAt.epoch();
     }
 
-    protected ReadTxnData(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
+    protected ReadTxnData(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch)
     {
-        super(txnId, readScope, waitForEpoch, dataReadKeys);
+        super(txnId, readScope, waitForEpoch);
         this.executeAtEpoch = executeAtEpoch;
     }
 
@@ -285,7 +284,6 @@ public class ReadTxnData extends ReadData implements Command.TransientListener, 
     {
         return "ReadTxnData{" +
                 "txnId:" + txnId +
-                ", dataReadKeys:" + dataReadKeys +
                 '}';
     }
 }

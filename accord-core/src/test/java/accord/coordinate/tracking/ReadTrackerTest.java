@@ -21,14 +21,11 @@ package accord.coordinate.tracking;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Sets;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import accord.api.ExternalTopology;
-import accord.api.RoutingKey;
 import accord.impl.TopologyUtils;
 import accord.local.Node.Id;
 import accord.primitives.DataConsistencyLevel;
@@ -62,7 +59,7 @@ public class ReadTrackerTest
         @Override
         public RequestStatus trySendMore()
         {
-            return super.trySendMore((inflight, id, dataReadSeekables) -> inflight.add(id), inflight);
+            return super.trySendMore(Set::add, inflight);
         }
     }
 
@@ -197,7 +194,7 @@ public class ReadTrackerTest
         assertResponseState(responses, false, false);
         try
         {
-            responses.trySendMore((i,j,k)->{}, null);
+            responses.trySendMore((i,j)->{}, null);
             Assertions.fail();
         }
         catch (IllegalStateException t)
@@ -246,7 +243,7 @@ public class ReadTrackerTest
         assertResponseState(responses, false, false);
         try
         {
-            responses.trySendMore((i,j,k)->{}, null);
+            responses.trySendMore((i,j)->{}, null);
             Assertions.fail();
         }
         catch (IllegalStateException t)
@@ -275,16 +272,14 @@ public class ReadTrackerTest
     private static void assertContacts(Set<Id> expect, ReadTracker tracker)
     {
         Set<Id> actual = new HashSet<>();
-        tracker.trySendMore((set, to, dataKeys) -> set.add(to), actual);
+        tracker.trySendMore(Set::add, actual);
         Assertions.assertEquals(expect, actual);
     }
 
     private static void assertInitialContacts(Set<Id> expect, ReadTracker tracker)
     {
-        ListMultimap<Shard, RoutingKey> shardToDataReadKeys = ArrayListMultimap.create();
-        tracker.topologies.get(0).shards().forEach(s -> shardToDataReadKeys.put(s, s.range.start()));
         Set<Id> actual = new HashSet<>();
-        tracker.trySendMore((set, to, dataKeys) -> set.add(to), actual, shardToDataReadKeys);
+        tracker.trySendMore(Set::add, actual);
         Assertions.assertEquals(expect, actual);
     }
 }

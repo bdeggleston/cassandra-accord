@@ -30,7 +30,6 @@ import accord.primitives.Keys;
 import accord.primitives.PartialDeps;
 import accord.primitives.PartialTxn;
 import accord.primitives.Route;
-import accord.primitives.RoutingKeys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.primitives.Unseekables;
@@ -835,9 +834,9 @@ public abstract class Command implements CommonAttributes
             return new Committed(common, status, executeAt, promised, accepted, waitingOn);
         }
 
-        public AsyncChain<Data> read(SafeCommandStore safeStore, @Nullable RoutingKeys dataReadKeys)
+        public AsyncChain<Data> read(SafeCommandStore safeStore)
         {
-            return partialTxn().read(safeStore, executeAt(), dataReadKeys);
+            return partialTxn().read(safeStore, executeAt());
         }
 
         public WaitingOn waitingOn()

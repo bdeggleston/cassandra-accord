@@ -18,12 +18,8 @@
 
 package accord.topology;
 
-import accord.utils.NBitSet;
+import java.util.BitSet;
 
-public class ShardSelection extends NBitSet
+public class ShardSelection extends BitSet
 {
-    public ShardSelection()
-    {
-        super( 64, 4);
-    }
 }

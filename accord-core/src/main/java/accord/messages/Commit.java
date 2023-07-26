@@ -18,7 +18,7 @@
 
 package accord.messages;
 
-import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,6 @@ import accord.primitives.PartialTxn;
 import accord.primitives.Participants;
 import accord.primitives.Ranges;
 import accord.primitives.Route;
-import accord.primitives.RoutingKeys;
 import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
 import accord.primitives.Txn;
@@ -86,9 +85,9 @@ public class Commit extends TxnRequest<ReadNack>
         this(kind, to, coordinateTopology, topologies, txnId, txn, route, executeAt, deps, (u1, u2, u3) -> read);
     }
 
-    public Commit(Kind kind, Id to, Topology coordinateTopology, Topologies topologies, TxnId txnId, Txn txn, FullRoute<?> route, @Nullable Participants<?> readScope, Timestamp executeAt, Deps deps, @Nullable RoutingKeys dataReadKeys)
+    public Commit(Kind kind, Id to, Topology coordinateTopology, Topologies topologies, TxnId txnId, Txn txn, FullRoute<?> route, @Nullable Participants<?> readScope, Timestamp executeAt, Deps deps)
     {
-        this(kind, to, coordinateTopology, topologies, txnId, txn, route, executeAt, deps, dataReadKeys != null ? new ReadTxnData(to, topologies, txnId, readScope, executeAt, dataReadKeys) : null);
+        this(kind, to, coordinateTopology, topologies, txnId, txn, route, executeAt, deps, new ReadTxnData(to, topologies, txnId, readScope, executeAt));
     }
 
     public Commit(Kind kind, Id to, Topology coordinateTopology, Topologies topologies, TxnId txnId, Txn txn, FullRoute<?> route, Timestamp executeAt, Deps deps, TriFunction<Txn, PartialRoute<?>, PartialDeps, ReadData> toExecuteFactory)
@@ -132,8 +131,8 @@ public class Commit extends TxnRequest<ReadNack>
 
     // TODO (low priority, clarity): accept Topology not Topologies
     // TODO (desired, efficiency): do not commit if we're already ready to execute (requires extra info in Accept responses)
-    public static void commitMinimalAndRead(Node node, Topologies executeTopologies, TxnId txnId, Txn txn, FullRoute<?> route, Participants<?> readScope, Timestamp executeAt, Deps deps, Map<Id, RoutingKeys> readSet, Callback<ReadReply> callback)
-    {
+public static void commitMinimalAndRead(Node node, Topologies executeTopologies, TxnId txnId, Txn txn, FullRoute<?> route, Participants<?> readScope, Timestamp executeAt, Deps deps, Set<Id> readSet, Callback<ReadReply> callback)
+{
         Topologies allTopologies = executeTopologies;
         if (txnId.epoch() != executeAt.epoch())
             allTopologies = node.topology().preciseEpochs(route, txnId.epoch(), executeAt.epoch());
@@ -142,11 +141,9 @@ public class Commit extends TxnRequest<ReadNack>
         Topology coordinateTopology = allTopologies.forEpoch(txnId.epoch());
         for (Node.Id to : executeTopology.nodes())
         {
-            // Needs to be null to indicate all data reads
-            // if the consistency level doesn't require digest reads
-            RoutingKeys dataReadKeys = readSet.get(to);
-            Commit send = new Commit(Kind.Minimal, to, coordinateTopology, allTopologies, txnId, txn, route, readScope, executeAt, deps, dataReadKeys);
-            if (dataReadKeys != null) node.send(to, send, callback);
+            boolean read = readSet.contains(to);
+            Commit send = new Commit(Kind.Minimal, to, coordinateTopology, allTopologies, txnId, txn, route, readScope, executeAt, deps);
+            if (read) node.send(to, send, callback);
             else node.send(to, send);
         }
         if (coordinateTopology != executeTopology)
@@ -156,7 +153,7 @@ public class Commit extends TxnRequest<ReadNack>
                 // Null data keys means don't read, specifically in the context of sending Commit, but when constructing
                 // ReadData it means all reads are data reads
                 if (!executeTopology.contains(to))
-                    node.send(to, new Commit(Kind.Minimal, to, coordinateTopology, allTopologies, txnId, txn, route, readScope, executeAt, deps, null));
+                    node.send(to, new Commit(Kind.Minimal, to, coordinateTopology, allTopologies, txnId, txn, route, readScope, executeAt, deps));
             }
         }
     }

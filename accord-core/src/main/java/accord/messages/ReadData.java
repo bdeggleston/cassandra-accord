@@ -35,7 +35,6 @@ import accord.local.SafeCommandStore;
 import accord.messages.ReadData.ReadNack;
 import accord.primitives.PartialTxn;
 import accord.primitives.Ranges;
-import accord.primitives.RoutingKeys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.utils.async.AsyncChain;
@@ -80,32 +79,24 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
     public final Participants<?> readScope;
     private final long waitForEpoch;
 
-    /**
-     * The keys that should be read as data reads instead of digest reads
-     * Empty collection means all digest reads, null means all data reads.
-     */
-    public @Nullable final RoutingKeys dataReadKeys;
-
     private Data unresolvedData;
     transient BitSet waitingOn;
     transient int waitingOnCount;
     transient Ranges unavailable;
 
-    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, @Nullable RoutingKeys dataReadKeys)
+    public ReadData(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope)
     {
         super(txnId);
         int startIndex = latestRelevantEpochIndex(to, topologies, readScope);
         this.readScope = TxnRequest.computeScope(to, topologies, readScope, startIndex, Participants::slice, Participants::with);
         this.waitForEpoch = computeWaitForEpoch(to, topologies, startIndex);
-        this.dataReadKeys = dataReadKeys;
     }
 
-    protected ReadData(TxnId txnId, Participants<?> readScope, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
+    protected ReadData(TxnId txnId, Participants<?> readScope, long waitForEpoch)
     {
         super(txnId);
         this.readScope = readScope;
         this.waitForEpoch = waitForEpoch;
-        this.dataReadKeys = dataReadKeys;
     }
 
     public ReadType kind()
@@ -195,7 +186,7 @@ public abstract class ReadData extends AbstractEpochRequest<ReadNack>
 
     protected AsyncChain<Data> execute(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn, Ranges unavailable)
     {
-        return txn.read(safeStore, executeAt, dataReadKeys);
+        return txn.read(safeStore, executeAt);
     }
 
     void read(SafeCommandStore safeStore, Timestamp executeAt, PartialTxn txn)

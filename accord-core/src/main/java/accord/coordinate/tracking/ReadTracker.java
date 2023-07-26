@@ -18,40 +18,30 @@
 
 package accord.coordinate.tracking;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.BiFunction;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
-
 import accord.api.RoutingKey;
 import accord.coordinate.tracking.ReadTracker.ReadShardTracker.PartialReadSuccess;
 import accord.local.Node.Id;
 import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
-import accord.primitives.RoutingKeys;
 import accord.topology.Shard;
 import accord.topology.ShardSelection;
 import accord.topology.Topologies;
-import accord.utils.TriConsumer;
-import javax.annotation.Nonnull;
+import accord.utils.Invariants;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.NoChange;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.SendMore;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+
+import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.*;
 import static accord.primitives.DataConsistencyLevel.INVALID;
 import static accord.primitives.Routables.Slice.Minimal;
-import static accord.utils.Invariants.checkArgument;
-import static accord.utils.Invariants.checkState;
-import static accord.utils.Invariants.nonNull;
+import static accord.utils.Invariants.*;
 import static com.google.common.collect.Sets.newHashSetWithExpectedSize;
 
 public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
@@ -404,12 +394,7 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
         return recordResponse(this, from, function, isSlow);
     }
 
-    public <T1> RequestStatus trySendMore(TriConsumer<T1, Id, RoutingKeys> contact, T1 with)
-    {
-        return trySendMore(contact, with, ImmutableListMultimap.of());
-    }
-
-    protected <T1> RequestStatus trySendMore(TriConsumer<T1, Id, RoutingKeys> contact, T1 with, @Nonnull ListMultimap<Shard, RoutingKey> shardToDataReadKeys)
+    public <T1> RequestStatus trySendMore(BiConsumer<T1, Id> contact, T1 with)
     {
         ShardSelection toRead;
         {
@@ -423,42 +408,25 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
                 if (tmp == null)
                     tmp = new ShardSelection(); // determinism
 
-                int numToContact = 1;
-                if (!shardToDataReadKeys.isEmpty())
-                    numToContact = tracker.quorumSize();
-                tmp.set(i, numToContact);
+                tmp.set(i);
             }
             toRead = tmp;
         }
 
-        checkState(toRead != null, "We were asked to read more, but found no shards in need of reading more");
+        Invariants.checkState(toRead != null, "We were asked to read more, but found no shards in need of reading more");
 
         // TODO (desired, consider): maybe for each additional candidate do one linear compare run to find better secondary match
         //       OR at least discount candidates that do not contribute additional knowledge beyond those additional
         //       candidates already contacted, since implementations are likely to sort primarily by health
         candidates.sort((a, b) -> topologies().compare(a, b, toRead));
-        boolean isInitialRequestsWithDigestReads = !shardToDataReadKeys.isEmpty();
-        if (isInitialRequestsWithDigestReads)
-            contactedToDataReadKeys = new HashMap<>();
         int i = candidates.size() - 1;
         while (i >= 0)
         {
             Id candidate = candidates.get(i);
-
             topologies().forEach((topology, ti) -> {
                 int offset = topologyOffset(ti);
-                // TODO does this nested lambda allocate for each topology even though what it binds doesn't change?
-                topology.forEachOn(candidate, (shard, shardIndex) -> {
-                    if (!shardToDataReadKeys.isEmpty())
-                        contactedToDataReadKeys.computeIfAbsent(candidate, id -> new ArrayList<>(3)).addAll(shardToDataReadKeys.removeAll(shard));
-                    toRead.decrementSkipZero(offset + shardIndex);
-                });
+                topology.forEachOn(candidate, (s, si) -> toRead.clear(offset + si));
             });
-
-            // Need to put an empty list here to indicate the reads were
-            // digest reads, because no entry means all data reads
-            if (isInitialRequestsWithDigestReads)
-                contactedToDataReadKeys.computeIfAbsent(candidate, id -> ImmutableList.of());
 
             if (toRead.isEmpty())
                 break;
@@ -473,12 +441,11 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
         {
             Id candidate = candidates.get(j);
             recordInFlightRead(candidate);
-            contact.consume(with, candidate, RoutingKeys.of(contactedToDataReadKeys.getOrDefault(candidate, ImmutableList.of())));
+            contact.accept(with, candidate);
             candidates.remove(j);
         }
         return RequestStatus.NoChange;
     }
-
     public boolean hasData()
     {
         return all(ReadShardTracker::hasDataOrSufficientResponse);

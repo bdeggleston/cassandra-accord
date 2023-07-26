@@ -18,15 +18,12 @@
 
 package accord.messages;
 
-import javax.annotation.Nullable;
-
 import accord.api.Data;
 import accord.local.Node;
 import accord.local.SafeCommandStore;
 import accord.primitives.PartialTxn;
 import accord.primitives.Participants;
 import accord.primitives.Ranges;
-import accord.primitives.RoutingKeys;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.topology.Topologies;
@@ -37,14 +34,14 @@ import accord.utils.async.AsyncChain;
  */
 public abstract class AbstractTxnExecute extends ReadTxnData
 {
-    public AbstractTxnExecute(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt, @Nullable RoutingKeys dataReadKeys)
+    public AbstractTxnExecute(Node.Id to, Topologies topologies, TxnId txnId, Participants<?> readScope, Timestamp executeAt)
     {
-        super(to, topologies, txnId, readScope, executeAt, dataReadKeys);
+        super(to, topologies, txnId, readScope, executeAt);
     }
 
-    public AbstractTxnExecute(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch, @Nullable RoutingKeys dataReadKeys)
+    public AbstractTxnExecute(TxnId txnId, Participants<?> readScope, long executeAtEpoch, long waitForEpoch)
     {
-        super(txnId, readScope, executeAtEpoch, waitForEpoch, dataReadKeys);
+        super(txnId, readScope, executeAtEpoch, waitForEpoch);
     }
 
     @Override
@@ -52,7 +49,6 @@ public abstract class AbstractTxnExecute extends ReadTxnData
     {
         return getClass().getSimpleName() + '{' +
                "txnId:" + txnId +
-               ", dataReadKeys:" + dataReadKeys +
                '}';
     }
 

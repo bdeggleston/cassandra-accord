@@ -31,7 +31,6 @@ import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
 import accord.primitives.Txn;
 import accord.primitives.TxnId;
-import accord.primitives.Unseekables;
 
 import static accord.utils.Invariants.checkArgument;
 
@@ -42,7 +41,7 @@ public interface Execute
         Execute create(Node node, TxnId txnId, Txn txn, FullRoute<?> route, Participants<?> readScope, Timestamp executeAt, Deps deps, BiConsumer<? super Result, Throwable> callback);
     }
 
-    void start(Unseekables<?> scope);
+    void start();
 
     static void execute(Node node, TxnId txnId, Txn txn, FullRoute<?> route, Timestamp executeAt, Deps deps, BiConsumer<? super Result, Throwable> callback)
     {
@@ -70,7 +69,7 @@ public interface Execute
         else
         {
             Execute execute = node.executionFactory().create(node, txnId, txn, route, readScope, executeAt, deps, callback);
-            execute.start(readScope);
+            execute.start();
         }
     }
 }

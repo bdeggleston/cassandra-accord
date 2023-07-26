@@ -21,16 +21,12 @@ package accord.coordinate.tracking;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import org.junit.jupiter.api.Assertions;
 
-import accord.api.RoutingKey;
 import accord.coordinate.tracking.ReadTracker.ReadShardTracker;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.primitives.DataConsistencyLevel;
-import accord.topology.Shard;
 import accord.topology.Topologies;
 import accord.utils.RandomSource;
 
@@ -51,19 +47,10 @@ public class ReadTrackerReconciler extends TrackerReconciler<ReadShardTracker, R
         @Override
         protected RequestStatus trySendMore()
         {
-            if (quorumRead)
-            {
-                ListMultimap<Shard, RoutingKey> shardToDataReadKeys = ArrayListMultimap.create();
-                topologies.get(0).shards().forEach(s -> shardToDataReadKeys.put(s, s.range.start()));
-                return super.trySendMore((list, to, dataKeys) -> list.add(to), inflight, shardToDataReadKeys);
-            }
-            else
-            {
-                return super.trySendMore((list, to, dataKeys) -> list.add(to), inflight);
-            }
+            return super.trySendMore(List::add, inflight);
         }
 
-        @Override
+            @Override
         protected RequestStatus recordReadSuccess(Id from)
         {
             if (quorumRead)
