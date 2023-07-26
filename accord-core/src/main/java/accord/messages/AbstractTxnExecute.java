@@ -48,6 +48,15 @@ public abstract class AbstractTxnExecute extends ReadTxnData
         super(txnId, readScope, executeAtEpoch, waitForEpoch, dataReadKeys, followupRead);
     }
 
+    @Override
+    public String toString()
+    {
+        return getClass().getSimpleName() + '{' +
+               "txnId:" + txnId +
+               ", dataReadKeys:" + dataReadKeys +
+               '}';
+    }
+
     public MessageType type()
     {
         return null;
