@@ -18,19 +18,11 @@
 
 package accord.coordinate;
 
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-
 import accord.api.Result;
 import accord.local.Node;
-import accord.primitives.DataConsistencyLevel;
-import accord.primitives.Deps;
-import accord.primitives.FullRoute;
-import accord.primitives.Participants;
-import accord.primitives.Seekables;
-import accord.primitives.Timestamp;
-import accord.primitives.Txn;
-import accord.primitives.TxnId;
+import accord.primitives.*;
+
+import java.util.function.BiConsumer;
 
 import static accord.utils.Invariants.checkArgument;
 
@@ -58,13 +50,7 @@ public interface Execute
         else if (readKeys.isEmpty())
         {
             Result result = txn.result(txnId, executeAt, null);
-            Consumer<Throwable> onAppliedToQuorum = null;
-            DataConsistencyLevel writeDataCL = txn.writeDataCL();
-            if (!writeDataCL.requiresSynchronousCommit)
-                callback.accept(result, null);
-            else
-                onAppliedToQuorum = (applyFailure) -> callback.accept(applyFailure == null ? result : null, applyFailure);
-            Persist.persist(node, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, null), result, onAppliedToQuorum);
+            Persist.persist(node, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, null), result, callback);
         }
         else
         {

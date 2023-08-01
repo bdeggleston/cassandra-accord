@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 
 import accord.coordinate.TxnExecute;
 import accord.coordinate.Timeout;
+import accord.coordinate.TxnPersist;
 import accord.impl.SimpleProgressLog;
 import accord.impl.InMemoryCommandStores;
 import accord.impl.SizeOfIntersectionSorter;
@@ -168,7 +169,7 @@ public class Main
             on = new Node(init.self, sink, new SimpleConfigService(topology), System::currentTimeMillis,
                           MaelstromStore::new, new ShardDistributor.EvenSplit(8, ignore -> new MaelstromKey.Splitter()),
                           MaelstromAgent.INSTANCE, new DefaultRandom(), scheduler, SizeOfIntersectionSorter.SUPPLIER,
-                          SimpleProgressLog::new, InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY);
+                          SimpleProgressLog::new, InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY, TxnPersist.FACTORY);
             awaitUninterruptibly(on.start());
             err.println("Initialized node " + init.self);
             err.flush();

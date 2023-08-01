@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.function.LongSupplier;
 
+import accord.coordinate.TxnPersist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,7 +139,7 @@ public class MockCluster implements Network, AutoCloseable, Iterable<Node>
                              new ThreadPoolScheduler(),
                              SizeOfIntersectionSorter.SUPPLIER,
                              SimpleProgressLog::new,
-                             InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY);
+                             InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY, TxnPersist.FACTORY);
         awaitUninterruptibly(node.start());
         node.onTopologyUpdate(topology, true);
         return node;

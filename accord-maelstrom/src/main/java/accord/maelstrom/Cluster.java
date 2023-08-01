@@ -40,6 +40,7 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 import accord.coordinate.TxnExecute;
+import accord.coordinate.TxnPersist;
 import accord.impl.SizeOfIntersectionSorter;
 import accord.impl.SimpleProgressLog;
 import accord.impl.InMemoryCommandStores;
@@ -309,7 +310,7 @@ public class Cluster implements Scheduler
                                           nowSupplier.get(), MaelstromStore::new, new ShardDistributor.EvenSplit(8, ignore -> new MaelstromKey.Splitter()),
                                           MaelstromAgent.INSTANCE,
                                           randomSupplier.get(), sinks, SizeOfIntersectionSorter.SUPPLIER,
-                                          SimpleProgressLog::new, InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY));
+                                          SimpleProgressLog::new, InMemoryCommandStores.SingleThread::new, TxnExecute.FACTORY, TxnPersist.FACTORY));
             }
 
             AsyncResult<?> startup = AsyncChains.reduce(lookup.values().stream().map(Node::start).collect(toList()), (a, b) -> null).beginAsResult();

@@ -35,6 +35,7 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import accord.coordinate.TxnPersist;
 import org.junit.jupiter.api.Assertions;
 
 import accord.api.MessageSink;
@@ -233,7 +234,7 @@ public class Cluster implements Scheduler
                                           () -> new ListStore(node), new ShardDistributor.EvenSplit<>(8, ignore -> new IntHashKey.Splitter()),
                                           executor.agent(),
                                           randomSupplier.get(), sinks, SizeOfIntersectionSorter.SUPPLIER,
-                                          SimpleProgressLog::new, DelayedCommandStores.factory(sinks.pending), TxnExecute.FACTORY));
+                                          SimpleProgressLog::new, DelayedCommandStores.factory(sinks.pending), TxnExecute.FACTORY, TxnPersist.FACTORY));
             }
 
             // startup

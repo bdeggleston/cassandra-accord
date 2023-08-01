@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import accord.coordinate.*;
 import com.google.common.annotations.VisibleForTesting;
 
 import accord.api.Agent;
@@ -47,12 +48,6 @@ import accord.api.Result;
 import accord.api.RoutingKey;
 import accord.api.Scheduler;
 import accord.api.TopologySorter;
-import accord.coordinate.Barrier;
-import accord.coordinate.CoordinateTransaction;
-import accord.coordinate.Execute;
-import accord.coordinate.MaybeRecover;
-import accord.coordinate.Outcome;
-import accord.coordinate.RecoverWithRoute;
 import accord.messages.Callback;
 import accord.messages.Reply;
 import accord.messages.ReplyContext;
@@ -135,6 +130,7 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     private final TopologyManager topology;
     private final CommandStores commandStores;
     private final Execute.Factory executionFactory;
+    private final Persist.Factory persistFactory;
 
     private final LongSupplier nowSupplier;
     private final AtomicReference<Timestamp> now;
@@ -149,12 +145,13 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
 
     public Node(Id id, MessageSink messageSink, ConfigurationService configService, LongSupplier nowSupplier,
                 Supplier<DataStore> dataSupplier, ShardDistributor shardDistributor, Agent agent, RandomSource random, Scheduler scheduler, TopologySorter.Supplier topologySorter,
-                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory, Execute.Factory executionFactory)
+                Function<Node, ProgressLog.Factory> progressLogFactory, CommandStores.Factory factory, Execute.Factory executionFactory, Persist.Factory persistFactory)
     {
         this.id = id;
         this.messageSink = messageSink;
         this.configService = configService;
         this.executionFactory = executionFactory;
+        this.persistFactory = persistFactory;
         this.topology = new TopologyManager(topologySorter, id);
         this.nowSupplier = nowSupplier;
         this.now = new AtomicReference<>(Timestamp.fromValues(topology.epoch(), nowSupplier.getAsLong(), id));
@@ -640,6 +637,11 @@ public class Node implements ConfigurationService.Listener, NodeTimeService
     public Execute.Factory executionFactory()
     {
         return executionFactory;
+    }
+
+    public Persist.Factory persistFactory()
+    {
+        return persistFactory;
     }
 
     public Scheduler scheduler()

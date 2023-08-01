@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import accord.coordinate.TxnPersist;
 import com.google.common.collect.Sets;
 
 import accord.api.ExternalTopology;
@@ -159,7 +160,7 @@ public class Utils
                              scheduler,
                              SizeOfIntersectionSorter.SUPPLIER,
                              SimpleProgressLog::new,
-                             InMemoryCommandStores.Synchronized::new, TxnExecute.FACTORY);
+                             InMemoryCommandStores.Synchronized::new, TxnExecute.FACTORY, TxnPersist.FACTORY);
         awaitUninterruptibly(node.start());
         return node;
     }

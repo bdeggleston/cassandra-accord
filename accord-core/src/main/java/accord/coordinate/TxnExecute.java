@@ -133,16 +133,7 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
         if (failure == null)
         {
             Result result = txn.result(txnId, executeAt, data);
-
-            // If this transaction generates repair writes then we don't want to acknowledge it until the writes are committed
-            // to make sure the transaction's reads are monotonic from the perspective of the caller
-            // If the transaction specified a writeDataCL then we don't want to acknowledge until the CL is met
-            Consumer<Throwable> onAppliedToQuorum = null;
-            if (txn.writeDataCL().requiresSynchronousCommit)
-                onAppliedToQuorum = (applyFailure) -> callback.accept(applyFailure == null ? result : null, applyFailure);
-            else
-                callback.accept(result, null);            // avoid re-calculating topologies if it is unchanged
-            Persist.persist(node, executes, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, data), result, onAppliedToQuorum);
+            Persist.persist(node, executes, txnId, route, txn, executeAt, deps, txn.execute(txnId, executeAt, data), result, callback);
         }
         else
         {
