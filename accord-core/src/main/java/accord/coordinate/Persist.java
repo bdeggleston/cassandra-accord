@@ -44,7 +44,7 @@ public abstract class Persist implements Callback<ApplyReply>
 {
     public interface Factory
     {
-        Persist create(Node node, Topologies topologies, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps);
+        Persist create(Node node, Topologies topologies, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps, Writes writes);
     }
 
     protected final Node node;
@@ -67,7 +67,7 @@ public abstract class Persist implements Callback<ApplyReply>
     public static void persist(Node node, Topologies executes, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps, Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback)
     {
         Topologies participates = participates(node, route, txnId, executeAt, executes);
-        node.persistFactory().create(node, executes, txnId, route, txn, executeAt, deps)
+        node.persistFactory().create(node, executes, txnId, route, txn, executeAt, deps, writes)
                              .applyMinimal(participates, executes, writes, result, clientCallback);
     }
 
@@ -76,7 +76,7 @@ public abstract class Persist implements Callback<ApplyReply>
         Topologies executes = executes(node, route, executeAt);
         Topologies participates = participates(node, route, txnId, executeAt, executes);
         //TODO (review) I think write data CL doesn't matter for recovery since there is no callback?
-        node.persistFactory().create(node, executes, txnId, route, txn, executeAt, deps)
+        node.persistFactory().create(node, executes, txnId, route, txn, executeAt, deps, writes)
                              .applyMaximal(participates, executes, writes, result, null);
     }
 

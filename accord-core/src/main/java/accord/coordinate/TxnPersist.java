@@ -29,7 +29,7 @@ public class TxnPersist extends Persist
 {
     public static Persist.Factory FACTORY = TxnPersist::new;
 
-    private TxnPersist(Node node, Topologies topologies, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps)
+    private TxnPersist(Node node, Topologies topologies, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps, Writes writes)
     {
         super(node, topologies, txnId, route, txn, executeAt, deps);
     }
