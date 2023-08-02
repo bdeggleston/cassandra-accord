@@ -32,7 +32,6 @@ import accord.local.Node;
 import accord.local.Node.Id;
 import accord.messages.ReadData.ReadOk;
 import accord.primitives.Ballot;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Deps;
 import accord.primitives.KeyDeps;
 import accord.primitives.Keys;
@@ -440,7 +439,6 @@ public class Json
                 else append.write(out);
             }
             out.endArray();
-            out.name("writeDataCL").value(value.writeDataCL.toString());
             out.endObject();
         }
 
@@ -455,7 +453,6 @@ public class Json
             Timestamp executeAt = null;
             Keys keys = null;
             List<Value> writes = null;
-            DataConsistencyLevel writeDataCL = null;
             while (in.hasNext())
             {
                 switch (in.nextName())
@@ -477,9 +474,6 @@ public class Json
                             writes.add(Value.read(in));
                         in.endArray();
                         break;
-                    case "writeDataCL":
-                        writeDataCL = DataConsistencyLevel.valueOf(in.nextString());
-                        break;
                 }
             }
             in.endObject();
@@ -493,7 +487,7 @@ public class Json
                         write.put(keys.get(i), writes.get(i));
                 }
             }
-            return new Writes(txnId, executeAt, keys, write, writeDataCL);
+            return new Writes(txnId, executeAt, keys, write);
         }
     };
 
