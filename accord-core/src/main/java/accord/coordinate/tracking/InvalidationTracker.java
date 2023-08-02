@@ -20,15 +20,10 @@ package accord.coordinate.tracking;
 
 import accord.api.RoutingKey;
 import accord.local.Node;
-import accord.primitives.DataConsistencyLevel;
 import accord.topology.Shard;
 import accord.topology.Topologies;
 
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.NoChange;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
-import static accord.primitives.DataConsistencyLevel.INVALID;
-import static accord.utils.Invariants.checkArgument;
+import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.*;
 
 public class InvalidationTracker extends AbstractTracker<InvalidationTracker.InvalidationShardTracker>
 {
@@ -41,10 +36,9 @@ public class InvalidationTracker extends AbstractTracker<InvalidationTracker.Inv
         private int inflight;
         private boolean isFinal;
 
-        private InvalidationShardTracker(Shard shard, DataConsistencyLevel dataCL)
+        private InvalidationShardTracker(Shard shard)
         {
-            super(shard, dataCL);
-            checkArgument(dataCL == INVALID);
+            super(shard);
             inflight = shard.rf();
             fastPathInflight = shard.fastPathElectorate.size();
         }
@@ -142,7 +136,7 @@ public class InvalidationTracker extends AbstractTracker<InvalidationTracker.Inv
     private boolean rejectsFastPath;
     public InvalidationTracker(Topologies topologies)
     {
-        super(topologies, INVALID, InvalidationShardTracker[]::new, InvalidationShardTracker::new);
+        super(topologies, InvalidationShardTracker[]::new, InvalidationShardTracker::new);
     }
 
     public Shard promisedShard()

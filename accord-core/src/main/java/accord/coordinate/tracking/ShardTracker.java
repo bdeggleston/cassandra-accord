@@ -18,19 +18,14 @@
 
 package accord.coordinate.tracking;
 
-import accord.primitives.DataConsistencyLevel;
 import accord.topology.Shard;
 
 public abstract class ShardTracker
 {
     public final Shard shard;
-    // TODO if ReadTracker.ReadShardTracker were no longer static it could get the dataCL from ReadTracker
-    // but going forward more cases like commit consistency might need it?
-    public final DataConsistencyLevel dataCL;
 
-    public ShardTracker(Shard shard, DataConsistencyLevel dataCL)
+    public ShardTracker(Shard shard)
     {
         this.shard = shard;
-        this.dataCL = dataCL;
     }
 }

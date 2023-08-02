@@ -41,7 +41,6 @@ import accord.impl.mock.MockConfigurationService;
 import accord.impl.mock.MockStore;
 import accord.local.Node;
 import accord.local.ShardDistributor;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Keys;
 import accord.primitives.Range;
 import accord.primitives.Ranges;
@@ -108,12 +107,7 @@ public class Utils
 
     public static Txn writeTxn(Keys keys)
     {
-        return writeTxn(keys, DataConsistencyLevel.UNSPECIFIED);
-    }
-
-    public static Txn writeTxn(Keys keys, DataConsistencyLevel writeDataCL)
-    {
-        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.QUERY, MockStore.update(keys, writeDataCL));
+        return new Txn.InMemory(keys, MockStore.read(keys), MockStore.QUERY, MockStore.update(keys));
     }
     public static Txn writeTxn(Ranges ranges)
     {

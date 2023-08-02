@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import accord.api.ExternalTopology;
 import accord.impl.TopologyUtils;
 import accord.local.Node.Id;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
 import accord.topology.Shard;
 import accord.topology.Topologies;
@@ -65,31 +64,16 @@ public class ReadTrackerTest
 
     static class TestReadTracker extends ReadTracker
     {
-        private final boolean quorum;
+
         public TestReadTracker(Topologies topologies)
         {
-            this(topologies, false);
-        }
-
-        public TestReadTracker(Topologies topologies, boolean quorum)
-        {
-            super(topologies, quorum ? DataConsistencyLevel.QUORUM : DataConsistencyLevel.INVALID);
-            this.quorum = quorum;
+            super(topologies);
         }
 
         @Override
         public RequestStatus trySendMore()
         {
             return RequestStatus.NoChange;
-        }
-
-        @Override
-        protected RequestStatus recordReadSuccess(Id from)
-        {
-            if (quorum)
-                return recordQuorumReadSuccess(from);
-            else
-                return super.recordReadSuccess(from);
         }
     }
 
@@ -224,7 +208,7 @@ public class ReadTrackerTest
         Topology topology = TopologyUtils.initialTopology(ids, ranges, 3);
 
         Topology subTopology = new Topology(1, ExternalTopology.EMPTY, new Shard[]{topology.get(0), topology.get(1), topology.get(5)});
-        ReadTracker responses = new TestReadTracker(topologies(subTopology), true);
+        ReadTracker responses = new TestReadTracker(topologies(subTopology));
 
         assertInitialContacts(Sets.newHashSet(ids[1], ids[2], ids[6], ids[7]), responses);
 

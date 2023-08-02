@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Assertions;
 import accord.coordinate.tracking.ReadTracker.ReadShardTracker;
 import accord.local.Node;
 import accord.local.Node.Id;
-import accord.primitives.DataConsistencyLevel;
 import accord.topology.Topologies;
 import accord.utils.RandomSource;
 
@@ -37,11 +36,9 @@ public class ReadTrackerReconciler extends TrackerReconciler<ReadShardTracker, R
     static class InFlightCapturingReadTracker extends ReadTracker
     {
         final List<Id> inflight = new ArrayList<>();
-        final boolean quorumRead;
-        public InFlightCapturingReadTracker(boolean quorumRead, Topologies topologies)
+        public InFlightCapturingReadTracker(Topologies topologies)
         {
-            super(topologies, quorumRead ? DataConsistencyLevel.QUORUM : DataConsistencyLevel.INVALID);
-            this.quorumRead = quorumRead;
+            super(topologies);
         }
 
         @Override
@@ -49,20 +46,11 @@ public class ReadTrackerReconciler extends TrackerReconciler<ReadShardTracker, R
         {
             return super.trySendMore(List::add, inflight);
         }
-
-            @Override
-        protected RequestStatus recordReadSuccess(Id from)
-        {
-            if (quorumRead)
-                return recordQuorumReadSuccess(from);
-            else
-                return super.recordReadSuccess(from);
-        }
     }
 
     ReadTrackerReconciler(RandomSource random, Topologies topologies)
     {
-        this(random, new InFlightCapturingReadTracker(random.nextBoolean(), topologies));
+        this(random, new InFlightCapturingReadTracker(topologies));
     }
 
     private ReadTrackerReconciler(RandomSource random, InFlightCapturingReadTracker tracker)

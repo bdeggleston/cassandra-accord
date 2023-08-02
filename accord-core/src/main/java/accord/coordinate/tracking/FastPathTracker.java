@@ -18,22 +18,17 @@
 
 package accord.coordinate.tracking;
 
-import java.util.function.BiFunction;
-
-import com.google.common.annotations.VisibleForTesting;
-
 import accord.coordinate.tracking.QuorumTracker.QuorumShardTracker;
 import accord.local.Node;
-import accord.primitives.DataConsistencyLevel;
 import accord.topology.Shard;
 import accord.topology.Topologies;
+import com.google.common.annotations.VisibleForTesting;
+
 import javax.annotation.Nonnull;
 
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.NoChange;
-import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
-import static accord.primitives.DataConsistencyLevel.INVALID;
-import static accord.utils.Invariants.checkArgument;
+import java.util.function.BiFunction;
+
+import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.*;
 
 // TODO (desired, efficiency): if any shard *cannot* take the fast path, and all shards have accepted, terminate
 public class FastPathTracker extends AbstractTracker<FastPathTracker.FastPathQuorumShardTracker>
@@ -45,10 +40,9 @@ public class FastPathTracker extends AbstractTracker<FastPathTracker.FastPathQuo
 
     public static class FastPathQuorumShardTracker extends QuorumShardTracker
     {
-        public FastPathQuorumShardTracker(Shard shard, DataConsistencyLevel dataConsistencyLevel)
+        public FastPathQuorumShardTracker(Shard shard)
         {
-            super(shard, dataConsistencyLevel);
-            checkArgument(dataCL == INVALID);
+            super(shard);
         }
 
         public ShardOutcome<? super FastPathTracker> onQuorumSuccess(Node.Id node)
@@ -82,10 +76,9 @@ public class FastPathTracker extends AbstractTracker<FastPathTracker.FastPathQuo
         protected int fastPathAccepts;
         protected int fastPathFailures;
 
-        public FastPathShardTracker(Shard shard, DataConsistencyLevel dataCL)
+        public FastPathShardTracker(Shard shard)
         {
-            super(shard, dataCL);
-            checkArgument(dataCL == INVALID);
+            super(shard);
         }
 
         // return NewQuorumSuccess ONLY once fast path is rejected
@@ -173,7 +166,7 @@ public class FastPathTracker extends AbstractTracker<FastPathTracker.FastPathQuo
     int waitingOnFastPathSuccess; // if we reach zero, we have succeeded on the fast path outcome for every shard
     public FastPathTracker(Topologies topologies)
     {
-        super(topologies, FastPathQuorumShardTracker[]::new, (i, shard) -> i == 0 ? new FastPathShardTracker(shard, INVALID) : new FastPathQuorumShardTracker(shard, INVALID));
+        super(topologies, FastPathQuorumShardTracker[]::new, (i, shard) -> i == 0 ? new FastPathShardTracker(shard) : new FastPathQuorumShardTracker(shard));
         this.waitingOnFastPathSuccess = topologies.current().size();
     }
 

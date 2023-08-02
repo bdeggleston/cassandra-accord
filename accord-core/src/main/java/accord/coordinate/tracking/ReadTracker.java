@@ -18,30 +18,22 @@
 
 package accord.coordinate.tracking;
 
-import accord.api.RoutingKey;
-import accord.coordinate.tracking.ReadTracker.ReadShardTracker.PartialReadSuccess;
-import accord.local.Node.Id;
-import accord.primitives.DataConsistencyLevel;
-import accord.primitives.Ranges;
-import accord.topology.Shard;
-import accord.topology.ShardSelection;
-import accord.topology.Topologies;
-import accord.utils.Invariants;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-
-import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
+import accord.coordinate.tracking.ReadTracker.ReadShardTracker.PartialReadSuccess;
+import accord.primitives.Ranges;
+import accord.topology.Shard;
+import accord.topology.ShardSelection;
+import com.google.common.annotations.VisibleForTesting;
+import accord.utils.Invariants;
+
+import accord.local.Node.Id;
+import accord.topology.Topologies;
+
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.*;
-import static accord.primitives.DataConsistencyLevel.INVALID;
 import static accord.primitives.Routables.Slice.Minimal;
-import static accord.utils.Invariants.*;
 import static com.google.common.collect.Sets.newHashSetWithExpectedSize;
 
 public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
@@ -53,35 +45,16 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
 
     public static class ReadShardTracker extends ShardTracker
     {
-        /**
-         * There are basically two use cases for ReadShardTracker which is reading Accord metadata
-         * and reading actual data. Where they differ is how for a given shard you know if you
-         * have gotten the information you need.
-         *
-         * ApproveIfQuorum indicates that the current response is not sufficient for this shard, but if a quorum of similar
-         * responses are received it will be enough. For data reads a single data response
-         * might trigger Approve if the consistency level only requires one data read, or a data read + some number of digest reads if the CL
-         * requires it (triggering multiple ApproveIfQuorum and never Approve).
-         *
-         * For Accord metadata reads it's usually a quorum or getting a response back that meets
-         * some sufficiency criteria in which cases more responses from the shard aren't necessary.
-         *
-         * These two pretty orthogonal concepts (sufficiency vs (data and digest)) are mixed throughout ReadTracker
-         * and ReadCoordinator. There are no digest reads for Accord metadata it's really all about sufficiency XOR hitting a quorum,
-         * and even when reading data it's not a given that a quorum is required or that there will be digest
-         * reads sent since that is based on consistency level.
-         */
-        protected boolean hasDataOrSufficientResponse = false;
-        protected int quorum; // if !hasDataOrSufficientResponse, a slowPathQuorum will trigger success
+        protected boolean hasData = false;
+        protected int quorum; // if !hasData, a slowPathQuorum will trigger success
         protected int inflight;
         protected int contacted;
         protected int slow;
         protected Ranges unavailable;
-        private boolean succeeded = false;
 
-        public ReadShardTracker(Shard shard, DataConsistencyLevel dataCL)
+        public ReadShardTracker(Shard shard)
         {
-            super(shard, dataCL);
+            super(shard);
         }
 
         public ShardOutcome<? super ReadTracker> recordInFlightRead(boolean ignore)
@@ -93,7 +66,7 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
 
         public ShardOutcome<? super ReadTracker> recordSlowResponse(boolean ignore)
         {
-            checkState(!hasFailed());
+            Invariants.checkState(!hasFailed());
             ++slow;
 
             if (shouldRead() && canRead())
@@ -107,16 +80,13 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
          */
         public ShardOutcome<? super ReadTracker> recordReadSuccess(boolean isSlow)
         {
-            checkState(!dataCL.requiresDigestReads, "Don't use recordReadSuccess to track data responses with digest reads");
-            checkState(inflight > 0);
+            Invariants.checkState(inflight > 0);
+            boolean hadSucceeded = hasSucceeded();
             --inflight;
             if (isSlow) --slow;
-            hasDataOrSufficientResponse = true;
+            hasData = true;
             if (unavailable != null) unavailable = Ranges.EMPTY;
-            if (succeeded)
-                return NoChange;
-            succeeded = true;
-            return DataSuccess;
+            return hadSucceeded ? NoChange : DataSuccess;
         }
 
         static class PartialReadSuccess
@@ -131,14 +101,15 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
             }
         }
         /**
-         * TODO update to explain what partial success is
+         * Have received a requested data payload with desired contents
          */
         public ShardOutcome<? super ReadTracker> recordPartialReadSuccess(PartialReadSuccess partialSuccess)
         {
-            checkState(inflight > 0);
+            Invariants.checkState(inflight > 0);
+            boolean hadSucceeded = hasSucceeded();
             --inflight;
             if (partialSuccess.isSlow) --slow;
-            if (succeeded)
+            if (hadSucceeded)
                 return NoChange;
 
             // TODO (low priority, efficiency): support slice method accepting a single Range
@@ -147,36 +118,30 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
             if (!unavailable.isEmpty())
                 return ensureProgressOrFail();
 
-            succeeded = true;
-            hasDataOrSufficientResponse = true;
+            hasData = true;
             return DataSuccess;
         }
 
-        public ShardOutcome<? super ReadTracker> recordQuorumReadSuccess(boolean isSlow, boolean isDigestReadOrInsufficient)
+        public ShardOutcome<? super ReadTracker> recordQuorumReadSuccess(boolean isSlow)
         {
-            checkState(inflight > 0);
+            Invariants.checkState(inflight > 0);
+            boolean hadSucceeded = hasSucceeded();
             --inflight;
             ++quorum;
             if (isSlow) --slow;
 
-            if (!isDigestReadOrInsufficient)
-                hasDataOrSufficientResponse = true;
-
-            if (succeeded)
+            if (hadSucceeded)
                 return NoChange;
 
-            if (hasSucceeded())
-            {
-                succeeded = true;
+            if (quorum == shard.slowPathQuorumSize)
                 return Success;
-            }
 
             return ensureProgressOrFail();
         }
 
         public ShardOutcomes recordReadFailure(boolean isSlow)
         {
-            checkState(inflight > 0);
+            Invariants.checkState(inflight > 0);
             --inflight;
             if (isSlow) --slow;
 
@@ -196,37 +161,12 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
 
         public boolean hasReachedQuorum()
         {
-            return quorum >= quorumSize();
-        }
-
-        public int quorumSize()
-        {
-            switch (dataCL)
-            {
-                // Accord only needs to read data from a single replica.
-                // UNSPECIFIED shouldn't be used for reading Accord metadata
-                case UNSPECIFIED:
-                    return 1;
-                case QUORUM:
-                    // TODO What about pending nodes? Will this come with bootstrap?
-                    // We write to them, but they don't actually change read quorum size
-                    // and it is important that they don't for availabiility
-                    return (shard.nodes.size() / 2) + 1;
-                // For reading Accord metadata, this is always accordSlowPathQuorumSize
-                case INVALID:
-                    return shard.slowPathQuorumSize;
-                default:
-                    throw new IllegalStateException("Unhandled CL " + dataCL);
-            }
+            return quorum >= shard.slowPathQuorumSize;
         }
 
         public boolean hasSucceeded()
         {
-            if (dataCL.requiresDigestReads)
-                // Both are required when sending digest reads
-                return hasDataOrSufficientResponse() && hasReachedQuorum();
-            else
-                return hasDataOrSufficientResponse() || hasReachedQuorum();
+            return hasData() || hasReachedQuorum();
         }
 
         boolean hasInFlight()
@@ -236,10 +176,7 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
 
         public boolean shouldRead()
         {
-            return !hasSucceeded()
-                    && (dataCL.requiresDigestReads
-                        ? (quorumSize() - quorum) > (inflight - slow)
-                        : inflight == slow);
+            return !hasSucceeded() && inflight == slow;
         }
 
         public boolean canRead()
@@ -249,12 +186,12 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
 
         public boolean hasFailed()
         {
-            return !hasDataOrSufficientResponse() && inflight == 0 && contacted == shard.nodes.size() && !hasReachedQuorum();
+            return !hasData && inflight == 0 && contacted == shard.nodes.size() && !hasReachedQuorum();
         }
 
-        public boolean hasDataOrSufficientResponse()
+        public boolean hasData()
         {
-            return hasDataOrSufficientResponse;
+            return hasData;
         }
     }
 
@@ -262,32 +199,14 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
     final Set<Id> inflight;    // TODO (easy, efficiency): use Agrona's IntHashSet as soon as Node.Id switches from long to int
     final List<Id> candidates; // TODO (easy, efficiency): use Agrona's IntArrayList as soon as Node.Id switches from long to int
     private Set<Id> slow;      // TODO (easy, efficiency): use Agrona's IntHashSet as soon as Node.Id switches from long to int
-
-    /*
-     * Initialized when sending the initial requests and used to track which nodes got data reads and digest reads
-     * No entry means it was all data reads, because all followup reads are data reads
-     * Empty list means it was all digest reads
-     * Any key that is present was read as a data read
-     */
-    private @Nonnull Map<Id, List<RoutingKey>> contactedToDataReadKeys = ImmutableMap.of();
-
-    protected final DataConsistencyLevel dataCL;
     protected int waitingOnData;
-
-    public ReadTracker(Topologies topologies, DataConsistencyLevel dataCL)
-    {
-        super(topologies, dataCL, ReadShardTracker[]::new, ReadShardTracker::new);
-        checkState(topologies.size() == 1 || dataCL == INVALID, "Data reads should only have a single topology");
-        checkArgument(dataCL != DataConsistencyLevel.ALL, "ALL is not supported yet as a read DataConsistencyLevel");
-        this.candidates = new ArrayList<>(topologies.nodes()); // TODO (low priority, efficiency): copyOfNodesAsList to avoid unnecessary copies
-        this.dataCL = dataCL;
-        this.inflight = newHashSetWithExpectedSize(maxShardsPerEpoch());
-        this.waitingOnData = waitingOnShards;
-    }
 
     public ReadTracker(Topologies topologies)
     {
-        this(topologies, INVALID);
+        super(topologies, ReadShardTracker[]::new, ReadShardTracker::new);
+        this.candidates = new ArrayList<>(topologies.nodes()); // TODO (low priority, efficiency): copyOfNodesAsList to avoid unnecessary copies
+        this.inflight = newHashSetWithExpectedSize(maxShardsPerEpoch());
+        this.waitingOnData = waitingOnShards;
     }
 
     @VisibleForTesting
@@ -346,38 +265,7 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
      */
     protected RequestStatus recordQuorumReadSuccess(Id from)
     {
-        // TODO this lambda is just binding from, maybe add from to the signature (TriFunction instead of BiFunction) so it can be a member
-        // of ReadTracker?
-        return recordResponse(from, (readShardTracker, isSlow) -> {
-            // If the readCL doesn't do digest reads then ApproveIfQuorum
-            // will never "haveData" mixed in with some of the responses
-            // It might not actually be a digest read, but a read of Accord metadata
-            // that is "insufficient"
-            boolean isDigestReadOrInsufficient = true;
-            if (readShardTracker.dataCL.requiresDigestReads)
-            {
-                nonNull(contactedToDataReadKeys, "contactedToDataReadKeys should have been initialized in trySendMore if the dataCL requires digest reads");
-                // Null is all data reads, empty list is all digest, if any key intersects the shard
-                // then all keys for the shard would be data reads
-                List<RoutingKey> contactedDataReadKeys = contactedToDataReadKeys.get(from);
-                if (contactedDataReadKeys != null)
-                {
-                    for (RoutingKey k : contactedDataReadKeys)
-                        if (readShardTracker.shard.range.contains(k))
-                        {
-                            isDigestReadOrInsufficient = false;
-                            break;
-                        }
-                }
-                else
-                {
-                    // Reads after the first round are all data reads and
-                    // won't put a list of keys into contactedToDataReadKeys
-                    isDigestReadOrInsufficient = false;
-                }
-            }
-            return readShardTracker.recordQuorumReadSuccess(isSlow, isDigestReadOrInsufficient);
-        });
+        return recordResponse(from, ReadShardTracker::recordQuorumReadSuccess);
     }
 
     /**
@@ -446,9 +334,10 @@ public class ReadTracker extends AbstractTracker<ReadTracker.ReadShardTracker>
         }
         return RequestStatus.NoChange;
     }
+
     public boolean hasData()
     {
-        return all(ReadShardTracker::hasDataOrSufficientResponse);
+        return all(ReadShardTracker::hasData);
     }
 
     public boolean hasFailed()

@@ -26,7 +26,6 @@ import accord.api.Write;
 import accord.local.SafeCommandStore;
 import accord.utils.async.AsyncChain;
 import accord.utils.async.AsyncChains;
-import javax.annotation.Nonnull;
 
 public class Writes
 {
@@ -36,15 +35,13 @@ public class Writes
     // TODO don't these have to be keys so why Seekables?
     public final Seekables<?, ?> keys;
     public final Write write;
-    public final DataConsistencyLevel writeDataCL;
 
-    public Writes(TxnId txnId, Timestamp executeAt, Seekables<?, ?> keys, Write write, @Nonnull DataConsistencyLevel writeDataCL)
+    public Writes(TxnId txnId, Timestamp executeAt, Seekables<?, ?> keys, Write write)
     {
         this.txnId = txnId;
         this.executeAt = executeAt;
         this.keys = keys;
         this.write = write;
-        this.writeDataCL = writeDataCL;
     }
 
     @Override
@@ -53,7 +50,7 @@ public class Writes
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Writes writes = (Writes) o;
-        return txnId.equals(writes.txnId) && executeAt.equals(writes.executeAt) && keys.equals(writes.keys) && write.equals(writes.write) && writeDataCL.equals(writes.writeDataCL);
+        return txnId.equals(writes.txnId) && executeAt.equals(writes.executeAt) && keys.equals(writes.keys) && write.equals(writes.write);
     }
 
     public boolean isEmpty()
@@ -64,7 +61,7 @@ public class Writes
     @Override
     public int hashCode()
     {
-        return Objects.hash(txnId, executeAt, keys, write, writeDataCL);
+        return Objects.hash(txnId, executeAt, keys, write);
     }
 
     public AsyncChain<Void> apply(SafeCommandStore safeStore, Ranges ranges)
@@ -90,7 +87,6 @@ public class Writes
                ", executeAt:" + executeAt +
                ", keys:" + keys +
                ", write:" + write +
-               ", writeDataCL:" + writeDataCL +
                '}';
     }
 }

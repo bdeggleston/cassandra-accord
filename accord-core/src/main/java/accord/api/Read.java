@@ -19,16 +19,12 @@
 package accord.api;
 
 import accord.local.SafeCommandStore;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
 import accord.primitives.Seekable;
 import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
 import accord.primitives.Txn;
 import accord.utils.async.AsyncChain;
-
-import static accord.primitives.DataConsistencyLevel.UNSPECIFIED;
-
 
 /**
  * A read to be performed on potentially multiple shards, the inputs of which may be fed to a {@link Query}
@@ -43,17 +39,4 @@ public interface Read
     AsyncChain<Data> read(Seekable key, Txn.Kind kind, SafeCommandStore commandStore, Timestamp executeAt, DataStore store);
     Read slice(Ranges ranges);
     Read merge(Read other);
-
-    /**
-     * The consistency level Accord should perform the read at, meaning Accord
-     * should ensure it reads from a certain number of replicas, and request digest reads
-     * to improve performance.
-     *
-     * If unspecified then Accord will only read from the replicas it needs to in order to read
-     * data written by Accord.
-     */
-    default DataConsistencyLevel readDataCL()
-    {
-        return UNSPECIFIED;
-    }
 }

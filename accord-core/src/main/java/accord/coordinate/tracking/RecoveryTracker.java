@@ -20,12 +20,8 @@ package accord.coordinate.tracking;
 
 import accord.coordinate.tracking.QuorumTracker.QuorumShardTracker;
 import accord.local.Node;
-import accord.primitives.DataConsistencyLevel;
 import accord.topology.Shard;
 import accord.topology.Topologies;
-
-import static accord.primitives.DataConsistencyLevel.INVALID;
-import static accord.utils.Invariants.checkArgument;
 
 public class RecoveryTracker extends AbstractTracker<RecoveryTracker.RecoveryShardTracker>
 {
@@ -33,10 +29,9 @@ public class RecoveryTracker extends AbstractTracker<RecoveryTracker.RecoverySha
     {
         protected int fastPathRejects = 0;
 
-        private RecoveryShardTracker(Shard shard, DataConsistencyLevel dataCL)
+        private RecoveryShardTracker(Shard shard)
         {
-            super(shard, dataCL);
-            checkArgument(dataCL == INVALID);
+            super(shard);
         }
 
         private ShardOutcomes onSuccessRejectFastPath(Node.Id from)
@@ -54,7 +49,7 @@ public class RecoveryTracker extends AbstractTracker<RecoveryTracker.RecoverySha
 
     public RecoveryTracker(Topologies topologies)
     {
-        super(topologies, INVALID, RecoveryShardTracker[]::new, RecoveryShardTracker::new);
+        super(topologies, RecoveryShardTracker[]::new, RecoveryShardTracker::new);
     }
 
     public RequestStatus recordSuccess(Node.Id node, boolean acceptsFastPath)

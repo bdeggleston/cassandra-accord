@@ -33,7 +33,6 @@ import accord.api.Write;
 import accord.local.Node;
 import accord.local.Node.Id;
 import accord.local.SafeCommandStore;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Keys;
 import accord.primitives.Ranges;
 import accord.primitives.Seekable;
@@ -94,25 +93,23 @@ public class MockStore implements DataStore
 
     public static Read read(Seekables<?, ?> keys)
     {
-        return read(keys, null, null);
+        return read(keys, null);
     }
 
-    public static Read read(Seekables<?, ?> keys, Consumer<Boolean> digestReadListener, DataConsistencyLevel cl)
+    public static Read read(Seekables<?, ?> keys, Consumer<Boolean> digestReadListener)
     {
-        return new MockRead(keys, digestReadListener, cl);
+        return new MockRead(keys, digestReadListener);
     }
 
     public static class MockRead implements Read
     {
         public final Seekables keys;
         public final Consumer<Boolean> digestReadListener;
-        public final DataConsistencyLevel cl;
 
-        public MockRead(Seekables keys, Consumer<Boolean> digestReadListener, DataConsistencyLevel cl)
+        public MockRead(Seekables keys, Consumer<Boolean> digestReadListener)
         {
             this.keys = keys;
             this.digestReadListener = digestReadListener;
-            this.cl = cl;
         }
 
         @Override
@@ -133,27 +130,19 @@ public class MockStore implements DataStore
         @Override
         public Read slice(Ranges ranges)
         {
-            return MockStore.read(keys.slice(ranges), digestReadListener, cl);
+            return MockStore.read(keys.slice(ranges), digestReadListener);
         }
 
         @Override
         public Read merge(Read other)
         {
-            return MockStore.read(((Seekables)keys).with(other.keys()), digestReadListener, cl);
+            return MockStore.read(((Seekables)keys).with(other.keys()), digestReadListener);
         }
 
         @Override
         public String toString()
         {
             return keys.toString();
-        }
-
-        @Override
-        public DataConsistencyLevel readDataCL()
-        {
-            if (cl != null)
-                return cl;
-            return DataConsistencyLevel.UNSPECIFIED;
         }
     }
 
@@ -185,15 +174,12 @@ public class MockStore implements DataStore
         final Write write;
         final Seekables keys;
 
-        DataConsistencyLevel writeDataCL;
-
         Data data;
 
-        public MockUpdate(Seekables keys, Write write, DataConsistencyLevel writeDataCL)
+        public MockUpdate(Seekables keys, Write write)
         {
             this.keys = keys;
             this.write = write;
-            this.writeDataCL = writeDataCL;
         }
 
         @Override
@@ -221,15 +207,9 @@ public class MockStore implements DataStore
         {
             return this;
         }
-
-        @Override
-        public DataConsistencyLevel writeDataCl()
-        {
-            return writeDataCL;
-        }
     }
 
-    public static Update update(Seekables<?, ?> keys, DataConsistencyLevel writeDataCL)
+    public static Update update(Seekables<?, ?> keys)
     {
         Write write = new Write()
         {
@@ -246,12 +226,7 @@ public class MockStore implements DataStore
                 return keys.isEmpty();
             }
         };
-        return new MockUpdate(keys, write, writeDataCL);
-    }
-
-    public static Update update(Seekables<?, ?> keys)
-    {
-        return update(keys, DataConsistencyLevel.UNSPECIFIED);
+        return new MockUpdate(keys, write);
     }
 
     static class ImmediateFetchFuture extends AsyncResults.SettableResult<Ranges> implements FetchResult

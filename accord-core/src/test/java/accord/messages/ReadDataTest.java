@@ -43,7 +43,6 @@ import accord.local.PreLoadContext;
 import accord.local.SafeCommand;
 import accord.messages.ReadData.ReadNack;
 import accord.primitives.Ballot;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.FullRoute;
 import accord.primitives.Keys;
 import accord.primitives.PartialDeps;
@@ -96,7 +95,6 @@ class ReadDataTest
         Read read = Mockito.mock(Read.class);
         Mockito.when(read.slice(any())).thenReturn(read);
         Mockito.when(read.merge(any())).thenReturn(read);
-        Mockito.when(read.readDataCL()).thenReturn(DataConsistencyLevel.UNSPECIFIED);
         Mockito.when(read.keys()).thenReturn((Seekables)keys);
 
         Mockito.when(read.read(any(), any(), any(), any(), any())).thenAnswer(new Answer<AsyncChain<Data>>()
@@ -285,7 +283,7 @@ class ReadDataTest
             AsyncResults.SettableResult<Void> writeResult = new AsyncResults.SettableResult<>();
             Write write = Mockito.mock(Write.class);
             Mockito.when(write.apply(any(), any(), any(), any())).thenReturn(writeResult);
-            Writes writes = new Writes(txnId, executeAt, keys, write, DataConsistencyLevel.UNSPECIFIED);
+            Writes writes = new Writes(txnId, executeAt, keys, write);
 
             forEach(store -> check(store.execute(PreLoadContext.contextFor(txnId, keys), safe -> {
                 CheckedCommands.apply(safe, txnId, route, progressKey, executeAt, deps, partialTxn, writes, Mockito.mock(Result.class));

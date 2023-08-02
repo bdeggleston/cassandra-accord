@@ -212,19 +212,6 @@ public interface Txn
         }
 
         @Override
-        public DataConsistencyLevel writeDataCL()
-        {
-            // TODO (review) Is invalid better?
-            return update != null ? update.writeDataCl() : DataConsistencyLevel.UNSPECIFIED;
-        }
-
-        @Override
-        public DataConsistencyLevel readDataCL()
-        {
-            return read.readDataCL();
-        }
-
-        @Override
         public boolean equals(Object o)
         {
             if (this == o) return true;
@@ -262,16 +249,6 @@ public interface Txn
         return kind().isWrite();
     }
 
-    default DataConsistencyLevel writeDataCL()
-    {
-        return DataConsistencyLevel.UNSPECIFIED;
-    }
-
-    default DataConsistencyLevel readDataCL()
-    {
-        return DataConsistencyLevel.UNSPECIFIED;
-    }
-
     default Result result(TxnId txnId, Timestamp executeAt, @Nullable Data data)
     {
         return query().compute(txnId, executeAt, keys(), data, read(), update());
@@ -279,25 +256,11 @@ public interface Txn
 
     default Writes execute(TxnId txnId, Timestamp executeAt, @Nullable Data data)
     {
-
-        // Accord allows you to specify read CL separately from write CL
-        // so if we want reads to be monotonic we may need to upgrade the CL when writing the repairs
-        DataConsistencyLevel txnWriteDataCL = writeDataCL();
-        DataConsistencyLevel writeDataCL = DataConsistencyLevel.max(txnWriteDataCL, readDataCL());
-
         Update update = update();
         if (update == null)
-            return new Writes(txnId, executeAt, Keys.EMPTY, null, writeDataCL);
+            return new Writes(txnId, executeAt, Keys.EMPTY, null);
 
-        // Update keys might not include keys needing repair
-        Seekables keys = update.keys();
-
-        Write write = update.apply(executeAt, data);
-        // If there is nothing to write then writeDataCL doesn't matter and apply can be done async
-        if (write.isEmpty())
-            writeDataCL = DataConsistencyLevel.UNSPECIFIED;
-
-        return new Writes(txnId, executeAt, keys, write, writeDataCL);
+        return new Writes(txnId, executeAt, update.keys(), update.apply(executeAt, data));
     }
 
     default AsyncChain<Data> read(SafeCommandStore safeStore, Timestamp executeAt)

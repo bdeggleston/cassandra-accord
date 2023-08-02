@@ -28,8 +28,6 @@ import accord.primitives.TxnId;
 import accord.primitives.Unseekables;
 import accord.topology.Topologies;
 
-import static accord.primitives.DataConsistencyLevel.INVALID;
-
 /**
  * A result of null indicates the transaction is globally persistent
  * A result of CheckStatusOk indicates the maximum status found for the transaction, which may be used to assess progress
@@ -56,7 +54,7 @@ public abstract class CheckShards<U extends Unseekables<?>> extends ReadCoordina
 
     protected CheckShards(Node node, TxnId txnId, U route, long srcEpoch, IncludeInfo includeInfo)
     {
-        super(node, topologyFor(node, txnId, route, srcEpoch), txnId, INVALID);
+        super(node, topologyFor(node, txnId, route, srcEpoch), txnId);
         this.sourceEpoch = srcEpoch;
         this.route = route;
         this.includeInfo = includeInfo;

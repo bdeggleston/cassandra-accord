@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import static accord.coordinate.ReadCoordinator.Action.*;
 import static accord.messages.Commit.Kind.Maximal;
@@ -58,7 +57,7 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
 
     private TxnExecute(Node node, TxnId txnId, Txn txn, FullRoute<?> route, Participants<?> readScope, Timestamp executeAt, Deps deps, BiConsumer<? super Result, Throwable> callback)
     {
-        super(node, node.topology().forEpoch(readScope, executeAt.epoch()), txnId, txn.readDataCL());
+        super(node, node.topology().forEpoch(readScope, executeAt.epoch()), txnId);
         this.txn = txn;
         this.route = route;
         this.readScope = readScope;
@@ -96,12 +95,7 @@ public class TxnExecute extends ReadCoordinator<ReadReply> implements Execute
             if (next != null)
                 data = data == null ? next : data.merge(next);
 
-            if (ok.unavailable == null)
-            {
-                return txn.readDataCL().requiresDigestReads ? ApproveIfQuorum : Approve;
-            }
-            // TODO partial interaction with quorum
-            return ApprovePartial;
+            return ok.unavailable == null ? Approve : ApprovePartial;
         }
 
         ReadNack nack = (ReadNack) reply;

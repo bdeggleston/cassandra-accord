@@ -47,7 +47,6 @@ import accord.topology.Topologies;
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
 import static accord.coordinate.tracking.RequestStatus.Failed;
 import static accord.messages.Commit.Invalidate.commitInvalidate;
-import static accord.primitives.DataConsistencyLevel.INVALID;
 import static accord.utils.Invariants.debug;
 
 abstract class Propose<R> implements Callback<AcceptReply>
@@ -151,7 +150,7 @@ abstract class Propose<R> implements Callback<AcceptReply>
         Invalidate(Node node, Shard shard, Ballot ballot, TxnId txnId, RoutingKey someParticipant, BiConsumer<Void, Throwable> callback)
         {
             this.node = node;
-            this.acceptTracker = new QuorumShardTracker(shard, INVALID);
+            this.acceptTracker = new QuorumShardTracker(shard);
             this.ballot = ballot;
             this.txnId = txnId;
             this.someParticipant = someParticipant;

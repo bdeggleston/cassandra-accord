@@ -24,7 +24,6 @@ import accord.local.Node;
 import accord.local.Node.Id;
 import accord.messages.Callback;
 import accord.messages.CheckStatus.WithQuorum;
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
 import accord.primitives.TxnId;
 import accord.topology.Topologies;
@@ -98,9 +97,9 @@ public abstract class ReadCoordinator<Reply extends accord.messages.Reply> exten
     private Throwable failure;
     final Map<Id, Object> debug = debug() ? new HashMap<>() : null;
 
-    protected ReadCoordinator(Node node, Topologies topologies, TxnId txnId, DataConsistencyLevel cl)
+    protected ReadCoordinator(Node node, Topologies topologies, TxnId txnId)
     {
-        super(topologies, cl);
+        super(topologies);
         this.node = node;
         this.txnId = txnId;
     }

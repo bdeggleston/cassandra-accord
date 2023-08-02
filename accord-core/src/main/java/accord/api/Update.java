@@ -18,13 +18,10 @@
 
 package accord.api;
 
-import accord.primitives.DataConsistencyLevel;
 import accord.primitives.Ranges;
 import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
 import javax.annotation.Nullable;
-
-import static accord.primitives.DataConsistencyLevel.UNSPECIFIED;
 
 /**
  * A client-defined update operation (the write equivalent of a query).
@@ -38,8 +35,4 @@ public interface Update
     Write apply(Timestamp executeAt, @Nullable Data data);
     Update slice(Ranges ranges);
     Update merge(Update other);
-    default DataConsistencyLevel writeDataCl()
-    {
-        return UNSPECIFIED;
-    }
 }

@@ -32,7 +32,6 @@ import accord.utils.async.AsyncResults;
 
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Fail;
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
-import static accord.primitives.DataConsistencyLevel.INVALID;
 
 public class InformHomeOfTxn extends AsyncResults.SettableResult<Void> implements Callback<SimpleReply>
 {
@@ -45,7 +44,7 @@ public class InformHomeOfTxn extends AsyncResults.SettableResult<Void> implement
     {
         this.txnId = txnId;
         this.someRoute = someRoute;
-        this.tracker = new QuorumShardTracker(homeShard, INVALID);
+        this.tracker = new QuorumShardTracker(homeShard);
     }
 
     public static AsyncChain<Void> inform(Node node, TxnId txnId, Route<?> someRoute)
