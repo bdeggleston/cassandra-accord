@@ -47,14 +47,15 @@ public abstract class Persist implements Callback<ApplyReply>
         Persist create(Node node, Topologies topologies, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps);
     }
 
-    final Node node;
-    final TxnId txnId;
-    final FullRoute<?> route;
-    final Txn txn;
-    final Timestamp executeAt;
-    final Deps deps;
-    final QuorumTracker tracker;
-    final Set<Id> persistedOn;
+    protected final Node node;
+    protected final TxnId txnId;
+    protected final FullRoute<?> route;
+    protected final Txn txn;
+    protected final Timestamp executeAt;
+    protected final Deps deps;
+    protected final Topologies topologies;
+    protected final QuorumTracker tracker;
+    protected final Set<Id> persistedOn;
     boolean isDone;
 
     public static void persist(Node node, TxnId txnId, FullRoute<?> route, Txn txn, Timestamp executeAt, Deps deps, Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback)
@@ -86,6 +87,7 @@ public abstract class Persist implements Callback<ApplyReply>
         this.txn = txn;
         this.deps = deps;
         this.route = route;
+        this.topologies = topologies;
         this.tracker = new QuorumTracker(topologies);
         this.executeAt = executeAt;
         this.persistedOn = new HashSet<>();
@@ -130,14 +132,14 @@ public abstract class Persist implements Callback<ApplyReply>
 
     public void applyMinimal(Topologies participates, Topologies executes, Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback)
     {
+        registerClientCallback(writes, result, clientCallback);
         node.send(participates.nodes(), to -> Apply.applyMinimal(to, participates, executes, txnId, route, txn, executeAt, deps, writes, result), this);
-        notifyClient(result, clientCallback);
     }
     public void applyMaximal(Topologies participates, Topologies executes, Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback)
     {
+        registerClientCallback(writes, result, clientCallback);
         node.send(participates.nodes(), to -> Apply.applyMaximal(to, participates, executes, txnId, route, txn, executeAt, deps, writes, result), this);
-        notifyClient(result, clientCallback);
     }
 
-    public abstract void notifyClient(Result result, BiConsumer<? super Result, Throwable> clientCallback);
+    public abstract void registerClientCallback(Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback);
 }

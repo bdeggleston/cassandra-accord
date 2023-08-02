@@ -35,7 +35,7 @@ public class TxnPersist extends Persist
     }
 
     @Override
-    public void notifyClient(Result result, BiConsumer<? super Result, Throwable> clientCallback)
+    public void registerClientCallback(Writes writes, Result result, BiConsumer<? super Result, Throwable> clientCallback)
     {
         if (clientCallback != null)
             clientCallback.accept(result, null);
