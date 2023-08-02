@@ -30,7 +30,7 @@ import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.NoChange;
 import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
 import static accord.utils.Invariants.checkArgument;
 
-public class AppliedTracker extends AbstractTracker<AppliedTracker.AppliedShardTracker>
+public class AppliedTracker extends AbstractTracker<AppliedTracker.AppliedShardTracker> implements ResponseTracker
 {
     public static class AppliedShardTracker extends ShardTracker
     {

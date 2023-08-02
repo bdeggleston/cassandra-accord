@@ -29,7 +29,7 @@ import static accord.coordinate.tracking.AbstractTracker.ShardOutcomes.Success;
 import static accord.primitives.DataConsistencyLevel.ALL;
 import static accord.primitives.DataConsistencyLevel.INVALID;
 
-public class QuorumTracker extends AbstractTracker<QuorumTracker.QuorumShardTracker>
+public class QuorumTracker extends AbstractTracker<QuorumTracker.QuorumShardTracker> implements ResponseTracker
 {
     public static class QuorumShardTracker extends ShardTracker
     {
