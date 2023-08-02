@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import accord.coordinate.TxnPersist;
 import com.google.common.collect.Sets;
 
-import accord.api.ExternalTopology;
 import accord.api.MessageSink;
 import accord.api.Scheduler;
 import accord.coordinate.TxnExecute;
@@ -126,7 +125,7 @@ public class Utils
 
     public static Topology topology(long epoch, Shard... shards)
     {
-        return new Topology(epoch, ExternalTopology.EMPTY, shards);
+        return new Topology(epoch, shards);
     }
 
     public static Topology topology(Shard... shards)

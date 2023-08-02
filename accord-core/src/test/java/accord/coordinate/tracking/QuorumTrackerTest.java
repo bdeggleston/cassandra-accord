@@ -21,7 +21,6 @@ package accord.coordinate.tracking;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import accord.api.ExternalTopology;
 import accord.impl.TopologyUtils;
 import accord.local.Node;
 import accord.primitives.Range;
@@ -113,7 +112,7 @@ public class QuorumTrackerTest
     @Test
     void multiShard()
     {
-        Topology subTopology = new Topology(1, ExternalTopology.EMPTY, topology.get(0), topology.get(1), topology.get(2));
+        Topology subTopology = new Topology(1, topology.get(0), topology.get(1), topology.get(2));
         QuorumTracker responses = new QuorumTracker(topologies(subTopology));
         /*
         (000, 100](100, 200](200, 300]

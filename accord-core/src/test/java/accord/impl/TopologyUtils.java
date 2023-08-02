@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import accord.api.ExternalTopology;
 import accord.local.Node;
 import accord.primitives.Range;
 import accord.primitives.Ranges;
@@ -80,7 +79,7 @@ public class TopologyUtils
         if (!noShard.isEmpty())
             throw new AssertionError();
 
-        return new Topology(1, ExternalTopology.EMPTY, toArray(shards, Shard[]::new));
+        return new Topology(1, toArray(shards, Shard[]::new));
     }
 
     public static Topology initialTopology(List<Node.Id> cluster, Ranges ranges, int rf)

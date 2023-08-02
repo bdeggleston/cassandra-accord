@@ -34,7 +34,6 @@ import java.util.stream.IntStream;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import accord.api.ExternalTopology;
 import accord.api.RoutingKey;
 import accord.local.Node.Id;
 import accord.primitives.Range;
@@ -47,10 +46,7 @@ import accord.utils.IndexedBiFunction;
 import accord.utils.IndexedConsumer;
 import accord.utils.IndexedIntFunction;
 import accord.utils.IndexedTriFunction;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-import static accord.utils.Invariants.checkState;
 import static accord.utils.SortedArrays.Search.FLOOR;
 import static accord.utils.SortedArrays.exponentialSearch;
 
@@ -60,10 +56,6 @@ public class Topology
     private static final int[] EMPTY_SUBSET = new int[0];
     public static final Topology EMPTY = new Topology(EMPTY_EPOCH, new Shard[0], Ranges.EMPTY, Collections.emptyMap(), Ranges.EMPTY, EMPTY_SUBSET);
     final long epoch;
-    // This field is always null except when retrieving the full topology for an epoch from AbstractConfigurationService
-    // Also may be null if the Accord integration doesn't have any real external topology
-    @Nonnull
-    transient final ExternalTopology externalTopology;
     final Shard[] shards;
     final Ranges ranges;
     /**
@@ -96,10 +88,9 @@ public class Topology
         }
     }
 
-    public Topology(long epoch, @Nullable ExternalTopology externalTopology, Shard... shards)
+    public Topology(long epoch, Shard... shards)
     {
         this.epoch = epoch;
-        this.externalTopology = externalTopology;
         this.ranges = Ranges.ofSortedAndDeoverlapped(Arrays.stream(shards).map(shard -> shard.range).toArray(Range[]::new));
         this.shards = shards;
         this.subsetOfRanges = ranges;
@@ -122,7 +113,6 @@ public class Topology
     public Topology(long epoch, Shard[] shards, Ranges ranges, Map<Id, NodeInfo> nodeLookup, Ranges subsetOfRanges, int[] supersetIndexes)
     {
         this.epoch = epoch;
-        this.externalTopology = null;
         this.shards = shards;
         this.ranges = ranges;
         this.nodeLookup = nodeLookup;
@@ -162,12 +152,12 @@ public class Topology
         return result;
     }
 
-    public static Topology select(long epoch, ExternalTopology externalTopology, Shard[] shards, int[] indexes)
+    public static Topology select(long epoch, Shard[] shards, int[] indexes)
     {
         Shard[] subset = new Shard[indexes.length];
         for (int i=0; i<indexes.length; i++)
             subset[i] = shards[indexes[i]];
-        return new Topology(epoch, externalTopology, subset);
+        return new Topology(epoch, subset);
     }
 
     public boolean isSubset()
@@ -186,12 +176,6 @@ public class Topology
         return epoch;
     }
 
-    public ExternalTopology externalTopology()
-    {
-        checkState(!isSubset(), "External Topology is only available from global topology");
-        return externalTopology;
-    }
-
     public Topology forNode(Id node)
     {
         NodeInfo info = nodeLookup.get(node);
@@ -205,7 +189,7 @@ public class Topology
 
     public Topology trim()
     {
-        return select(epoch, externalTopology, shards, this.supersetIndexes);
+        return select(epoch, shards, this.supersetIndexes);
     }
 
     public Ranges rangesForNode(Id node)

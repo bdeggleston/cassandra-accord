@@ -25,7 +25,6 @@ import com.google.common.collect.Sets;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import accord.api.ExternalTopology;
 import accord.impl.TopologyUtils;
 import accord.local.Node.Id;
 import accord.primitives.Ranges;
@@ -139,7 +138,7 @@ public class ReadTrackerTest
     @Test
     void multiShardSuccess()
     {
-        Topology subTopology = new Topology(1, ExternalTopology.EMPTY, topology.get(0), topology.get(1), topology.get(2));
+        Topology subTopology = new Topology(1, topology.get(0), topology.get(1), topology.get(2));
         ReadTracker responses = new AutoReadTracker(topologies(subTopology));
         /*
         (000, 100](100, 200](200, 300]
@@ -154,7 +153,7 @@ public class ReadTrackerTest
     @Test
     void multiShardRetryAndReadSet()
     {
-        Topology subTopology = new Topology(1, ExternalTopology.EMPTY, topology.get(0), topology.get(1), topology.get(2));
+        Topology subTopology = new Topology(1, topology.get(0), topology.get(1), topology.get(2));
         ReadTracker responses = new TestReadTracker(topologies(subTopology));
         /*
         (000, 100](100, 200](200, 300]
@@ -207,7 +206,7 @@ public class ReadTrackerTest
         Ranges ranges = TopologyUtils.initialRanges(8, 500);
         Topology topology = TopologyUtils.initialTopology(ids, ranges, 3);
 
-        Topology subTopology = new Topology(1, ExternalTopology.EMPTY, new Shard[]{topology.get(0), topology.get(1), topology.get(5)});
+        Topology subTopology = new Topology(1, new Shard[]{topology.get(0), topology.get(1), topology.get(5)});
         ReadTracker responses = new TestReadTracker(topologies(subTopology));
 
         assertInitialContacts(Sets.newHashSet(ids[1], ids[2], ids[6], ids[7]), responses);

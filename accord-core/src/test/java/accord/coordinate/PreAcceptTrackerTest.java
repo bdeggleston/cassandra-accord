@@ -21,7 +21,6 @@ package accord.coordinate;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import accord.api.ExternalTopology;
 import accord.coordinate.tracking.FastPathTracker;
 import accord.impl.TopologyUtils;
 import accord.local.Node;
@@ -126,7 +125,7 @@ public class PreAcceptTrackerTest
     @Test
     void multiShard()
     {
-        Topology subTopology = new Topology(1, ExternalTopology.EMPTY, topology.get(0), topology.get(1), topology.get(2));
+        Topology subTopology = new Topology(1, topology.get(0), topology.get(1), topology.get(2));
         FastPathTracker responses = new FastPathTracker(topologies(subTopology));
         /*
         (000, 100](100, 200](200, 300]
