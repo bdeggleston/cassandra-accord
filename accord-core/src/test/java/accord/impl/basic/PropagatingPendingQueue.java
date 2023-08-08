@@ -56,6 +56,11 @@ public class PropagatingPendingQueue implements PendingQueue
         return wrapped.remove(item);
     }
 
+    public void add(Pending item, long minDelay, long maxDelay, TimeUnit units)
+    {
+        wrapped.add(item, minDelay, maxDelay, units);
+    }
+
     @Override
     public Pending poll()
     {

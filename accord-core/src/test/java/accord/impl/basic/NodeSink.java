@@ -19,19 +19,17 @@
 package accord.impl.basic;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import accord.burn.random.FrequentLargeRange;
+import accord.impl.basic.Cluster.Link;
 import accord.local.AgentExecutor;
 import accord.local.PreLoadContext;
 import accord.messages.SafeCallback;
@@ -39,8 +37,6 @@ import accord.messages.Message;
 import accord.messages.TxnRequest;
 import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
-import accord.utils.Gen;
-import accord.utils.Gens;
 import accord.utils.RandomSource;
 import accord.local.Node;
 import accord.local.Node.Id;
@@ -55,16 +51,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static accord.impl.basic.Packet.SENTINEL_MESSAGE_ID;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class NodeSink implements MessageSink
 {
     private static final boolean DEBUG = false;
-    private enum Action {DELIVER, DROP, DROP_PARTITIONED, DELIVER_WITH_FAILURE, FAILURE}
+    public enum Action { DELIVER, DROP, DELIVER_WITH_FAILURE, FAILURE }
     public enum ClientAction {SUBMIT, SUCCESS, FAILURE}
 
-    private final Map<Id, Gen<Action>> nodeActions = new HashMap<>();
-    private final Map<Id, Gen.LongGen> networkJitter = new HashMap<>();
     final Id self;
     final Function<Id, Node> lookup;
     final Cluster parent;
@@ -98,11 +93,11 @@ public class NodeSink implements MessageSink
             parent.pending.add((PendingRunnable) () -> {
                 if (sc == callbacks.get(messageId))
                     sc.slowResponse(to);
-            }, 100 + random.nextInt(200), TimeUnit.MILLISECONDS);
+            }, 100 + random.nextInt(200), MILLISECONDS);
             parent.pending.add((PendingRunnable) () -> {
                 if (sc == callbacks.remove(messageId))
                     sc.timeout(to);
-            }, 1000 + random.nextInt(1000), TimeUnit.MILLISECONDS);
+            }, 1000 + random.nextInt(1000), MILLISECONDS);
         }
     }
 
@@ -114,29 +109,21 @@ public class NodeSink implements MessageSink
 
     private boolean maybeEnqueue(Node.Id to, long id, Message message, SafeCallback callback)
     {
-        Runnable task = () -> {
-            debug(to, id, message, Action.DELIVER);
-            Packet packet;
-            if (message instanceof Reply) packet = new Packet(self, to, id, (Reply) message);
-            else                          packet = new Packet(self, to, id, (Request) message);
-            parent.add(packet, networkJitterNanos(to), TimeUnit.NANOSECONDS);
-        };
+        Link link = parent.links.apply(self, to);
         if (to.equals(self) || lookup.apply(to) == null /* client */)
         {
-            task.run();
+            deliver(to, id, message, link);
             return true;
         }
 
-        Action action = partitioned(to) ? Action.DROP_PARTITIONED
-                                        // call actions() per node so each one has different "runs" state
-                                        : nodeActions.computeIfAbsent(to, ignore -> actions()).next(random);
+        Action action = link.action.get();
         switch (action)
         {
             case DELIVER:
-                task.run();
+                deliver(to, id, message, link);
                 return true;
             case DELIVER_WITH_FAILURE:
-                task.run();
+                deliver(to, id, message, link);
             case FAILURE:
                 debug(to, id, message, action);
                 if (action == Action.FAILURE)
@@ -156,10 +143,9 @@ public class NodeSink implements MessageSink
                                 lookup.apply(self).agent().onUncaughtException(t);
                             }
                         }
-                    }, 1000 + random.nextInt(1000), TimeUnit.MILLISECONDS);
+                    }, 1000 + random.nextInt(1000), MILLISECONDS);
                 }
                 return false;
-            case DROP_PARTITIONED:
             case DROP:
                 debug(to, id, message, action);
                 parent.notifyDropped(self, to, id, message);
@@ -169,35 +155,13 @@ public class NodeSink implements MessageSink
         }
     }
 
-    private long networkJitterNanos(Node.Id dst)
+    private void deliver(Node.Id to, long id, Message message, Link link)
     {
-        return networkJitter.computeIfAbsent(dst, ignore -> defaultJitter())
-                            .nextLong(random);
-    }
-
-    private Gen.LongGen defaultJitter()
-    {
-        return FrequentLargeRange.builder(random)
-                                 .raitio(1, 5)
-                                 .small(500, TimeUnit.MICROSECONDS, 5, TimeUnit.MILLISECONDS)
-                                 .large(50, TimeUnit.MILLISECONDS, 5, SECONDS)
-                                 .build();
-    }
-
-    private boolean partitioned(Id to)
-    {
-        return parent.partitionSet.contains(self) != parent.partitionSet.contains(to);
-    }
-
-    private static Gen<Action> actions()
-    {
-        Gen<Boolean> drops = Gens.bools().runs(0.01);
-        Gen<Boolean> failures = Gens.bools().runs(0.01);
-        return rs -> {
-            if (drops.next(rs))
-                return Action.DROP;
-            return failures.next(rs) ? Action.FAILURE : Action.DELIVER;
-        };
+        debug(to, id, message, Action.DELIVER);
+        Packet packet;
+        if (message instanceof Reply) packet = new Packet(self, to, id, (Reply) message);
+        else                          packet = new Packet(self, to, id, (Request) message);
+        parent.add(packet, link.latencyMicros.getAsLong(), MICROSECONDS);
     }
 
     private void debug(Id to, long id, Message message, Action action)

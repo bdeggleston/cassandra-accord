@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static accord.local.Status.Committed;
+import static accord.local.Status.Known.DefinitionAndRoute;
 import static accord.local.Status.Known.DefinitionOnly;
 
 public class Commit extends TxnRequest<ReadNack>
@@ -160,9 +161,9 @@ public class Commit extends TxnRequest<ReadNack>
                 return null;
 
             case Insufficient:
-                Invariants.checkState(!safeCommand.current().known().isDefinitionKnown());
+                Invariants.checkState(!DefinitionAndRoute.isSatisfiedBy(safeCommand.current().known()));
                 if (defer == null)
-                    defer = new Defer(DefinitionOnly, Committed.minKnown, Commit.this);
+                    defer = new Defer(DefinitionAndRoute, Committed.minKnown, Commit.this);
                 defer.add(safeStore, safeCommand, safeStore.commandStore());
                 return ReadNack.NotCommitted;
         }

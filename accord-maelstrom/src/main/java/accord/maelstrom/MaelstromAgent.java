@@ -53,6 +53,12 @@ public class MaelstromAgent implements Agent
     }
 
     @Override
+    public void onStaleRange(Ranges ranges, Runnable bootstrap)
+    {
+        throw new AssertionError();
+    }
+
+    @Override
     public void onUncaughtException(Throwable t)
     {
     }

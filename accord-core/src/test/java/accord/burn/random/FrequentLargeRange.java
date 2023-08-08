@@ -18,32 +18,34 @@
 
 package accord.burn.random;
 
-import accord.utils.Gen;
 import accord.utils.Gen.LongGen;
-import accord.utils.Gens;
 import accord.utils.RandomSource;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 public class FrequentLargeRange implements LongGen
 {
     private final LongGen small, large;
-    private final Gen<Boolean> runs;
+    private final Predicate<RandomSource> runs;
 
     public FrequentLargeRange(LongGen small, LongGen large, double ratio)
     {
         this.small = small;
         this.large = large;
-        this.runs = Gens.bools().runs(ratio);
+        this.runs = random -> random.decide(ratio);
     }
 
     @Override
     public long nextLong(RandomSource randomSource)
     {
-        if (runs.next(randomSource)) return large.nextLong(randomSource);
+        if (runs.test(randomSource)) return large.nextLong(randomSource);
         else                         return small.nextLong(randomSource);
     }
+
+    public LongSupplier asSupplier(RandomSource randomSource) { return () -> nextLong(randomSource); }
 
     public static Builder builder(RandomSource randomSource)
     {
@@ -61,13 +63,13 @@ public class FrequentLargeRange implements LongGen
             this.random = random;
         }
 
-        public Builder raitio(double ratio)
+        public Builder ratio(double ratio)
         {
             this.ratio = ratio;
             return this;
         }
 
-        public Builder raitio(int min, int max)
+        public Builder ratio(int min, int max)
         {
             this.ratio = ratio = random.nextInt(min, max) / 100.0D;
             return this;
@@ -131,7 +133,7 @@ public class FrequentLargeRange implements LongGen
             if (large == null)
                 throw new IllegalStateException("Large range undefined");
             if (ratio == null)
-                raitio(1, 11);
+                ratio(1, 11);
             return new FrequentLargeRange(small, large, ratio);
         }
     }

@@ -130,6 +130,12 @@ public class RandomDelayQueue implements PendingQueue
     }
 
     @Override
+    public void add(Pending item, long minDelay, long maxDelay, TimeUnit units)
+    {
+        queue.add(new Item(now + units.toMillis(random.nextLong(minDelay, maxDelay + 1)), seq++, item));
+    }
+
+    @Override
     public Pending poll()
     {
         Item item = queue.poll();

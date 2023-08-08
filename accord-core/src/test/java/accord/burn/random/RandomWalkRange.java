@@ -18,6 +18,8 @@
 
 package accord.burn.random;
 
+import java.util.function.LongSupplier;
+
 import accord.utils.Gen.LongGen;
 import accord.utils.RandomSource;
 
@@ -44,6 +46,8 @@ public class RandomWalkRange implements LongGen
                             : Math.max(min, cur + step);
         return cur;
     }
+
+    public LongSupplier asSupplier(RandomSource randomSource) { return () -> nextLong(randomSource); }
 
     private static long maxStepSize(RandomSource random, long min, long max)
     {
