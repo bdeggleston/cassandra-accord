@@ -39,6 +39,12 @@ public class PropagatingPendingQueue implements PendingQueue
     }
 
     @Override
+    public void addNoDelay(Pending item)
+    {
+        wrapped.addNoDelay(item);
+    }
+
+    @Override
     public void add(Pending item, long delay, TimeUnit units)
     {
         wrapped.add(item, delay, units);
