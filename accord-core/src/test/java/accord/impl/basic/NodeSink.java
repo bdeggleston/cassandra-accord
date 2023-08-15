@@ -112,8 +112,7 @@ public class NodeSink implements MessageSink
             Packet packet;
             if (message instanceof Reply) packet = new Packet(self, to, id, (Reply) message);
             else                          packet = new Packet(self, to, id, (Request) message);
-            long jitterNanos = networkJitterNanos(to);
-            parent.add(packet, jitterNanos, TimeUnit.NANOSECONDS);
+            parent.add(packet, networkJitterNanos(to), TimeUnit.NANOSECONDS);
         };
         if (to.equals(self) || lookup.apply(to) == null /* client */)
         {
