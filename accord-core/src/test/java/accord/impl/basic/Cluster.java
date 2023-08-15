@@ -116,7 +116,6 @@ public class Cluster implements Scheduler
         if (trace.isTraceEnabled())
             trace.trace("{} {} {}", clock++, packet.message instanceof Reply ? "RPLY" : "SEND", packet);
         if (lookup.apply(packet.dst) == null) responseSink.accept(packet);
-        else if (delay == 0)                  pending.add(packet);
         else                                  pending.add(packet, delay, unit);
 
     }

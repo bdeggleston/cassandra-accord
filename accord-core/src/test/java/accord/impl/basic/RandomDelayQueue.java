@@ -118,6 +118,8 @@ public class RandomDelayQueue implements PendingQueue
     @Override
     public void add(Pending item, long delay, TimeUnit units)
     {
+        if (delay < 0)
+            throw new IllegalArgumentException("Delay must be positive or 0, but given " + delay);
         queue.add(new Item(now + units.toMillis(delay) + TimeUnit.NANOSECONDS.toMillis(jitterInNano.nextLong(random)), seq++, item));
     }
 
