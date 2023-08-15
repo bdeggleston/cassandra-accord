@@ -132,6 +132,7 @@ public class Cluster implements Scheduler
 
     public boolean processPending()
     {
+        pending.checkFailures();
         if (pending.size() == recurring)
             return false;
 
@@ -140,6 +141,7 @@ public class Cluster implements Scheduler
             return false;
 
         processNext(next);
+        pending.checkFailures();
         return true;
     }
 

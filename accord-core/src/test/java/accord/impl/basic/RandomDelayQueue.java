@@ -146,6 +146,12 @@ public class RandomDelayQueue implements PendingQueue
     }
 
     @Override
+    public void checkFailures()
+    {
+
+    }
+
+    @Override
     public long nowInMillis()
     {
         return now;

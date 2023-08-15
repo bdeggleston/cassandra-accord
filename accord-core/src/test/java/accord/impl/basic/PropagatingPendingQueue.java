@@ -59,6 +59,14 @@ public class PropagatingPendingQueue implements PendingQueue
     @Override
     public Pending poll()
     {
+        checkFailures();
+        return wrapped.poll();
+    }
+
+    @Override
+    public void checkFailures()
+    {
+        wrapped.checkFailures();
         if (!failures.isEmpty())
         {
             AssertionError assertion = null;
@@ -80,8 +88,6 @@ public class PropagatingPendingQueue implements PendingQueue
             }
             throw assertion;
         }
-
-        return wrapped.poll();
     }
 
     @Override

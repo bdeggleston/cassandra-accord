@@ -28,5 +28,6 @@ public interface PendingQueue
     boolean remove(Pending item);
     Pending poll();
     int size();
+    void checkFailures();
     long nowInMillis();
 }
