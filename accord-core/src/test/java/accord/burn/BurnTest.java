@@ -332,10 +332,16 @@ public class BurnTest
         logger.info("Message counts: {}", messageStatsMap.entrySet());
         if (clock.get() != operations * 2)
         {
+            StringBuilder sb = new StringBuilder();
             for (int i = 0 ; i < requests.length ; ++i)
             {
-                logger.info("{}", requests[i]);
-                logger.info("\t\t" + replies[i]);
+                // since this only happens when operations are lost, only log the ones without a reply to lower the amount of noise
+                if (replies[i] == null)
+                {
+                    sb.setLength(0);
+                    sb.append(requests[i]).append("\n\t\t").append(replies[i]);
+                    logger.info(sb.toString());
+                }
             }
             throw new AssertionError("Incomplete set of responses; clock=" + clock.get() + ", expected operations=" + (operations * 2));
         }

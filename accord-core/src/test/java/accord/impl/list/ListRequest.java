@@ -22,14 +22,17 @@ import accord.api.Result;
 import accord.api.RoutingKey;
 import accord.coordinate.CheckShards;
 import accord.coordinate.CoordinationFailed;
+import accord.coordinate.Exhausted;
 import accord.coordinate.Invalidated;
 import accord.coordinate.Truncated;
 import accord.coordinate.Timeout;
 import accord.impl.basic.Cluster;
+import accord.impl.basic.NodeSink;
 import accord.impl.basic.Packet;
 import accord.impl.basic.SimulatedFault;
 import accord.local.Node;
 import accord.local.Node.Id;
+import accord.local.SaveStatus;
 import accord.local.Status;
 import accord.messages.CheckStatus.CheckStatusOk;
 import accord.messages.CheckStatus.IncludeInfo;
@@ -39,6 +42,8 @@ import accord.messages.Request;
 import accord.primitives.RoutingKeys;
 import accord.primitives.Txn;
 import accord.primitives.TxnId;
+
+import javax.annotation.Nullable;
 
 import static accord.local.Status.Phase.Cleanup;
 import java.util.function.BiConsumer;
@@ -70,6 +75,10 @@ public class ListRequest implements Request
         protected Action checkSufficient(Id from, CheckStatusOk ok)
         {
             ++count;
+            // this method is called for each reply, so if we see a reply where the status is not known, it may be known on others;
+            // once all status are merged, then onDone will apply aditional logic to make sure things are safe.
+            if (ok.saveStatus == SaveStatus.Uninitialised)
+                return Action.ApproveIfQuorum;
             return ok.saveStatus.hasBeen(PreApplied) ? Action.Approve : Action.Reject;
         }
 
@@ -96,13 +105,15 @@ public class ListRequest implements Request
         final Node node;
         final Id client;
         final ReplyContext replyContext;
+        final TxnId id;
         final Txn txn;
 
-        ResultCallback(Node node, Id client, ReplyContext replyContext, Txn txn)
+        ResultCallback(Node node, Id client, ReplyContext replyContext, TxnId id, Txn txn)
         {
             this.node = node;
             this.client = client;
             this.replyContext = replyContext;
+            this.id = id;
             this.txn = txn;
         }
 
@@ -112,10 +123,12 @@ public class ListRequest implements Request
             // TODO (desired, testing): error handling
             if (success != null)
             {
+                ((NodeSink) node.messageSink()).debugClient(id, success, NodeSink.ClientAction.SUCCESS);
                 node.reply(client, replyContext, (ListResult) success);
             }
             else if (fail instanceof CoordinationFailed)
             {
+                ((NodeSink) node.messageSink()).debugClient(id, fail, NodeSink.ClientAction.FAILURE);
                 RoutingKey homeKey = ((CoordinationFailed) fail).homeKey();
                 TxnId txnId = ((CoordinationFailed) fail).txnId();
                 if (fail instanceof Invalidated)
@@ -127,15 +140,29 @@ public class ListRequest implements Request
                 node.reply(client, replyContext, ListResult.heartBeat(client, ((Packet)replyContext).requestId, txnId));
                 ((Cluster) node.scheduler()).onDone(() -> checkOnResult(homeKey, txnId, 0, null));
             }
+            else if (fail instanceof SimulatedFault)
+            {
+                ((NodeSink) node.messageSink()).debugClient(id, fail, NodeSink.ClientAction.FAILURE);
+                node.reply(client, replyContext, ListResult.heartBeat(client, ((Packet)replyContext).requestId, id));
+                ((Cluster) node.scheduler()).onDone(() -> checkOnResult(null, id, 0, null));
+            }
+            else
+            {
+                ((NodeSink) node.messageSink()).debugClient(id, fail, NodeSink.ClientAction.FAILURE);
+                node.agent().onUncaughtException(fail);
+            }
         }
 
-        private void checkOnResult(RoutingKey homeKey, TxnId txnId, int attempt, Throwable t) {
-            if (attempt == 10)
+        private void checkOnResult(@Nullable RoutingKey homeKey, TxnId txnId, int attempt, Throwable t) {
+            if (attempt == 42)
             {
                 node.agent().onUncaughtException(t);
                 return;
             }
-            node.commandStores().select(homeKey).execute(() -> CheckOnResult.checkOnResult(node, txnId, homeKey, (s, f) -> {
+            if (homeKey == null)
+                homeKey = node.selectRandomHomeKey(txnId);
+            RoutingKey finalHomeKey = homeKey;
+            node.commandStores().select(homeKey).execute(() -> CheckOnResult.checkOnResult(node, txnId, finalHomeKey, (s, f) -> {
                 if (f != null)
                 {
                     if (f instanceof Truncated)
@@ -143,7 +170,7 @@ public class ListRequest implements Request
                         node.reply(client, replyContext, ListResult.truncated(client, ((Packet)replyContext).requestId, txnId));
                         return;
                     }
-                    if (f instanceof Timeout || f instanceof SimulatedFault) checkOnResult(homeKey, txnId, attempt + 1, f);
+                    if (f instanceof Timeout || f instanceof SimulatedFault) checkOnResult(finalHomeKey, txnId, attempt + 1, f);
                     else
                     {
                         node.reply(client, replyContext, ListResult.failure(client, ((Packet)replyContext).requestId, txnId));
@@ -173,6 +200,7 @@ public class ListRequest implements Request
     }
 
     public final Txn txn;
+    private TxnId id;
 
     public ListRequest(Txn txn)
     {
@@ -182,7 +210,11 @@ public class ListRequest implements Request
     @Override
     public void process(Node node, Id client, ReplyContext replyContext)
     {
-        node.coordinate(txn).addCallback(new ResultCallback(node, client, replyContext, txn));
+        if (id != null)
+            throw new IllegalStateException("Called process multiple times");
+        id = node.nextTxnId(txn.kind(), txn.keys().domain());
+        ((NodeSink) node.messageSink()).debugClient(id, txn, NodeSink.ClientAction.SUBMIT);
+        node.coordinate(id, txn).addCallback(new ResultCallback(node, client, replyContext, id, txn));
     }
 
     @Override
@@ -194,7 +226,7 @@ public class ListRequest implements Request
     @Override
     public String toString()
     {
-        return txn.toString();
+        return id == null ? txn.toString() : id + " -> " + txn;
     }
 
 }

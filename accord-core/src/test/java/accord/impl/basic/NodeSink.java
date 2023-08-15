@@ -18,14 +18,18 @@
 
 package accord.impl.basic;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import accord.burn.random.FrequentLargeRange;
 import accord.local.AgentExecutor;
@@ -33,6 +37,7 @@ import accord.local.PreLoadContext;
 import accord.messages.SafeCallback;
 import accord.messages.Message;
 import accord.messages.TxnRequest;
+import accord.primitives.Timestamp;
 import accord.primitives.TxnId;
 import accord.utils.Gen;
 import accord.utils.Gens;
@@ -44,6 +49,7 @@ import accord.messages.Callback;
 import accord.messages.Reply;
 import accord.messages.ReplyContext;
 import accord.messages.Request;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +61,7 @@ public class NodeSink implements MessageSink
 {
     private static final boolean DEBUG = false;
     private enum Action {DELIVER, DROP, DROP_PARTITIONED, DELIVER_WITH_FAILURE, FAILURE}
+    public enum ClientAction {SUBMIT, SUCCESS, FAILURE}
 
     private final Map<Id, Gen<Action>> nodeActions = new HashMap<>();
     private final Map<Id, Gen.LongGen> networkJitter = new HashMap<>();
@@ -198,17 +205,76 @@ public class NodeSink implements MessageSink
         if (!DEBUG)
             return;
         if (Debug.txnIdFilter.isEmpty() || Debug.containsTxnId(self, to, id, message))
-            Debug.logger.warn("Message {}: From {}, To {}, id {}, Message {}", action, self, to, id, message);
+            Debug.logger.debug("Message {}: From {}, To {}, id {}, Message {}", Debug.normalize(action), Debug.normalize(self), Debug.normalize(to), Debug.normalizeMessageId(id), message);
+    }
+
+    public void debugClient(TxnId id, Object message, ClientAction action)
+    {
+        if (!DEBUG)
+            return;
+        if (Debug.txnIdFilter.isEmpty() || Debug.txnIdFilter.contains(id))
+        {
+            String log = message instanceof Throwable ? "Client  {}: From {}, To {}, id {}" : "Client  {}: From {}, To {}, id {}, Message {}";
+            Debug.logger.debug(log, Debug.normalize(action), Debug.normalize(self), Debug.normalize(self), Debug.normalize(id), Debug.normalizeClientMessage(message));
+        }
     }
 
     private static class Debug
     {
         private static final Logger logger = LoggerFactory.getLogger(Debug.class);
         // to limit logging to specific TxnId, list in the set below
-        private static final Set<TxnId> txnIdFilter = ImmutableSet.of(
-//                TxnId.fromValues(1,5704909,3,new Id(1))
-        );
+        private static final Set<TxnId> txnIdFilter = ImmutableSet.of();
         private static final Set<TxnReplyId> txnReplies = new HashSet<>();
+
+        private static int ACTION_SIZE = Stream.of(Action.values()).map(Enum::name).mapToInt(String::length).max().getAsInt();
+        private static int CLIENT_ACTION_SIZE = Stream.of(ClientAction.values()).map(Enum::name).mapToInt(String::length).max().getAsInt();
+        private static int ALL_ACTION_SIZE = Math.max(ACTION_SIZE, CLIENT_ACTION_SIZE);
+
+        private static Object normalizeClientMessage(Object o)
+        {
+            if (o instanceof Throwable)
+                trimStackTrace((Throwable) o);
+            return o;
+        }
+
+        private static void trimStackTrace(Throwable input)
+        {
+            for (Throwable current = input; current != null; current = current.getCause())
+            {
+                StackTraceElement[] stack = current.getStackTrace();
+                // remove junit as its super dense and not helpful
+                OptionalInt first = IntStream.range(0, stack.length).filter(i -> stack[i].getClassName().startsWith("org.junit")).findFirst();
+                if (first.isPresent())
+                    current.setStackTrace(Arrays.copyOfRange(stack, 0, first.getAsInt()));
+                for (Throwable sup : current.getSuppressed())
+                    trimStackTrace(sup);
+            }
+        }
+
+        private static String normalize(Action action)
+        {
+            return Strings.padStart(action.name(), ALL_ACTION_SIZE, ' ');
+        }
+
+        private static String normalize(ClientAction action)
+        {
+            return Strings.padStart(action.name(), ALL_ACTION_SIZE, ' ');
+        }
+
+        private static String normalize(Id id)
+        {
+            return Strings.padStart(id.toString(), 4, ' ');
+        }
+
+        private static String normalizeMessageId(long id)
+        {
+            return Strings.padStart(Long.toString(id), 14, ' ');
+        }
+
+        private static String normalize(Timestamp ts)
+        {
+            return Strings.padStart(ts.toString(), 14, ' ');
+        }
 
         public static boolean containsTxnId(Node.Id from, Node.Id to, long id, Message message)
         {
