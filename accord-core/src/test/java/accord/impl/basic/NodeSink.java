@@ -54,7 +54,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class NodeSink implements MessageSink
 {
     private static final boolean DEBUG = false;
-    private enum Action {DELIVER, DROP, DROP_PARTITIONED, FAILURE}
+    private enum Action {DELIVER, DROP, DROP_PARTITIONED, DELIVER_WITH_FAILURE, FAILURE}
 
     private final Map<Id, Gen<Action>> nodeActions = new HashMap<>();
     private final Map<Id, Gen.LongGen> networkJitter = new HashMap<>();
@@ -129,7 +129,12 @@ public class NodeSink implements MessageSink
             case DELIVER:
                 task.run();
                 return true;
+            case DELIVER_WITH_FAILURE:
+                task.run();
             case FAILURE:
+                debug(to, id, message, action);
+                if (action == Action.FAILURE)
+                    parent.notifyDropped(self, to, id, message);
                 if (callback != null)
                 {
                     parent.pending.add((PendingRunnable) () -> {
@@ -145,7 +150,7 @@ public class NodeSink implements MessageSink
                                 lookup.apply(self).agent().onUncaughtException(t);
                             }
                         }
-                    });
+                    }, 1000 + random.nextInt(1000), TimeUnit.MILLISECONDS);
                 }
                 return false;
             case DROP_PARTITIONED:
