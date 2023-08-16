@@ -45,7 +45,10 @@ public class FrequentLargeRange implements LongGen
         else                         return small.nextLong(randomSource);
     }
 
-    public LongSupplier asSupplier(RandomSource randomSource) { return () -> nextLong(randomSource); }
+    public LongSupplier asSupplier(RandomSource randomSource)
+    { 
+        return () -> nextLong(randomSource);
+    }
 
     public static Builder builder(RandomSource randomSource)
     {

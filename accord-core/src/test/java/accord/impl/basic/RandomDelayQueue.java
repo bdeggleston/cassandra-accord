@@ -19,11 +19,11 @@
 package accord.impl.basic;
 
 import accord.burn.random.FrequentLargeRange;
-import accord.utils.Gen.LongGen;
 import accord.utils.RandomSource;
 
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 public class RandomDelayQueue implements PendingQueue
@@ -90,7 +90,8 @@ public class RandomDelayQueue implements PendingQueue
 
     final PriorityQueue<Item> queue = new PriorityQueue<>();
     final RandomSource random;
-    private final LongGen jitterInNano;
+    private final LongSupplier jitterInNano;
+
     long now;
     int seq;
 
@@ -100,7 +101,7 @@ public class RandomDelayQueue implements PendingQueue
         this.jitterInNano = FrequentLargeRange.builder(random)
                                               .small(0, 50, TimeUnit.MICROSECONDS)
                                               .large(50, TimeUnit.MICROSECONDS, 5, TimeUnit.MILLISECONDS)
-                                              .build();
+                                              .build().asSupplier(random);
     }
 
     @Override
@@ -120,7 +121,7 @@ public class RandomDelayQueue implements PendingQueue
     {
         if (delay < 0)
             throw new IllegalArgumentException("Delay must be positive or 0, but given " + delay);
-        queue.add(new Item(now + units.toMillis(delay) + TimeUnit.NANOSECONDS.toMillis(jitterInNano.nextLong(random)), seq++, item));
+        queue.add(new Item(now + units.toMillis(delay) + TimeUnit.NANOSECONDS.toMillis(jitterInNano.getAsLong()), seq++, item));
     }
 
     @Override

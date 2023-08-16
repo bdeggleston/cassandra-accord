@@ -41,7 +41,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import accord.burn.random.FrequentLargeRange;
-import accord.utils.Gen;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -203,12 +202,12 @@ public class BurnTest
 
         Supplier<LongSupplier> nowSupplier = () -> {
             RandomSource forked = random.fork();
-            Gen.LongGen jitter = FrequentLargeRange.builder(forked)
+            LongSupplier jitter = FrequentLargeRange.builder(forked)
                                                    .ratio(1, 5)
                                                    .small(50, 5000, TimeUnit.MICROSECONDS)
                                                    .large(1, 10, TimeUnit.MILLISECONDS)
-                                                   .build();
-            return () -> Math.max(0, queue.nowInMillis() + jitter.nextLong(forked));
+                                                   .build().asSupplier(forked);
+            return () -> Math.max(0, queue.nowInMillis() + jitter.getAsLong());
         };
 
         StrictSerializabilityVerifier strictSerializable = new StrictSerializabilityVerifier(keyCount);
