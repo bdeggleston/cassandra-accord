@@ -68,12 +68,6 @@ public class ListAgent implements Agent
     }
 
     @Override
-    public void onStaleRange(Ranges ranges, Runnable bootstrap)
-    {
-//        onStaleRange.accept(ranges, bootstrap);
-    }
-
-    @Override
     public void onUncaughtException(Throwable t)
     {
         // TODO (required, testing): ensure reported to runner
