@@ -18,7 +18,6 @@
 
 package accord.impl.list;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import accord.impl.mock.Network;

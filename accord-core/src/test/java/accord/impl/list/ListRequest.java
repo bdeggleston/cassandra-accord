@@ -22,7 +22,6 @@ import accord.api.Result;
 import accord.api.RoutingKey;
 import accord.coordinate.CheckShards;
 import accord.coordinate.CoordinationFailed;
-import accord.coordinate.Exhausted;
 import accord.coordinate.Invalidated;
 import accord.coordinate.Truncated;
 import accord.coordinate.Timeout;
