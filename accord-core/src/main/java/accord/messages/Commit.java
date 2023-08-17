@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import static accord.local.Status.Committed;
 import static accord.local.Status.Known.DefinitionAndRoute;
-import static accord.local.Status.Known.DefinitionOnly;
 
 public class Commit extends TxnRequest<ReadNack>
 {
