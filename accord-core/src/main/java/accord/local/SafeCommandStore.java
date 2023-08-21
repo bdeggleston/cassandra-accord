@@ -19,7 +19,9 @@
 package accord.local;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import accord.api.Agent;
 import accord.api.DataStore;
@@ -55,7 +57,7 @@ public abstract class SafeCommandStore
 {
     public interface CommandFunction<I, O>
     {
-        O apply(Seekable keyOrRange, TxnId txnId, Timestamp executeAt, I in);
+        O apply(Seekable keyOrRange, TxnId txnId, Timestamp executeAt, Status status, Supplier<List<TxnId>> depsSupplier, I in);
     }
 
     public enum TestTimestamp

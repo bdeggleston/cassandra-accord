@@ -136,7 +136,7 @@ public class CommandTimeseries<D>
             if (testDep != ANY_DEPS && (!status.known.deps.hasProposedOrDecidedDeps() || (deps.contains(depId) != (testDep == WITH))))
                 continue;
             Timestamp executeAt = loader.executeAt(data);
-            initialValue = map.apply(keyOrRange, txnId, executeAt, initialValue);
+            initialValue = map.apply(keyOrRange, txnId, executeAt, loader.status(data), () -> deps, initialValue);
             if (initialValue.equals(terminalValue))
                 break;
         }

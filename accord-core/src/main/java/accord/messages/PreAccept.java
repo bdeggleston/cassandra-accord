@@ -234,27 +234,18 @@ public class PreAccept extends WithUnsynced<PreAccept.PreAcceptReply> implements
 
     static PartialDeps calculatePartialDeps(SafeCommandStore commandStore, TxnId txnId, Seekables<?, ?> keys, Timestamp executeAt, Ranges ranges)
     {
-        try (PartialDeps.Builder builder = PartialDeps.builder(ranges))
-        {
-            return calculateDeps(commandStore, txnId, keys, executeAt, ranges, builder);
-        }
-    }
-
-    private static <T extends Deps> T calculateDeps(SafeCommandStore commandStore, TxnId txnId, Seekables<?, ?> keys, Timestamp executeAt, Ranges ranges, Deps.AbstractBuilder<T> builder)
-    {
+        FilteringDepsBuilder builder = new FilteringDepsBuilder(txnId);
         TestKind testKind = TestKind.conflicts(txnId.rw());
         // could use MAY_EXECUTE_BEFORE to prune those we know execute later.
         // NOTE: ExclusiveSyncPoint *relies* on STARTED_BEFORE to ensure it reports a dependency on *every* earlier TxnId that may execute after it.
         //       This is necessary for reporting to a bootstrapping replica which TxnId it must not prune from dependencies
         //       i.e. the source replica reports to the target replica those TxnId that STARTED_BEFORE and EXECUTES_AFTER.
         commandStore.mapReduce(keys, ranges, testKind, STARTED_BEFORE, executeAt, ANY_DEPS, null, null, null,
-                (keyOrRange, testTxnId, testExecuteAt, in) -> {
-                    // TODO (easy, efficiency): either pass txnId as parameter or encode this behaviour in a specialised builder to avoid extra allocations
-                    if (!testTxnId.equals(txnId))
-                        in.add(keyOrRange, testTxnId);
-                    return in;
-                }, builder, null);
-        return builder.build();
+                               (keyOrRange, testTxnId, testExecuteAt, status, deps, in) -> {
+                                   builder.add(testTxnId, keyOrRange, status, testExecuteAt, deps.get());
+                                   return in;
+                               }, builder, null);
+        return builder.buildPartialDeps(ranges);
     }
 
     /**

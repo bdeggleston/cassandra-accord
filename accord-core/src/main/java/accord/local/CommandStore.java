@@ -209,7 +209,7 @@ public abstract class CommandStore implements AgentExecutor
                                    SafeCommandStore.TestTimestamp.STARTED_AFTER, Timestamp.NONE,
                                    SafeCommandStore.TestDep.ANY_DEPS, null,
                                    Status.PreApplied, Status.Truncated,
-                                   (key, txnId, executeAt, max) -> Timestamp.max(max, executeAt),
+                                   (key, txnId, executeAt, status, deps, max) -> Timestamp.max(max, executeAt),
                                    Timestamp.NONE, Timestamp.MAX);
     }
 

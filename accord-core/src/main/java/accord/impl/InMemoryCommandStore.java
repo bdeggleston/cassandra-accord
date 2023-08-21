@@ -18,18 +18,7 @@
 
 package accord.impl;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Queue;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -78,7 +67,7 @@ import javax.annotation.Nullable;
 import static accord.local.Command.NotDefined.uninitialised;
 import static accord.local.SafeCommandStore.TestDep.ANY_DEPS;
 import static accord.local.SafeCommandStore.TestDep.WITH;
-import static accord.local.Status.Committed;
+import static accord.local.Status.*;
 import static accord.primitives.Routables.Slice.Minimal;
 
 public abstract class InMemoryCommandStore extends CommandStore
@@ -91,6 +80,7 @@ public abstract class InMemoryCommandStore extends CommandStore
 
     private final TreeMap<TxnId, RangeCommand> rangeCommands = new TreeMap<>();
     private final TreeMap<TxnId, Ranges> historicalRangeCommands = new TreeMap<>();
+
     protected Timestamp maxRedundant = Timestamp.NONE;
 
     private InMemorySafeStore current;
@@ -706,9 +696,35 @@ public abstract class InMemoryCommandStore extends CommandStore
             return commandStore.time;
         }
 
+        private static class TxnInfo
+        {
+            private final TxnId txnId;
+            private final Timestamp executeAt;
+            private final Status status;
+            private final List<TxnId> deps;
+
+            public TxnInfo(TxnId txnId, Timestamp executeAt, Status status, List<TxnId> deps)
+            {
+                this.txnId = txnId;
+                this.executeAt = executeAt;
+                this.status = status;
+                this.deps = deps;
+            }
+
+            public TxnInfo(Command command)
+            {
+                this.txnId = command.txnId();
+                this.executeAt = command.executeAt();
+                this.status = command.status();
+                PartialDeps deps = command.partialDeps();
+                this.deps = deps != null ? deps.txnIds() : Collections.emptyList();
+            }
+        }
+
         @Override
         public <T> T mapReduce(Seekables<?, ?> keysOrRanges, Ranges slice, TestKind testKind, TestTimestamp testTimestamp, Timestamp timestamp, TestDep testDep, @Nullable TxnId depId, @Nullable Status minStatus, @Nullable Status maxStatus, CommandFunction<T, T> map, T accumulate, T terminalValue)
         {
+
             accumulate = commandStore.mapReduceForKey(this, keysOrRanges, slice, (forKey, prev) -> {
                 CommandTimeseries<?> timeseries;
                 switch (testTimestamp)
@@ -742,7 +758,7 @@ public abstract class InMemoryCommandStore extends CommandStore
 
             // TODO (find lib, efficiency): this is super inefficient, need to store Command in something queryable
             Seekables<?, ?> sliced = keysOrRanges.slice(slice, Minimal);
-            Map<Range, List<Map.Entry<TxnId, Timestamp>>> collect = new TreeMap<>(Range::compare);
+            Map<Range, List<TxnInfo>> collect = new TreeMap<>(Range::compare);
             commandStore.rangeCommands.forEach(((txnId, rangeCommand) -> {
                 Command command = rangeCommand.command.value();
                 // TODO (now): probably this isn't safe - want to ensure we take dependency on any relevant syncId
@@ -791,9 +807,9 @@ public abstract class InMemoryCommandStore extends CommandStore
 
                 Routables.foldl(rangeCommand.ranges, sliced, (r, in, i) -> {
                     // TODO (easy, efficiency): pass command as a parameter to Fold
-                    List<Map.Entry<TxnId, Timestamp>> list = in.computeIfAbsent(r, ignore -> new ArrayList<>());
-                    if (list.isEmpty() || !list.get(list.size() - 1).getKey().equals(command.txnId()))
-                        list.add(new AbstractMap.SimpleImmutableEntry<>(command.txnId(), command.executeAt()));
+                    List<TxnInfo> list = in.computeIfAbsent(r, ignore -> new ArrayList<>());
+                    if (list.isEmpty() || !list.get(list.size() - 1).txnId.equals(command.txnId()))
+                        list.add(new TxnInfo(command));
                     return in;
                 }, collect);
             }));
@@ -822,20 +838,33 @@ public abstract class InMemoryCommandStore extends CommandStore
 
                     Routables.foldl(ranges, sliced, (r, in, i) -> {
                         // TODO (easy, efficiency): pass command as a parameter to Fold
-                        List<Map.Entry<TxnId, Timestamp>> list = in.computeIfAbsent(r, ignore -> new ArrayList<>());
-                        if (list.isEmpty() || !list.get(list.size() - 1).getKey().equals(txnId))
-                            list.add(new AbstractMap.SimpleImmutableEntry<>(txnId, txnId));
+                        List<TxnInfo> list = in.computeIfAbsent(r, ignore -> new ArrayList<>());
+                        if (list.isEmpty() || !list.get(list.size() - 1).txnId.equals(txnId))
+                        {
+                            GlobalCommand global = commandStore.commands.get(txnId);
+                            if (global != null && global.value() != null)
+                            {
+                                Command command = global.value();
+                                PartialDeps deps = command.partialDeps();
+                                List<TxnId> depsIds = deps != null ? deps.txnIds() : Collections.emptyList();
+                                list.add(new TxnInfo(txnId, txnId, command.status(), depsIds));
+                            }
+                            else
+                            {
+                                list.add(new TxnInfo(txnId, txnId, NotDefined, Collections.emptyList()));
+                            }
+                        }
                         return in;
                     }, collect);
                 }));
             }
 
-            for (Map.Entry<Range, List<Map.Entry<TxnId, Timestamp>>> e : collect.entrySet())
+            for (Map.Entry<Range, List<TxnInfo>> e : collect.entrySet())
             {
-                for (Map.Entry<TxnId, Timestamp> command : e.getValue())
+                for (TxnInfo command : e.getValue())
                 {
                     T initial = accumulate;
-                    accumulate = map.apply(e.getKey(), command.getKey(), command.getValue(), initial);
+                    accumulate = map.apply(e.getKey(), command.txnId, command.executeAt, command.status, () -> command.deps, initial);
                 }
             }
 

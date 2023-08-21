@@ -319,17 +319,14 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
 
     private static Deps acceptedStartedBeforeWithoutWitnessing(SafeCommandStore commandStore, TxnId startedBefore, Ranges ranges, Seekables<?, ?> keys)
     {
-        try (Deps.Builder builder = Deps.builder())
-        {
-            // any transaction that started
-            commandStore.mapReduce(keys, ranges, shouldHaveWitnessed(startedBefore.rw()), STARTED_BEFORE, startedBefore, WITHOUT, startedBefore, Accepted, PreCommitted,
-                    (keyOrRange, txnId, executeAt, prev) -> {
-                        if (executeAt.compareTo(startedBefore) > 0)
-                            builder.add(keyOrRange, txnId);
-                        return builder;
-                    }, builder, null);
-            return builder.build();
-        }
+        FilteringDepsBuilder builder = new FilteringDepsBuilder(startedBefore);
+        commandStore.mapReduce(keys, ranges, shouldHaveWitnessed(startedBefore.rw()), STARTED_BEFORE, startedBefore, WITHOUT, startedBefore, Accepted, PreCommitted,
+                               (keyOrRange, txnId, executeAt, status, deps, prev) -> {
+                                   if (executeAt.compareTo(startedBefore) > 0)
+                                       builder.add(txnId, keyOrRange, status, executeAt, deps.get());
+                                   return builder;
+                               }, builder, null);
+        return builder.buildDeps();
     }
 
     private static Deps committedStartedBeforeAndWitnessed(SafeCommandStore commandStore, TxnId startedBefore, Ranges ranges, Seekables<?, ?> keys)
@@ -337,7 +334,7 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
         try (Deps.Builder builder = Deps.builder())
         {
             commandStore.mapReduce(keys, ranges, shouldHaveWitnessed(startedBefore.rw()), STARTED_BEFORE, startedBefore, WITH, startedBefore, Committed, null,
-                    (keyOrRange, txnId, executeAt, prev) -> builder.add(keyOrRange, txnId), (Deps.AbstractBuilder<Deps>)builder, null);
+                    (keyOrRange, txnId, executeAt, status, deps, prev) -> builder.add(keyOrRange, txnId), (Deps.AbstractBuilder<Deps>)builder, null);
             return builder.build();
         }
     }
@@ -352,7 +349,7 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
          * has not witnessed us we can safely invalidate (us).
          */
         return commandStore.mapReduce(keys, ranges, shouldHaveWitnessed(startedAfter.rw()), STARTED_AFTER, startedAfter, WITHOUT, startedAfter, Accepted, PreCommitted,
-                (keyOrRange, txnId, executeAt, prev) -> true, false, true);
+                (keyOrRange, txnId, executeAt, status, deps, prev) -> true, false, true);
     }
 
     private static boolean hasCommittedExecutesAfterWithoutWitnessing(SafeCommandStore commandStore, TxnId startedAfter, Ranges ranges, Seekables<?, ?> keys)
@@ -365,6 +362,6 @@ public class BeginRecovery extends TxnRequest<BeginRecovery.RecoverReply>
          * has not witnessed us we can safely invalidate it.
          */
         return commandStore.mapReduce(keys, ranges, shouldHaveWitnessed(startedAfter.rw()), EXECUTES_AFTER, startedAfter, WITHOUT, startedAfter, Committed, null,
-                (keyOrRange, txnId, executeAt, prev) -> true,false, true);
+                (keyOrRange, txnId, executeAt, status, deps, prev) -> true,false, true);
     }
 }
