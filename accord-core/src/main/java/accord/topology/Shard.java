@@ -68,7 +68,7 @@ public class Shard
     }
 
     @VisibleForTesting
-    static int maxToleratedFailures(int replicas)
+    public static int maxToleratedFailures(int replicas)
     {
         return (replicas - 1) / 2;
     }
