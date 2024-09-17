@@ -17,10 +17,7 @@
  */
 package accord.local;
 
-import javax.annotation.Nonnull;
-
 import accord.api.RoutingKey;
-import accord.primitives.AbstractRanges;
 import accord.primitives.Routables;
 import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
@@ -41,11 +38,6 @@ public class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
         super(inclusiveEnds, tree);
     }
 
-    public Timestamp get(Seekables<?, ?> keysOrRanges)
-    {
-        return foldl(keysOrRanges, Timestamp::max, Timestamp.NONE);
-    }
-
     public Timestamp get(Routables<?> keysOrRanges)
     {
         return foldl(keysOrRanges, Timestamp::max, Timestamp.NONE);
@@ -53,28 +45,11 @@ public class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
 
     MaxConflicts update(Seekables<?, ?> keysOrRanges, Timestamp maxConflict)
     {
-        return merge(this, create(keysOrRanges, maxConflict));
-    }
-
-    public static MaxConflicts create(AbstractRanges ranges, @Nonnull Timestamp maxConflict)
-    {
-        if (ranges.isEmpty())
-            return EMPTY;
-
-        return create(ranges, maxConflict, Builder::new);
-    }
-
-    public static MaxConflicts create(Seekables<?, ?> keysOrRanges, @Nonnull Timestamp maxConflict)
-    {
         if (keysOrRanges.isEmpty())
-            return MaxConflicts.EMPTY;
+            return this;
 
-        return create(keysOrRanges, maxConflict, Builder::new);
-    }
-
-    public static MaxConflicts merge(MaxConflicts a, MaxConflicts b)
-    {
-        return merge(a, b, Timestamp::max, MaxConflicts.Builder::new);
+        // TODO (now): update in-place
+        return merge(this, create(keysOrRanges, maxConflict, Builder::new), Timestamp::max, Builder::new);
     }
 
     static class Builder extends AbstractBoundariesBuilder<RoutingKey, Timestamp, MaxConflicts>
