@@ -20,7 +20,10 @@ package accord.utils;
 import accord.api.RoutingKey;
 import accord.primitives.*;
 import accord.utils.btree.BTree;
+import accord.utils.btree.BTreeRemoval;
+import accord.utils.btree.UpdateFunction;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.function.BiFunction;
@@ -407,6 +410,137 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
     public static <V> BTreeReducingRangeMap<V> merge(BTreeReducingRangeMap<V> historyLeft, BTreeReducingRangeMap<V> historyRight, BiFunction<V, V, V> reduce)
     {
         return BTreeReducingIntervalMap.merge(historyLeft, historyRight, reduce, BTreeReducingRangeMap.Builder::new);
+    }
+
+    /**
+     *  Update the range map retaining as much of the underlying BTree as possible
+     */
+    public static <M extends BTreeReducingRangeMap<V>, V> M update(
+        M map, Seekables<?, ?> keysOrRanges, V value, BiFunction<V, V, V> valueResolver,
+        BiFunction<Boolean, Object[], M> factory, BoundariesBuilderFactory<RoutingKey, V, M> builderFactory)
+    {
+        if (keysOrRanges.isEmpty())
+            return map;
+
+        if (map.isEmpty())
+            return create(keysOrRanges, value, builderFactory);
+
+        if (map.inclusiveEnds() != keysOrRanges.get(0).toUnseekable().asRange().endInclusive())
+            throw new IllegalStateException("Mismatching bound inclusivity/exclusivity - can't be updated");
+
+        return update(map, keysOrRanges, value, valueResolver, factory);
+    }
+
+    private static <M extends BTreeReducingRangeMap<V>, V> M update(
+            M map, Seekables<?,?> keysOrRanges, V value, BiFunction<V, V, V> valueResolver, BiFunction<Boolean, Object[], M> factory)
+    {
+        int treeSize = BTree.size(map.tree);
+
+        BTree.Builder<Entry<RoutingKey, V>> builder = BTree.builder(Comparator.naturalOrder());
+
+        ArrayList<Entry<RoutingKey, V>> toRemove = new ArrayList<>();
+        boolean updatedEndEntry = false;
+
+        Range thisRange, nextRange = null;
+        for (int i = 0, rangesSize = keysOrRanges.size(); i < rangesSize; ++i)
+        {
+            thisRange = i == 0 ? keysOrRanges.get(i).toUnseekable().asRange() : nextRange;
+            nextRange = i < rangesSize - 1 ? keysOrRanges.get(i + 1).toUnseekable().asRange() : null;
+
+            int startIdx = BTree.findIndex(map.tree, Comparator.naturalOrder(), Entry.make(thisRange.start()));
+            int   endIdx = BTree.findIndex(map.tree, Comparator.naturalOrder(), Entry.make(thisRange.end()));
+
+            int startIns = startIdx >= 0 ? startIdx : -1 - startIdx;
+            int   endIns =   endIdx >= 0 ?   endIdx : -1 - endIdx;
+
+            boolean isRangeOpen = false;
+
+            if (startIdx < 0) // if we start on an existing bound, we don't have to do anything *here*
+            {
+                if (startIns == 0) // insert before first map entry
+                {
+                    builder.add(Entry.make(thisRange.start(), value));
+                    isRangeOpen = true;
+                }
+                else if (startIns == treeSize) // inserting past last map entry
+                {
+                    // when adding past current end, need to update the very last entry from having no value to having value = null
+                    if (!updatedEndEntry)
+                    {
+                        builder.add(Entry.make(map.startAt(treeSize - 1), null));
+                        updatedEndEntry = true;
+                    }
+                    builder.add(Entry.make(thisRange.start(), value));
+                    isRangeOpen = true;
+                }
+                else // start within the current map bounds
+                {
+                    // split the range we start in if our value is higher than the range's
+                    if (supersedes(map.entryAt(startIns - 1), value, valueResolver))
+                    {
+                        builder.add(Entry.make(thisRange.start(), value));
+                        isRangeOpen = true;
+                    }
+                }
+            }
+
+            if (startIns < endIns)
+            {
+                Iterator<Entry<RoutingKey, V>> iter = BTree.iterator(map.tree, startIns, endIns - 1, BTree.Dir.ASC);
+                while (iter.hasNext())
+                {
+                    Entry<RoutingKey, V> entry = iter.next();
+                    boolean supersedes = supersedes(entry, value, valueResolver);
+                    if (supersedes)
+                    {
+                        if (isRangeOpen) toRemove.add(entry);
+                        else builder.add(Entry.make(entry.start(), value));
+                    }
+                    isRangeOpen = supersedes;
+                }
+            }
+
+            if (endIdx < 0) // if we end on an existing bound, we don't have to do anything here
+            {
+                if (endIns == 0) // range ends before first entry in the map
+                {
+                    // insert thisRange.end() unless nextRange starts with thisRange.end()
+                    if (nextRange == null || thisRange.end().compareTo(nextRange.start()) != 0)
+                        builder.add(Entry.make(thisRange.end(), null));
+                }
+                else if (endIns == treeSize) // range ends after last entry in the map
+                {
+                    if (nextRange == null) // no more ranges to add, cap the map off
+                        builder.add(Entry.make(thisRange.end()));
+                    else if (thisRange.end().compareTo(nextRange.start()) != 0) // next one starts after this ends, need to insert bound end
+                        builder.add(Entry.make(thisRange.end(), null));
+
+                    updatedEndEntry = true;
+                }
+                else // ends between two existing map bounds
+                {
+                    // split the range we end in if our value is higher than the range's
+                    if (isRangeOpen) builder.add(Entry.make(thisRange.end(), map.valueAt(endIns - 1)));
+                }
+            }
+        }
+
+        Object[] tree = map.tree;
+
+        for (Entry<RoutingKey, V> entry : toRemove)
+            tree = BTreeRemoval.remove(tree, Comparator.naturalOrder(), entry);
+
+        if (!builder.isEmpty())
+            tree = BTree.update(tree, builder.build(), Comparator.<Entry<RoutingKey, V>>naturalOrder(), UpdateFunction.noOpReplace());
+
+        return map.tree == tree ? map : factory.apply(map.inclusiveEnds(), tree);
+    }
+
+    private static <V> boolean supersedes(Entry<RoutingKey, V> entry, V value, BiFunction<V, V, V> resolver)
+    {
+        return !entry.hasValue()
+            || (entry.value() == null && value != null)
+            || (entry.value() != null && value != null && resolver.apply(entry.value(), value).equals(value));
     }
 
     static class Builder<V> extends AbstractBoundariesBuilder<RoutingKey, V, BTreeReducingRangeMap<V>>

@@ -97,7 +97,7 @@ public class BTreeReducingIntervalMap<K extends Comparable<? super K>, V>
         return valueAt(idx);
     }
 
-    private int findIndex(K key)
+    protected int findIndex(K key)
     {
         int idx = BTree.findIndex(tree, Comparator.naturalOrder(), Entry.make(key));
         if (idx < 0) idx = -2 - idx;
@@ -170,7 +170,7 @@ public class BTreeReducingIntervalMap<K extends Comparable<? super K>, V>
                    .append(iter.start())
                    .append(',')
                    .append(iter.end())
-                   .append(inclusiveEnds() ? ']' : '(')
+                   .append(inclusiveEnds() ? ']' : ')')
                    .append('=')
                    .append(iter.value());
 
@@ -208,12 +208,12 @@ public class BTreeReducingIntervalMap<K extends Comparable<? super K>, V>
             this.hasValue = hasValue;
         }
 
-        static <K extends Comparable<? super K>, V> Entry<K, V> make(K start)
+        public static <K extends Comparable<? super K>, V> Entry<K, V> make(K start)
         {
             return new Entry<>(start, null, false);
         }
 
-        static <K extends Comparable<? super K>, V> Entry<K, V> make(K start, V value)
+        public static <K extends Comparable<? super K>, V> Entry<K, V> make(K start, V value)
         {
             return new Entry<>(start, value, true);
         }

@@ -24,7 +24,7 @@ import accord.primitives.Timestamp;
 import accord.utils.BTreeReducingRangeMap;
 
 // TODO (expected): track read/write conflicts separately
-public class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
+class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
 {
     public static final MaxConflicts EMPTY = new MaxConflicts();
 
@@ -38,21 +38,17 @@ public class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
         super(inclusiveEnds, tree);
     }
 
-    public Timestamp get(Routables<?> keysOrRanges)
+    Timestamp get(Routables<?> keysOrRanges)
     {
         return foldl(keysOrRanges, Timestamp::max, Timestamp.NONE);
     }
 
-    MaxConflicts update(Seekables<?, ?> keysOrRanges, Timestamp maxConflict)
+    public MaxConflicts update(Seekables<?, ?> keysOrRanges, Timestamp maxConflict)
     {
-        if (keysOrRanges.isEmpty())
-            return this;
-
-        // TODO (now): update in-place
-        return merge(this, create(keysOrRanges, maxConflict, Builder::new), Timestamp::max, Builder::new);
+        return update(this, keysOrRanges, maxConflict, Timestamp::max, MaxConflicts::new, Builder::new);
     }
 
-    static class Builder extends AbstractBoundariesBuilder<RoutingKey, Timestamp, MaxConflicts>
+    private static class Builder extends AbstractBoundariesBuilder<RoutingKey, Timestamp, MaxConflicts>
     {
         protected Builder(boolean inclusiveEnds, int capacity)
         {
