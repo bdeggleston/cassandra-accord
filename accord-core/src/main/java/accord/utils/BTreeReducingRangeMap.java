@@ -434,11 +434,10 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
     private static <M extends BTreeReducingRangeMap<V>, V> M update(
             M map, Seekables<?,?> keysOrRanges, V value, BiFunction<V, V, V> valueResolver, BiFunction<Boolean, Object[], M> factory)
     {
-        int treeSize = BTree.size(map.tree);
-
-        BTree.Builder<Entry<RoutingKey, V>> builder = BTree.builder(Comparator.naturalOrder());
-
+        BTree.Builder<Entry<RoutingKey, V>> toAdd = BTree.builder(Comparator.naturalOrder(), keysOrRanges.size() * 2 + 1);
         ArrayList<Entry<RoutingKey, V>> toRemove = new ArrayList<>();
+
+        int treeSize = BTree.size(map.tree);
         boolean updatedEndEntry = false;
 
         Range thisRange, nextRange = null;
@@ -459,7 +458,7 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
             {
                 if (startIns == 0) // insert before first map entry
                 {
-                    builder.add(Entry.make(thisRange.start(), value));
+                    toAdd.add(Entry.make(thisRange.start(), value));
                     isRangeOpen = true;
                 }
                 else if (startIns == treeSize) // inserting past last map entry
@@ -467,10 +466,10 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
                     // when adding past current end, need to update the very last entry from having no value to having value = null
                     if (!updatedEndEntry)
                     {
-                        builder.add(Entry.make(map.startAt(treeSize - 1), null));
+                        toAdd.add(Entry.make(map.startAt(treeSize - 1), null));
                         updatedEndEntry = true;
                     }
-                    builder.add(Entry.make(thisRange.start(), value));
+                    toAdd.add(Entry.make(thisRange.start(), value));
                     isRangeOpen = true;
                 }
                 else // start within the current map bounds
@@ -478,7 +477,7 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
                     // split the range we start in if our value is higher than the range's
                     if (supersedes(map.entryAt(startIns - 1), value, valueResolver))
                     {
-                        builder.add(Entry.make(thisRange.start(), value));
+                        toAdd.add(Entry.make(thisRange.start(), value));
                         isRangeOpen = true;
                     }
                 }
@@ -494,7 +493,7 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
                     if (supersedes)
                     {
                         if (isRangeOpen) toRemove.add(entry);
-                        else builder.add(Entry.make(entry.start(), value));
+                        else toAdd.add(Entry.make(entry.start(), value));
                     }
                     isRangeOpen = supersedes;
                 }
@@ -506,21 +505,21 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
                 {
                     // insert thisRange.end() unless nextRange starts with thisRange.end()
                     if (nextRange == null || thisRange.end().compareTo(nextRange.start()) != 0)
-                        builder.add(Entry.make(thisRange.end(), null));
+                        toAdd.add(Entry.make(thisRange.end(), null));
                 }
                 else if (endIns == treeSize) // range ends after last entry in the map
                 {
                     if (nextRange == null) // no more ranges to add, cap the map off
-                        builder.add(Entry.make(thisRange.end()));
+                        toAdd.add(Entry.make(thisRange.end()));
                     else if (thisRange.end().compareTo(nextRange.start()) != 0) // next one starts after this ends, need to insert bound end
-                        builder.add(Entry.make(thisRange.end(), null));
+                        toAdd.add(Entry.make(thisRange.end(), null));
 
                     updatedEndEntry = true;
                 }
                 else // ends between two existing map bounds
                 {
                     // split the range we end in if our value is higher than the range's
-                    if (isRangeOpen) builder.add(Entry.make(thisRange.end(), map.valueAt(endIns - 1)));
+                    if (isRangeOpen) toAdd.add(Entry.make(thisRange.end(), map.valueAt(endIns - 1)));
                 }
             }
         }
@@ -530,8 +529,8 @@ public class BTreeReducingRangeMap<V> extends BTreeReducingIntervalMap<RoutingKe
         for (Entry<RoutingKey, V> entry : toRemove)
             tree = BTreeRemoval.remove(tree, Comparator.naturalOrder(), entry);
 
-        if (!builder.isEmpty())
-            tree = BTree.update(tree, builder.build(), Comparator.<Entry<RoutingKey, V>>naturalOrder(), UpdateFunction.noOpReplace());
+        if (!toAdd.isEmpty())
+            tree = BTree.update(tree, toAdd.build(), Comparator.<Entry<RoutingKey, V>>naturalOrder(), UpdateFunction.noOpReplace());
 
         return map.tree == tree ? map : factory.apply(map.inclusiveEnds(), tree);
     }
