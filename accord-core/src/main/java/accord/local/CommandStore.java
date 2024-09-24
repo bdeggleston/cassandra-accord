@@ -290,7 +290,9 @@ public abstract class CommandStore implements AgentExecutor
         if (keysOrRanges == null) return;
         if (prev != null && prev.executeAt() != null && prev.executeAt().compareTo(executeAt) >= 0) return;
 
-        setMaxConflicts(maxConflicts.update(keysOrRanges, executeAt));
+        long pruneHlc = executeAt.hlc() - agent.maxConflictsHlcPruneDelta();
+        Timestamp pruneBefore = pruneHlc > 0 ? Timestamp.fromValues(executeAt.epoch(), pruneHlc, executeAt.node) : null;
+        setMaxConflicts(maxConflicts.update(keysOrRanges, executeAt, pruneBefore));
     }
 
     /**

@@ -35,7 +35,7 @@ public class MaxConflictsTest
         MaxConflicts empty =
             MaxConflicts.EMPTY;
         MaxConflicts updated =
-            empty.update(Key.keys(5, 10, 15), ts(1));
+            empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
 
         assertEquals(ts(1), updated.get(rk(5)));
         assertEquals(ts(1), updated.get(rk(10)));
@@ -53,9 +53,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(new int[0]), ts(1));
+                updated.update(Key.keys(new int[0]), ts(1), Timestamp.NONE);
 
         assertSame(updated, updatedAgain);
     }
@@ -65,12 +65,12 @@ public class MaxConflictsTest
     {
         MaxConflicts conflicts = MaxConflicts.EMPTY;
 
-        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2));
-        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4));
-        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6));
-        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8));
+        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8), Timestamp.NONE);
 
-        conflicts = conflicts.update(Ranges.of(range(0, 22)), ts(3));
+        conflicts = conflicts.update(Ranges.of(range(0, 22)), ts(3), Timestamp.NONE);
 
         assertEquals(ts(3), conflicts.get(rk(2)));
         assertEquals(ts(3), conflicts.get(rk(5)));
@@ -89,12 +89,12 @@ public class MaxConflictsTest
     {
         MaxConflicts conflicts = MaxConflicts.EMPTY;
 
-        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2));
-        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4));
-        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6));
-        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8));
+        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8), Timestamp.NONE);
 
-        conflicts = conflicts.update(Ranges.of(range(0, 45)), ts(5));
+        conflicts = conflicts.update(Ranges.of(range(0, 45)), ts(5), Timestamp.NONE);
 
         assertEquals(ts(5), conflicts.get(rk(0)));
         assertEquals(ts(5), conflicts.get(rk(7)));
@@ -113,12 +113,12 @@ public class MaxConflictsTest
     {
         MaxConflicts conflicts = MaxConflicts.EMPTY;
 
-        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2));
-        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4));
-        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6));
-        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8));
+        conflicts = conflicts.update(Ranges.of(range(5,  10)), ts(2), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(15, 20)), ts(4), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(25, 30)), ts(6), Timestamp.NONE);
+        conflicts = conflicts.update(Ranges.of(range(35, 40)), ts(8), Timestamp.NONE);
 
-        conflicts = conflicts.update(Ranges.of(range(12, 32)), ts(5));
+        conflicts = conflicts.update(Ranges.of(range(12, 32)), ts(5), Timestamp.NONE);
 
         assertEquals(ts(2), conflicts.get(rk(7)));
         assertEquals(null,  conflicts.get(rk(11)));
@@ -136,9 +136,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Ranges.of(range(0,2), range(2,4)), ts(2));
+                updated.update(Ranges.of(range(0,2), range(2,4)), ts(2), Timestamp.NONE);
 
         assertEquals(ts(1), updatedAgain.get(rk(5)));
         assertEquals(ts(1), updatedAgain.get(rk(10)));
@@ -156,9 +156,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(16), ts(2));
+                updated.update(Key.keys(16), ts(2), Timestamp.NONE);
 
         assertEquals(ts(1), updatedAgain.get(rk(5)));
         assertEquals(ts(1), updatedAgain.get(rk(10)));
@@ -172,9 +172,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(5, 10, 15), ts(2));
+                updated.update(Key.keys(5, 10, 15), ts(2), Timestamp.NONE);
 
         assertEquals(ts(2), updatedAgain.get(rk(5)));
         assertEquals(ts(2), updatedAgain.get(rk(10)));
@@ -187,9 +187,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(7, 12, 17), ts(2));
+                updated.update(Key.keys(7, 12, 17), ts(2), Timestamp.NONE);
 
         assertEquals(ts(1), updatedAgain.get(rk(5)));
         assertEquals(ts(1), updatedAgain.get(rk(10)));
@@ -206,9 +206,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(5, 7, 10, 12, 15, 17), ts(2));
+                updated.update(Key.keys(5, 7, 10, 12, 15, 17), ts(2), Timestamp.NONE);
 
         assertEquals(ts(2), updatedAgain.get(rk(5)));
         assertEquals(ts(2), updatedAgain.get(rk(10)));
@@ -225,9 +225,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(4, 9, 14), ts(2));
+                updated.update(Key.keys(4, 9, 14), ts(2), Timestamp.NONE);
 
         assertEquals(ts(1), updatedAgain.get(rk(5)));
         assertEquals(ts(1), updatedAgain.get(rk(10)));
@@ -244,9 +244,9 @@ public class MaxConflictsTest
         MaxConflicts empty =
                 MaxConflicts.EMPTY;
         MaxConflicts updated =
-                empty.update(Key.keys(5, 10, 15), ts(1));
+                empty.update(Key.keys(5, 10, 15), ts(1), Timestamp.NONE);
         MaxConflicts updatedAgain =
-                updated.update(Key.keys(6, 11, 16), ts(2));
+                updated.update(Key.keys(6, 11, 16), ts(2), Timestamp.NONE);
 
         assertEquals(ts(1), updatedAgain.get(rk(5)));
         assertEquals(ts(1), updatedAgain.get(rk(10)));

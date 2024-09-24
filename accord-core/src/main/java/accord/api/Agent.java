@@ -100,6 +100,16 @@ public interface Agent extends UncaughtExceptionListener
     int cfkPruneInterval();
 
     /**
+     * Controls pruning of MaxConflicts
+     *
+     * The timestamp delta between a timestamp being added to MaxConflicts and the minimum timestamp we
+     * want to maintain granular max conflict data for. A smaller value minimizes the amount of memory taken
+     * for granular maxConflicts data. A larger value minimizes the number of unneccesary fast path rejections,
+     * within the bounds of inter-node clock drift and messaging latencies.
+     */
+    long maxConflictsHlcPruneDelta();
+
+    /**
      * Create an empty transaction that Accord can use for its own internal transactions.
      */
     Txn emptySystemTxn(Txn.Kind kind, Seekables<?, ?> keysOrRanges);
