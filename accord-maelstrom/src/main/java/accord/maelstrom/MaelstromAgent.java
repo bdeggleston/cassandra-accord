@@ -97,6 +97,12 @@ public class MaelstromAgent implements Agent
     }
 
     @Override
+    public long maxConflictsPruneInterval()
+    {
+        return 0;
+    }
+
+    @Override
     public int cfkPruneInterval()
     {
         return 1;

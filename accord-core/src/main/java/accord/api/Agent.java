@@ -110,6 +110,13 @@ public interface Agent extends UncaughtExceptionListener
     long maxConflictsHlcPruneDelta();
 
     /**
+     * Controls pruning of MaxConflicts
+     *
+     * Every n updates, max conflicts is pruned to the delta, where n is the value returned by this method
+     */
+    long maxConflictsPruneInterval();
+
+    /**
      * Create an empty transaction that Accord can use for its own internal transactions.
      */
     Txn emptySystemTxn(Txn.Kind kind, Seekables<?, ?> keysOrRanges);

@@ -143,6 +143,12 @@ public class TestAgent implements Agent
     }
 
     @Override
+    public long maxConflictsPruneInterval()
+    {
+        return 0;
+    }
+
+    @Override
     public Txn emptySystemTxn(Txn.Kind kind, Seekables<?, ?> keysOrRanges)
     {
         return new Txn.InMemory(kind, keysOrRanges, MockStore.read(Keys.EMPTY), MockStore.QUERY, null);

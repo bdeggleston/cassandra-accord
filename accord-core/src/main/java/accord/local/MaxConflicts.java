@@ -23,7 +23,6 @@ import accord.primitives.Seekables;
 import accord.primitives.Timestamp;
 import accord.utils.BTreeReducingRangeMap;
 
-import java.util.function.BiFunction;
 
 // TODO (expected): track read/write conflicts separately
 class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
@@ -45,13 +44,9 @@ class MaxConflicts extends BTreeReducingRangeMap<Timestamp>
         return foldl(keysOrRanges, Timestamp::max, Timestamp.NONE);
     }
 
-    public MaxConflicts update(Seekables<?, ?> keysOrRanges, Timestamp maxConflict, Timestamp purgeBefore)
+    public MaxConflicts update(Seekables<?, ?> keysOrRanges, Timestamp maxConflict)
     {
-        BiFunction<Timestamp, Timestamp, Timestamp> reduce = (ta, tb) -> {
-            Timestamp max = Timestamp.max(ta, tb);
-            return Timestamp.max(max, purgeBefore);
-        };
-        return update(this, keysOrRanges, maxConflict, reduce, MaxConflicts::new, Builder::new);
+        return update(this, keysOrRanges, maxConflict, Timestamp::max, MaxConflicts::new, Builder::new);
     }
 
     private static class Builder extends AbstractBoundariesBuilder<RoutingKey, Timestamp, MaxConflicts>
